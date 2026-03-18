@@ -1,14 +1,16 @@
 # Agentic Malware Analysis
 
-Kali-based Docker environment for agentic malware analysis, combining 50+ reverse-engineering tools, a structured analysis orchestrator skill, and MCP-connected disassembler backends ([Binary Ninja][binary-ninja-headless-mcp] or [Ghidra][ghidra-headless-mcp]). Ready for [Claude Code][claude-code] and [Codex CLI][codex-cli].
+Automated deep malware reverse engineering driven by AI agents. A Kali-based Docker environment pairs 50+ RE tools with MCP-connected disassembler backends ([Binary Ninja][binary-ninja-headless-mcp] or [Ghidra][ghidra-headless-mcp]) and a structured multi-phase orchestrator skill that turns a raw binary into a case directory of ranked evidence, validated hypotheses, component maps, and a prioritized deep-analysis plan -- with no human interaction required. Ready for [Claude Code][claude-code] and [Codex CLI][codex-cli].
 
 See the companion blog post [Building a Pipeline for Agentic Malware Analysis][blog-post] for background, a case study, and evaluation.
 
 ## Why
 
-Agents can already drive meaningful parts of a malware analysis workflow: they identify strings, resolve imports, recognize API patterns, and produce a first triage that covers the obvious functionality of a sample. However, the quality of the result depends heavily on the environment, the available tooling, and the guidance the agent receives. Without a proper reverse-engineering toolkit, access to a disassembler, and a structured workflow, the analysis stays shallow and misses the deeper logic that matters most -- command dispatch, protocol internals, cryptographic routines, hardcoded configuration, and evasion techniques.
+Initial malware analysis involves a number of routine steps: collecting hashes and compiler artifacts, extracting strings, inspecting imports, running YARA and capa, correlating the results, and identifying code areas for closer inspection. These steps provide the basis for deeper analysis, but they are often repetitive and time-consuming.
 
-This repository provides a purpose-built environment that gives agents what they need to go significantly further. A Kali-based Docker container ships 50+ RE tools alongside MCP-connected disassembler backends (Binary Ninja or Ghidra), so the agent can disassemble, decompile, follow cross-references, and inspect binary structure directly. A structured orchestrator skill guides the analysis through defined phases -- from fingerprinting and signal ranking through hypothesis generation to deep analysis planning and reporting -- with persistent per-sample case state written to disk at every stage. This means findings survive context-window compaction, the agent can resume after resets, and each phase builds on verified intermediate artifacts rather than fading conversation history.
+This repository automates much of that workflow. The orchestrator skill collects and organizes analysis artifacts, highlights relevant signals, generates evidence-backed hypotheses, builds a basic component model, and prepares a prioritized deep-analysis plan. All intermediate results are stored in a per-sample case directory on disk, making the workflow easier to resume and review.
+
+Via MCP, the agent can also use Binary Ninja or Ghidra to inspect functions, follow cross-references, and tie findings to concrete code locations. The result is a structured starting point for follow-up analysis rather than ad hoc triage alone.
 
 ## Features
 
