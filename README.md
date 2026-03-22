@@ -314,19 +314,6 @@ Four rule sets from [Yara-Rules/rules][yara-rules] (GPL-2.0):
 
 Note: `mcp/` is cloned at runtime and is not part of the repository.
 
-## Blog Posts
-
-The `blogs/` directory contains the companion blog post and reference material:
-
-- **Building a Pipeline for Agentic Malware Analysis** -- the main post covering the approach, case study, and evaluation
-- Automated Detection of Control-flow Flattening
-- Introduction to Control-flow Graph Analysis
-- Automation in Reverse Engineering: String Decryption
-- Automated Detection of Obfuscated Code
-- Writing Disassemblers for VM-based Obfuscators
-- Practical MBA Deobfuscation with msynth
-- Statistical Analysis to Detect Uncommon Code
-- Identification of API Functions in Binaries
 
 ## Limitations
 
