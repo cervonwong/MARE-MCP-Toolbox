@@ -68,13 +68,33 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (populated during roadmap creation) | | |
+| IDA-01 | Phase 1 | Pending |
+| IDA-02 | Phase 1 | Pending |
+| IDA-03 | Phase 1 | Pending |
+| IDA-04 | Phase 1 | Pending |
+| IDA-05 | Phase 1 | Pending |
+| IDA-06 | Phase 1 | Pending |
+| GW-01 | Phase 2 | Pending |
+| GW-02 | Phase 2 | Pending |
+| GW-03 | Phase 2 | Pending |
+| GW-04 | Phase 2 | Pending |
+| GW-05 | Phase 2 | Pending |
+| GW-06 | Phase 2 | Pending |
+| CLI-01 | Phase 4 | Pending |
+| CLI-02 | Phase 4 | Pending |
+| CLI-03 | Phase 4 | Pending |
+| CLI-04 | Phase 4 | Pending |
+| INF-01 | Phase 3 | Pending |
+| INF-02 | Phase 3 | Pending |
+| INF-03 | Phase 1 | Pending |
+| INF-04 | Phase 1 | Pending |
+| INF-05 | Phase 3 | Pending |
 
 **Coverage:**
-- v1 requirements: 20 total
-- Mapped to phases: 0
-- Unmapped: 20 ⚠️
+- v1 requirements: 21 total
+- Mapped to phases: 21
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-08*
-*Last updated: 2026-04-08 after initial definition*
+*Last updated: 2026-04-08 after roadmap creation*
