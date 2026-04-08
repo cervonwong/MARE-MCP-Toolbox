@@ -26,14 +26,14 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Success Criteria** (what must be TRUE):
   1. Building the container with `INSTALL_IDA_PRO=1` and a valid IDA zip produces a working IDA Pro installation with no license artifacts in intermediate Docker layers
   2. An agent inside the container can invoke IDA Pro MCP tools (disassemble, decompile, list functions) via stdio transport on a test binary
-  3. The fallback chain (BN > IDA > Ghidra) activates the correct backend based on what is installed, verified by `configure-agent-mcp.sh` output
+  3. The fallback chain (IDA > BN > Ghidra) activates the correct backend based on what is installed, verified by `configure-agent-mcp.sh` output
   4. All three disassembler APIs (Binary Ninja, IDA Pro, Ghidra) coexist without Python import errors or version conflicts
   5. IDA Pro license persists across container restarts via host bind mount to `~/.idapro/`
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md -- Dockerfile IDA Pro multi-stage build, run_docker.sh zip detection and license seeding, compose.yaml volume mount
+- [ ] 01-02-PLAN.md -- configure-agent-mcp.sh three-way backend detection (IDA > BN > Ghidra)
 
 ### Phase 2: MCP Gateway
 **Goal**: A curated set of orchestrator-level analysis tools is accessible over Streamable HTTP with bearer token authentication
@@ -85,7 +85,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. IDA Pro Backend | 0/0 | Not started | - |
+| 1. IDA Pro Backend | 0/2 | Planned | - |
 | 2. MCP Gateway | 0/0 | Not started | - |
 | 3. Container Integration | 0/0 | Not started | - |
 | 4. External Client Integration | 0/0 | Not started | - |
