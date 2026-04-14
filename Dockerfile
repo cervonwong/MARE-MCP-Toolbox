@@ -1,10 +1,33 @@
 # syntax=docker/dockerfile:1.7
+
+# --- IDA Pro builder stage (disposable -- extracts installer, keeps only /opt/ida-pro) ---
+FROM kalilinux/kali-rolling:latest AS ida-builder
+ARG INSTALL_IDA_PRO=0
+RUN --mount=type=bind,from=ida-stage,target=/tmp/ida-stage \
+    set -eux; \
+    if [ "${INSTALL_IDA_PRO}" != "1" ]; then mkdir -p /opt/ida-pro; exit 0; fi; \
+    apt-get update && apt-get install -y --no-install-recommends unzip && rm -rf /var/lib/apt/lists/*; \
+    zipfile="$(find /tmp/ida-stage -maxdepth 1 -name '*.zip' -print -quit)"; \
+    if [ -z "${zipfile}" ]; then echo "INSTALL_IDA_PRO=1 but no zip found in ida-stage context" >&2; exit 1; fi; \
+    tmpdir="$(mktemp -d)"; \
+    unzip -q "${zipfile}" -d "${tmpdir}"; \
+    installer="$(find "${tmpdir}" -maxdepth 1 -name '*.run' -print -quit)"; \
+    if [ -n "${installer}" ]; then \
+      chmod +x "${installer}"; \
+      "${installer}" --mode unattended --prefix /opt/ida-pro; \
+    else \
+      mv "${tmpdir}"/* /opt/ida-pro/ 2>/dev/null || mv "${tmpdir}"/ida* /opt/ida-pro/; \
+    fi; \
+    rm -rf "${tmpdir}"
+
 FROM kalilinux/kali-rolling:latest
 
 ENV DEBIAN_FRONTEND=noninteractive \
-    BN_USER_DIRECTORY=/home/agent/.binaryninja
+    BN_USER_DIRECTORY=/home/agent/.binaryninja \
+    IDADIR=/opt/ida-pro
 ARG CAPA_VERSION=9.3.1
 ARG INSTALL_BINARY_NINJA=0
+ARG INSTALL_IDA_PRO=0
 
 COPY docker-bin/ /opt/docker-bin/
 
@@ -37,8 +60,11 @@ RUN python3 -m pip install --no-cache-dir --break-system-packages \
     pytest ruff flare-floss uv ipython ipdb \
     capstone ropper unblob
 
-# Install Ghidra and pyghidra only for the non-Binary-Ninja image variant
-RUN if [ "${INSTALL_BINARY_NINJA}" != "1" ]; then \
+# Verify Python version (IDA Pro requires 3.12+)
+RUN python3 -c "import sys; v=sys.version_info; print(f'Python {v.major}.{v.minor}.{v.micro}')"
+
+# Install Ghidra and pyghidra only when no commercial disassembler is enabled
+RUN if [ "${INSTALL_BINARY_NINJA}" != "1" ] && [ "${INSTALL_IDA_PRO}" != "1" ]; then \
       apt-get update && apt-get install -y --no-install-recommends ghidra \
       && rm -rf /var/lib/apt/lists/* \
       && python3 -m pip install --no-cache-dir --break-system-packages pyghidra \
@@ -86,6 +112,25 @@ RUN --mount=type=bind,from=binja-stage,target=/tmp/binja-stage \
     python3 /opt/binaryninja/scripts/install_api.py; \
     test -f /opt/binaryninja/scripts/install_api.py
 
+# Copy IDA Pro installation from builder (empty dir when INSTALL_IDA_PRO=0)
+COPY --from=ida-builder /opt/ida-pro /opt/ida-pro
+
+# Install IDA Pro Python packages and ida-pro-mcp (conditional on INSTALL_IDA_PRO=1)
+RUN set -eux; \
+    if [ "${INSTALL_IDA_PRO}" != "1" ]; then exit 0; fi; \
+    python3 -c "import sys; assert sys.version_info >= (3, 12), f'IDA Pro requires Python 3.12+, got {sys.version}'"; \
+    ida_python_dir="$(find /opt/ida-pro -type d -name 'python' -path '*/idalib/*' -print -quit)"; \
+    if [ -n "${ida_python_dir}" ]; then \
+      pip install --no-cache-dir --break-system-packages "${ida_python_dir}"; \
+    fi; \
+    activate_script="$(find /opt/ida-pro -name 'py-activate-idalib.py' -print -quit)"; \
+    if [ -n "${activate_script}" ]; then \
+      python3 "${activate_script}" -d /opt/ida-pro; \
+    else \
+      echo "[warn] py-activate-idalib.py not found -- idalib may not work" >&2; \
+    fi; \
+    pip install --no-cache-dir --break-system-packages "https://github.com/mrexodia/ida-pro-mcp/archive/refs/heads/main.zip"
+
 # detect-it-easy may expose `diec`; provide `die` alias + verify tools
 RUN if ! command -v die >/dev/null 2>&1 && command -v diec >/dev/null 2>&1; then \
       ln -sf "$(command -v diec)" /usr/local/bin/die; \
@@ -100,9 +145,9 @@ RUN useradd -m -s /bin/bash agent \
  && mkdir -p /agent && chown agent:agent /agent
 
 # Install default Codex and Claude settings for the agent user
-RUN mkdir -p /home/agent/.binaryninja /home/agent/.codex /home/agent/.claude \
+RUN mkdir -p /home/agent/.binaryninja /home/agent/.idapro /home/agent/.codex /home/agent/.claude \
  && printf '%s\n' "export PS1='\\w\\\\$ '" > /home/agent/.bashrc \
- && chown -R agent:agent /home/agent/.binaryninja /home/agent/.codex /home/agent/.claude \
+ && chown -R agent:agent /home/agent/.binaryninja /home/agent/.idapro /home/agent/.codex /home/agent/.claude \
  && chown agent:agent /home/agent/.bashrc
 
 # Install Codex CLI

@@ -26,6 +26,21 @@ else
   echo "[info] no Binary Ninja zip found; building without Binary Ninja"
 fi
 
+# IDA Pro archive: optional for build-time headless install.
+# Place idapro.zip in the repository root, or set IDA_PRO_ZIP explicitly.
+IDA_PRO_ZIP="${IDA_PRO_ZIP:-}"
+if [[ -z "$IDA_PRO_ZIP" && -f "$SCRIPT_DIR/idapro.zip" ]]; then
+  IDA_PRO_ZIP="$SCRIPT_DIR/idapro.zip"
+fi
+INSTALL_IDA_PRO=0
+if [[ -n "$IDA_PRO_ZIP" && -f "$IDA_PRO_ZIP" ]]; then
+  INSTALL_IDA_PRO=1
+  echo "[info] using IDA Pro archive: $IDA_PRO_ZIP"
+else
+  IDA_PRO_ZIP=""
+  echo "[info] no IDA Pro zip found; building without IDA Pro"
+fi
+
 MCP_DIR="$HOST_PWD/mcp"
 mkdir -p "$MCP_DIR"
 BINJA_MCP_REPO_URL="${BINJA_MCP_REPO_URL:-https://github.com/mrphrazer/binary-ninja-headless-mcp.git}"
@@ -62,6 +77,10 @@ fi
 BINARY_NINJA_USER_DIR="${BINARY_NINJA_USER_DIR:-$HOME/.binaryninja-docker}"
 mkdir -p "$BINARY_NINJA_USER_DIR"
 
+# Persist IDA Pro settings/license on the host.
+IDA_USER_DIR="${IDA_USER_DIR:-$HOME/.idapro-docker}"
+mkdir -p "$IDA_USER_DIR"
+
 # Persist Claude auth/settings on the host.
 CLAUDE_USER_DIR="${CLAUDE_USER_DIR:-$HOME/.claude-docker}"
 mkdir -p "$CLAUDE_USER_DIR"
@@ -79,6 +98,19 @@ if [[ "$INSTALL_BINARY_NINJA" == "1" && ! -f "$BINARY_NINJA_USER_DIR/license.dat
   echo "[warn] no Binary Ninja license.dat found in $BINARY_NINJA_USER_DIR" >&2
 fi
 
+# Seed IDA Pro license from host if available
+if [[ ! -f "$IDA_USER_DIR/ida.key" && -f "$HOME/.idapro/ida.key" ]]; then
+  cp "$HOME/.idapro/ida.key" "$IDA_USER_DIR/ida.key"
+  echo "[info] copied IDA Pro ida.key into $IDA_USER_DIR"
+fi
+if [[ ! -f "$IDA_USER_DIR/ida.hexlic" && -f "$HOME/.idapro/ida.hexlic" ]]; then
+  cp "$HOME/.idapro/ida.hexlic" "$IDA_USER_DIR/ida.hexlic"
+  echo "[info] copied IDA Pro ida.hexlic into $IDA_USER_DIR"
+fi
+if [[ "$INSTALL_IDA_PRO" == "1" && ! -f "$IDA_USER_DIR/ida.key" && ! -f "$IDA_USER_DIR/ida.hexlic" ]]; then
+  echo "[warn] no IDA Pro license found in $IDA_USER_DIR" >&2
+fi
+
 IMAGE_REPO="kali-re-tools"
 
 # Build input checksum tag (short)
@@ -90,6 +122,10 @@ DOCKERFILE_SHA="$(
     if [[ "$INSTALL_BINARY_NINJA" == "1" ]]; then
       sha256sum "$BINARY_NINJA_ZIP"
     fi
+    printf '%s\n' "INSTALL_IDA_PRO=$INSTALL_IDA_PRO"
+    if [[ "$INSTALL_IDA_PRO" == "1" ]]; then
+      sha256sum "$IDA_PRO_ZIP"
+    fi
   } | sha256sum | awk '{print $1}'
 )"
 SHORT_SHA="${DOCKERFILE_SHA:0:12}"
@@ -99,12 +135,18 @@ HASH_IMAGE="${IMAGE_REPO}:${SHORT_SHA}"
 # passed as a named build context.  Using --secret is not viable because
 # BuildKit limits secrets to 500 KB, far too small for the BN archive.
 BINJA_STAGE_DIR="$(mktemp -d)"
-cleanup_binja_stage() { rm -rf "$BINJA_STAGE_DIR"; }
-trap cleanup_binja_stage EXIT
+IDA_STAGE_DIR="$(mktemp -d)"
+cleanup_stages() { rm -rf "$BINJA_STAGE_DIR" "$IDA_STAGE_DIR"; }
+trap cleanup_stages EXIT
 
 if [[ "$INSTALL_BINARY_NINJA" == "1" ]]; then
   ln "$BINARY_NINJA_ZIP" "$BINJA_STAGE_DIR/$(basename "$BINARY_NINJA_ZIP")" 2>/dev/null \
     || cp "$BINARY_NINJA_ZIP" "$BINJA_STAGE_DIR/$(basename "$BINARY_NINJA_ZIP")"
+fi
+
+if [[ "$INSTALL_IDA_PRO" == "1" ]]; then
+  ln "$IDA_PRO_ZIP" "$IDA_STAGE_DIR/$(basename "$IDA_PRO_ZIP")" 2>/dev/null \
+    || cp "$IDA_PRO_ZIP" "$IDA_STAGE_DIR/$(basename "$IDA_PRO_ZIP")"
 fi
 
 # Build only if missing
@@ -113,6 +155,8 @@ if ! docker image inspect "$HASH_IMAGE" >/dev/null 2>&1; then
   build_args=(
     --build-arg "INSTALL_BINARY_NINJA=$INSTALL_BINARY_NINJA"
     --build-context "binja-stage=$BINJA_STAGE_DIR"
+    --build-arg "INSTALL_IDA_PRO=$INSTALL_IDA_PRO"
+    --build-context "ida-stage=$IDA_STAGE_DIR"
     -t "$HASH_IMAGE"
     --load
     "$SCRIPT_DIR"
@@ -148,6 +192,7 @@ fi
 # These must be in the environment of the docker compose process
 HOST_PWD="$HOST_PWD" \
 BINARY_NINJA_USER_DIR="$BINARY_NINJA_USER_DIR" \
+IDA_USER_DIR="$IDA_USER_DIR" \
 CLAUDE_USER_DIR="$CLAUDE_USER_DIR" \
 CODEX_USER_DIR="$CODEX_USER_DIR" \
 IMAGE_TAG="$SHORT_SHA" \

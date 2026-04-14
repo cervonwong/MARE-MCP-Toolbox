@@ -10,10 +10,12 @@ services:
     volumes:
       - "${HOST_PWD:-.}:/agent"
       - "${BINARY_NINJA_USER_DIR:-/tmp/.binaryninja-docker}:/home/agent/.binaryninja"
+      - "${IDA_USER_DIR:-/tmp/.idapro-docker}:/home/agent/.idapro"
       - "${CLAUDE_USER_DIR:-/tmp/.claude-docker}:/home/agent/.claude"
       - "${CODEX_USER_DIR:-/tmp/.codex-docker}:/home/agent/.codex"
     environment:
       - BN_USER_DIRECTORY=/home/agent/.binaryninja
+      - IDADIR=/opt/ida-pro
       - HOME=/home/agent
       - USER=agent
       - LOGNAME=agent
