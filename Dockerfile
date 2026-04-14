@@ -7,7 +7,6 @@ ARG CAPA_VERSION=9.3.1
 ARG INSTALL_BINARY_NINJA=0
 
 COPY docker-bin/ /opt/docker-bin/
-COPY docker-config/ /opt/docker-config/
 
 # Base utils + privilege drop helper
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -103,7 +102,6 @@ RUN useradd -m -s /bin/bash agent \
 # Install default Codex and Claude settings for the agent user
 RUN mkdir -p /home/agent/.binaryninja /home/agent/.codex /home/agent/.claude \
  && printf '%s\n' '{"trustedDirectories":["/agent","/home/agent"]}' > /home/agent/.claude/settings.json \
- && install -m 0644 /opt/docker-config/codex-config.toml /home/agent/.codex/config.toml \
  && printf '%s\n' "export PS1='\\w\\\\$ '" > /home/agent/.bashrc \
  && chown -R agent:agent /home/agent/.binaryninja /home/agent/.codex /home/agent/.claude \
  && chown agent:agent /home/agent/.bashrc

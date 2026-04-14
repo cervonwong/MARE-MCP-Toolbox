@@ -4,8 +4,8 @@ set -euo pipefail
 # build context = directory containing this script (Dockerfile + compose.yaml)
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 
-# runtime mount = directory where you invoke the script
-HOST_PWD="$(pwd -P)"
+# runtime mount = workspace subdirectory (mounted at /agent in the container)
+HOST_PWD="$SCRIPT_DIR/workspace"
 
 # buildx builder (idempotent)
 docker buildx create --use --name training >/dev/null 2>&1 || docker buildx use training
@@ -85,7 +85,7 @@ IMAGE_REPO="kali-re-tools"
 DOCKERFILE_SHA="$(
   {
     sha256sum "$SCRIPT_DIR/Dockerfile"
-    find "$SCRIPT_DIR/docker-bin" "$SCRIPT_DIR/docker-config" -type f -print | sort | xargs sha256sum
+    find "$SCRIPT_DIR/docker-bin" -type f -print | sort | xargs sha256sum
     printf '%s\n' "INSTALL_BINARY_NINJA=$INSTALL_BINARY_NINJA"
     if [[ "$INSTALL_BINARY_NINJA" == "1" ]]; then
       sha256sum "$BINARY_NINJA_ZIP"

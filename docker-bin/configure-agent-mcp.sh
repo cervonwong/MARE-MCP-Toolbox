@@ -6,7 +6,7 @@ CLAUDE_DIR="${AGENT_HOME}/.claude"
 CLAUDE_SETTINGS_FILE="${CLAUDE_DIR}/settings.json"
 CODEX_CONFIG_DIR="${AGENT_HOME}/.codex"
 CODEX_CONFIG_FILE="${CODEX_CONFIG_DIR}/config.toml"
-CODEX_BASE_CONFIG_TEMPLATE="${CODEX_BASE_CONFIG_TEMPLATE:-/opt/docker-config/codex-config.toml}"
+CODEX_BASE_CONFIG_TEMPLATE="${CODEX_BASE_CONFIG_TEMPLATE:-/agent/.codex/config.toml}"
 CLAUDE_PROJECT_MCP="/agent/.mcp.json"
 
 BINJA_ROOT="/agent/mcp/binary-ninja-headless-mcp"
