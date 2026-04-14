@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 1 context rediscussed (ida-pro-mcp switch)
-last_updated: "2026-04-14T04:32:54.866Z"
-last_activity: 2026-04-14 -- Completed quick task 260414-fsg: Replace docker-bin wrappers with native config files for Claude and Codex
+last_updated: "2026-04-14T05:21:38.172Z"
+last_activity: 2026-04-14 -- Phase 01 execution started
 progress:
   total_phases: 4
   completed_phases: 0
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** Automated malware triage and deep analysis via AI agents with full access to professional RE tooling -- accessible both from inside the container and from external MCP clients.
-**Current focus:** Phase 1: IDA Pro Backend
+**Current focus:** Phase 01 — ida-pro-backend
 
 ## Current Position
 
-Phase: 1 of 4 (IDA Pro Backend)
-Plan: 0 of 0 in current phase
-Status: Ready to execute
-Last activity: 2026-04-14 -- Phase 1 planning complete
+Phase: 01 (ida-pro-backend) — EXECUTING
+Plan: 1 of 2
+Status: Executing Phase 01
+Last activity: 2026-04-14 -- Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -79,6 +79,7 @@ None yet.
 |---|-------------|------|--------|-----------|
 | 260414-el8 | Refactor: create workspace/ directory, move skills to native .claude/.codex locations, update mount config and README | 2026-04-14 | dfa6cdb | [260414-el8-refactor-create-workspace-directory-move](./quick/260414-el8-refactor-create-workspace-directory-move/) |
 | 260414-fsg | Replace docker-bin wrappers with native config files for Claude and Codex | 2026-04-14 | 3b3c981 | [260414-fsg-replace-docker-bin-wrappers-with-native-](./quick/260414-fsg-replace-docker-bin-wrappers-with-native-/) |
+| 260414-iee | Move Claude/Codex config from workspace project-level to user-level via configure-agent-mcp.sh | 2026-04-14 | a89af30 | [260414-iee-move-claude-codex-config-from-workspace-](./quick/260414-iee-move-claude-codex-config-from-workspace-/) |
 
 ## Session Continuity
 
