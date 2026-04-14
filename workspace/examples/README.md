@@ -55,9 +55,7 @@ claude   # or: codex
 # 4. Prompt the agent
 # Analyze the malware in examples/samples/mfc42ul.dll -- Give me a detailed
 # overview of the sample's functionality and features, together with the
-# corresponding code locations. Use the skill
-# /agent/agent_helpers/claude/skills/malware-analysis-orchestrator/ for
-# analysis.
+# corresponding code locations.
 ```
 
 [blog-post]: https://synthesis.to/2026/03/18/agentic_malware_analysis.html
