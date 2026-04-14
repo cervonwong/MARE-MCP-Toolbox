@@ -19,7 +19,7 @@ Via MCP, the agent can also use Binary Ninja or Ghidra to inspect functions, fol
 - `malware-analysis-orchestrator` skill for Claude Code and Codex CLI
 - Helper scripts for strings, imports, YARA, capa, signal ranking, hypothesis generation
 - Bundled YARA rules (crypto, anti-debug/anti-VM, capabilities, packer -- from [Yara-Rules/rules][yara-rules], GPL-2.0)
-- Wrapper scripts for Claude Code and Codex with aggressive defaults
+- Native config files for Claude Code and Codex with aggressive defaults
 - Persistent state across container rebuilds (BN license, Claude auth, Codex auth)
 - PE, ELF, and Mach-O support
 - Content-hash-based image caching
@@ -32,7 +32,7 @@ Via MCP, the agent can also use Binary Ninja or Ghidra to inspect functions, fol
 
 ## Quick Start
 
-> **Important:** `run_docker.sh` mounts the `workspace/` subdirectory into the container at `/agent`. The agent wrappers run with full permissions (`--dangerously-skip-permissions` / `--dangerously-bypass-approvals-and-sandbox`) by design, so the agent can read, write, and execute anything in that directory. Only files inside `workspace/` are visible to the agent.
+> **Important:** `run_docker.sh` mounts the `workspace/` subdirectory into the container at `/agent`. The agents run with full permissions (configured via native settings files and the entrypoint script) by design, so the agent can read, write, and execute anything in that directory. Only files inside `workspace/` are visible to the agent.
 
 ```bash
 git clone https://github.com/mrphrazer/agentic-malware-analysis.git
@@ -235,23 +235,25 @@ Four rule sets from [Yara-Rules/rules][yara-rules] (GPL-2.0):
 - **Planner** -- consumes intermediate evidence, generates hypotheses, defines deep-analysis priorities
 - **Reporter** -- produces executive and technical summaries with traceable evidence
 
-## Agent Wrappers
+## Agent Defaults
+
+Aggressive defaults are applied via native config files and the container entrypoint script (`configure-agent-mcp.sh`), not wrapper scripts.
 
 ### Claude Code
 
 - Default model: `opus`
 - Default effort: `high`
-- Default permissions: `--dangerously-skip-permissions`
-- Management commands (`auth`, `doctor`, `mcp`, `update`, etc.) are passed through without defaults
+- Default permissions: bypass all prompts
+- Configured at user level (`~/.claude/settings.json`) by the entrypoint script
 - See [Claude Code Authentication](#claude-code-authentication) for credential setup
 
 ### Codex CLI
 
 - Default model: `gpt-5.4`
 - Default reasoning: `xhigh`
-- Default permissions: `--dangerously-bypass-approvals-and-sandbox`
+- Default permissions: full auto-approval, no sandbox
 - Features: `multi_agent`, `child_agents_md`
-- Management commands (`login`, `logout`, `mcp`, `features`, etc.) are passed through without defaults
+- Configured via project template (`workspace/.codex/config.toml`) copied to user level by the entrypoint script
 - See [Codex CLI Authentication](#codex-cli-authentication) for credential setup
 
 ## Customization
@@ -283,8 +285,6 @@ Four rule sets from [Yara-Rules/rules][yara-rules] (GPL-2.0):
 ├── compose.yaml
 ├── run_docker.sh
 ├── docker-bin/
-│   ├── claude
-│   ├── codex
 │   └── configure-agent-mcp.sh
 ├── workspace/
 │   ├── CLAUDE.md
@@ -326,7 +326,7 @@ Note: `workspace/mcp/` and `workspace/status/` are created at runtime and gitign
 ## Security
 
 - `SYS_PTRACE` and `seccomp=unconfined` are required for debugging and dynamic analysis -- intentional
-- Agent wrappers default to full permissions inside the container sandbox -- by design for autonomous analysis
+- Agent config defaults to full permissions inside the container sandbox -- by design for autonomous analysis
 - MCP communication is unauthenticated (stdio transport)
 - Do not expose the container to untrusted networks or users
 - The Binary Ninja license is stored on the host, not in the image
