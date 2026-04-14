@@ -322,24 +322,24 @@ Source: Hex-Rays blog (Igor's tip of the week #63)
 - `idat` / `idat64` headless execution: Replaced by idalib for programmatic use
 - ida-mcp 1.x: Superseded by 2.x with supervisor/worker architecture
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **IDA Pro Archive Format**
+1. **IDA Pro Archive Format** — RESOLVED: Plan 01-01 Task 1 supports both `.run` installer and pre-installed directory.
    - What we know: User decided "zip-at-build-time pattern, same as Binary Ninja" with `idapro.zip`
    - What's unclear: Whether the zip contains the `.run` installer or a pre-installed IDA directory. The `.run` installer needs `--mode unattended --prefix /path` to extract. A pre-installed directory just needs to be moved.
    - Recommendation: Support both formats in the Dockerfile. Try to find a `.run` file first; if not found, assume pre-installed directory. Document that either format works.
 
-2. **IDA License File Name**
+2. **IDA License File Name** — RESOLVED: Plan 01-01 Task 2 seeds both `ida.key` and `ida.hexlic`.
    - What we know: CONTEXT.md says "auto-seed from `~/.idapro/ida.key`"
    - What's unclear: IDA 9.x may use `ida.hexlic` instead of `ida.key` for newer license formats
    - Recommendation: Seed both `ida.key` and `ida.hexlic` if either exists on the host. Check for both files.
 
-3. **py-activate-idalib.py Location**
+3. **py-activate-idalib.py Location** — RESOLVED: Plan 01-01 Task 1 uses `find` to locate dynamically.
    - What we know: Script is somewhere in the IDA installation directory
    - What's unclear: Exact path varies between IDA versions (`/opt/ida-pro/py-activate-idalib.py` or `/opt/ida-pro/idalib/python/py-activate-idalib.py`)
    - Recommendation: Use `find` to locate the script during Docker build, fail with clear error if not found.
 
-4. **idapro PyPI Package vs IDA's Bundled Python Package**
+4. **idapro PyPI Package vs IDA's Bundled Python Package** — RESOLVED: Plan 01-01 Task 1 installs from local `idalib/python/` + runs activation script.
    - What we know: There's both a PyPI `idapro` package (0.0.7) and a local package in `idalib/python/` within the IDA installation
    - What's unclear: Whether the PyPI package is sufficient alone or if the local install + activation script is still needed
    - Recommendation: Install from the local `idalib/python/` directory (more reliable for matching IDA version) AND run the activation script. The PyPI package may be a shim that still needs activation.
