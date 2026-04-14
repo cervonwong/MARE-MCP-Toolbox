@@ -68,24 +68,30 @@ fi
 # Priority order: IDA Pro > Binary Ninja > Ghidra
 # Only one backend is active at a time (per project decision).
 mcp_name=""
+mcp_type=""
+mcp_url=""
 mcp_command=""
 mcp_args=""
 mcp_env=""
 
-if [ -d "/opt/ida-pro" ] && [ "$(ls -A /opt/ida-pro 2>/dev/null)" ] && command -v ida-mcp >/dev/null 2>&1; then
+if [ -d "/opt/ida-pro" ] && [ "$(ls -A /opt/ida-pro 2>/dev/null)" ] && command -v idalib-mcp >/dev/null 2>&1; then
   mcp_name="ida_mcp"
-  mcp_command="ida-mcp"
-  mcp_args="[]"
-  mcp_env="{\"IDADIR\": \"/opt/ida-pro\"}"
+  mcp_type="sse"
+  mcp_url="http://localhost:8745/sse"
+  mcp_command=""
+  mcp_args=""
+  mcp_env=""
   echo "[mcp] Using IDA Pro (highest priority installed)"
 elif [ -f /opt/binaryninja/scripts/install_api.py ] && [ -f "${BINJA_ROOT}/binary_ninja_headless_mcp.py" ]; then
   mcp_name="binary_ninja_headless_mcp"
+  mcp_type="stdio"
   mcp_command="python3"
   mcp_args="[\"${BINJA_ROOT}/binary_ninja_headless_mcp.py\"]"
   mcp_env="{}"
   echo "[mcp] Using Binary Ninja (IDA Pro not installed)"
 elif [ -f "${GHIDRA_ROOT}/ghidra_headless_mcp.py" ] || { [ -f "${GHIDRA_ROOT}/pyproject.toml" ] && [ -d "${GHIDRA_ROOT}/ghidra_headless_mcp" ]; }; then
   mcp_name="ghidra_headless_mcp"
+  mcp_type="stdio"
   mcp_command="python3"
   if [ -f "${GHIDRA_ROOT}/ghidra_headless_mcp.py" ]; then
     mcp_args="[\"${GHIDRA_ROOT}/ghidra_headless_mcp.py\"]"
@@ -110,7 +116,19 @@ else
 fi
 
 # Write Claude Code .mcp.json
-cat > "${CLAUDE_PROJECT_MCP}" <<EOF
+if [ "${mcp_type}" = "sse" ]; then
+  cat > "${CLAUDE_PROJECT_MCP}" <<EOF
+{
+  "mcpServers": {
+    "${mcp_name}": {
+      "type": "sse",
+      "url": "${mcp_url}"
+    }
+  }
+}
+EOF
+else
+  cat > "${CLAUDE_PROJECT_MCP}" <<EOF
 {
   "mcpServers": {
     "${mcp_name}": {
@@ -122,29 +140,40 @@ cat > "${CLAUDE_PROJECT_MCP}" <<EOF
   }
 }
 EOF
+fi
 
-# Write Codex config with env vars for MCP server
-codex_env_section=""
-if [ "${mcp_env}" != "{}" ] && [ -n "${mcp_env}" ]; then
-  codex_env_section=$(python3 -c "
+# Write Codex config with MCP server
+write_codex_base_config
+
+if [ "${mcp_type}" = "sse" ]; then
+  cat >> "${CODEX_CONFIG_FILE}" <<EOF
+
+[mcp_servers.${mcp_name}]
+url = "${mcp_url}"
+type = "sse"
+EOF
+else
+  codex_env_section=""
+  if [ "${mcp_env}" != "{}" ] && [ -n "${mcp_env}" ]; then
+    codex_env_section=$(python3 -c "
 import json, sys
 env = json.loads(sys.argv[1])
 for k, v in env.items():
     print(f'{k} = \"{v}\"')
 " "${mcp_env}")
-fi
+  fi
 
-write_codex_base_config
-cat >> "${CODEX_CONFIG_FILE}" <<EOF
+  cat >> "${CODEX_CONFIG_FILE}" <<EOF
 
 [mcp_servers.${mcp_name}]
 command = "${mcp_command}"
 args = ${mcp_args}
 EOF
-if [ -n "${codex_env_section}" ]; then
-cat >> "${CODEX_CONFIG_FILE}" <<EOF
+  if [ -n "${codex_env_section}" ]; then
+    cat >> "${CODEX_CONFIG_FILE}" <<EOF
 
 [mcp_servers.${mcp_name}.env]
 ${codex_env_section}
 EOF
+  fi
 fi
