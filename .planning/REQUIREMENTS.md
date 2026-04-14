@@ -8,9 +8,9 @@
 ### IDA Pro Backend
 
 - [ ] **IDA-01**: IDA Pro installs conditionally via `INSTALL_IDA_PRO` build arg using multi-stage Docker build (license never in image layers)
-- [ ] **IDA-02**: IDA Pro headless MCP server (`idalib-mcp` from ida-pro-mcp, mrexodia) runs via SSE transport inside container
+- [ ] **IDA-02**: IDA Pro headless MCP server (`ida-mcp`) runs via stdio transport inside container
 - [ ] **IDA-03**: IDA Pro license persists on host via bind mount to `~/.idapro/` (same pattern as Binary Ninja's `~/.binaryninja/`)
-- [ ] **IDA-04**: `configure-agent-mcp.sh` detects IDA Pro and registers MCP server with fallback chain: IDA > BN > Ghidra
+- [ ] **IDA-04**: `configure-agent-mcp.sh` detects IDA Pro and registers MCP server with fallback chain: BN > IDA > Ghidra
 - [ ] **IDA-05**: Hex-Rays decompiler functions are available via MCP when user has decompiler license
 - [ ] **IDA-06**: Python environment isolation prevents conflicts between IDA Pro (3.12+), Binary Ninja, and Ghidra APIs
 
@@ -34,7 +34,7 @@
 
 - [ ] **INF-01**: Dual-mode entrypoint supports both local agent mode (existing) and remote MCP gateway mode (new) simultaneously
 - [ ] **INF-02**: Docker Compose exposes gateway port (default 8080) with configurable mapping
-- [ ] **INF-03**: Python 3.12+ available in container for ida-pro-mcp compatibility
+- [ ] **INF-03**: Python 3.12+ available in container for ida-mcp compatibility
 - [ ] **INF-04**: `run_docker.sh` updated with IDA Pro zip detection and `IDA_USER_DIR` env var for license persistence
 - [ ] **INF-05**: Existing local agent workflow (Claude Code/Codex inside container) continues working unchanged
 
@@ -97,4 +97,4 @@
 
 ---
 *Requirements defined: 2026-04-08*
-*Last updated: 2026-04-14 after CONTEXT.md ida-pro-mcp switch*
+*Last updated: 2026-04-08 after roadmap creation*

@@ -36,6 +36,8 @@ data["skipDangerousModePermissionPrompt"] = True
 permissions = data.get("permissions", {})
 permissions["defaultMode"] = "bypassPermissions"
 data["permissions"] = permissions
+data["model"] = "opus"
+data["effortLevel"] = "high"
 
 path.write_text(json.dumps(data))
 PY
