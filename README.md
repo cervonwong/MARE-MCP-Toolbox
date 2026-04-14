@@ -32,7 +32,7 @@ Via MCP, the agent can also use Binary Ninja or Ghidra to inspect functions, fol
 
 ## Quick Start
 
-> **Important:** `run_docker.sh` mounts your current working directory into the container at `/agent`. The agent wrappers run with full permissions (`--dangerously-skip-permissions` / `--dangerously-bypass-approvals-and-sandbox`) by design, so the agent can read, write, and execute anything in that directory. Clone the repository into a dedicated directory and place only the files you want the agent to access there.
+> **Important:** `run_docker.sh` mounts the `workspace/` subdirectory into the container at `/agent`. The agent wrappers run with full permissions (`--dangerously-skip-permissions` / `--dangerously-bypass-approvals-and-sandbox`) by design, so the agent can read, write, and execute anything in that directory. Only files inside `workspace/` are visible to the agent.
 
 ```bash
 git clone https://github.com/mrphrazer/agentic-malware-analysis.git
@@ -45,10 +45,10 @@ What happens:
 
 1. Prepares a Docker Buildx builder
 2. If `binaryninja.zip` is present, Binary Ninja and its MCP server are installed; otherwise Ghidra and its MCP server are installed as a fallback
-3. Clones the selected MCP server repo into `mcp/`
+3. Clones the selected MCP server repo into `workspace/mcp/`
 4. Builds the image (or reuses a cached one based on content hash)
 5. Seeds BN license, Claude credentials, and Codex credentials from host directories
-6. Launches the container with the current directory mounted at `/agent`
+6. Launches the container with `workspace/` mounted at `/agent`
 
 Inside the container:
 
@@ -67,8 +67,7 @@ Then prompt the agent:
 ```
 Analyze the malware in examples/samples/mfc42ul.dll -- Give me a detailed overview
 of the sample's functionality and features, together with the corresponding code
-locations. Use the skill /agent/agent_helpers/claude/skills/malware-analysis-orchestrator/
-for analysis.
+locations.
 ```
 
 See [examples/README.md](examples/README.md) for sample details and background.
@@ -149,7 +148,7 @@ CODEX_USER_DIR=/path/to/codex-dir ./run_docker.sh
 - User: `agent` (non-root, passwordless sudo)
 - Capabilities: `SYS_PTRACE`, `seccomp=unconfined`
 - Volume mounts:
-  - Host `.` → `/agent`
+  - Host `workspace/` → `/agent`
   - BN user dir → `/home/agent/.binaryninja`
   - Claude state dir → `/home/agent/.claude`
   - Codex state dir → `/home/agent/.codex`
@@ -161,7 +160,7 @@ The environment automatically selects and configures one MCP backend. Binary Nin
 - **Binary Ninja installed** → [binary-ninja-headless-mcp][binary-ninja-headless-mcp] (registered as `binary_ninja_headless_mcp`)
 - **No Binary Ninja** → [ghidra-headless-mcp][ghidra-headless-mcp] (registered as `ghidra_headless_mcp`)
 
-The selected repo is cloned at runtime by `run_docker.sh` into `mcp/`. On container start, `configure-agent-mcp.sh` writes the project-scoped `.mcp.json` (Claude Code) and Codex config with the correct MCP server entry.
+The selected repo is cloned at runtime by `run_docker.sh` into `workspace/mcp/`. On container start, `configure-agent-mcp.sh` writes the project-scoped `.mcp.json` (Claude Code) and Codex config with the correct MCP server entry.
 
 Override the upstream repos:
 
@@ -172,7 +171,7 @@ GHIDRA_MCP_REPO_URL=https://github.com/mrphrazer/ghidra-headless-mcp.git ./run_d
 
 ## Malware Analysis Orchestrator
 
-The `malware-analysis-orchestrator` skill drives a structured, multi-phase malware analysis workflow. It is available for both [Claude Code](agent_helpers/claude/skills/malware-analysis-orchestrator/SKILL.md) and [Codex CLI](agent_helpers/codex/skills/malware-analysis-orchestrator/SKILL.md).
+The `malware-analysis-orchestrator` skill drives a structured, multi-phase malware analysis workflow. It is available for both [Claude Code](workspace/.claude/skills/malware-analysis-orchestrator/SKILL.md) and [Codex CLI](workspace/.codex/skills/malware-analysis-orchestrator/SKILL.md).
 
 ### Workflow Stages
 
@@ -287,32 +286,33 @@ Four rule sets from [Yara-Rules/rules][yara-rules] (GPL-2.0):
 │   ├── claude
 │   ├── codex
 │   └── configure-agent-mcp.sh
-├── docker-config/
-│   └── codex-config.toml
-├── agent_helpers/
-│   ├── claude/skills/malware-analysis-orchestrator/
+├── workspace/
+│   ├── CLAUDE.md
+│   ├── .claude/skills/malware-analysis-orchestrator/
 │   │   ├── SKILL.md
 │   │   ├── scripts/
 │   │   ├── references/
 │   │   └── assets/
 │   │       ├── yara_rules/
 │   │       └── status_templates/
-│   └── codex/skills/malware-analysis-orchestrator/
-│       ├── SKILL.md
-│       ├── agents/
-│       ├── scripts/
-│       ├── references/
-│       └── assets/
-│           ├── yara_rules/
-│           └── status_templates/
-├── examples/
-│   ├── README.md
-│   └── samples.zip
+│   ├── .codex/
+│   │   ├── config.toml
+│   │   ├── agents/openai.yaml
+│   │   └── skills/malware-analysis-orchestrator/
+│   │       ├── SKILL.md
+│   │       ├── scripts/
+│   │       ├── references/
+│   │       └── assets/
+│   │           ├── yara_rules/
+│   │           └── status_templates/
+│   └── examples/
+│       ├── README.md
+│       └── samples.zip
 ├── blogs/
 └── README.md
 ```
 
-Note: `mcp/` is cloned at runtime and is not part of the repository.
+Note: `workspace/mcp/` and `workspace/status/` are created at runtime and gitignored.
 
 
 ## Limitations
