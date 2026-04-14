@@ -25,10 +25,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Requirements**: IDA-01, IDA-02, IDA-03, IDA-04, IDA-05, IDA-06, INF-03, INF-04
 **Success Criteria** (what must be TRUE):
   1. Building the container with `INSTALL_IDA_PRO=1` and a valid IDA zip produces a working IDA Pro installation with no license artifacts in intermediate Docker layers
-  2. An agent inside the container can invoke IDA Pro MCP tools (disassemble, decompile, list functions) via stdio transport on a test binary
+  2. An agent inside the container can invoke IDA Pro MCP tools (disassemble, decompile, list functions) via SSE transport (idalib-mcp) on a test binary
   3. The fallback chain (IDA > BN > Ghidra) activates the correct backend based on what is installed, verified by `configure-agent-mcp.sh` output
   4. All three disassembler APIs (Binary Ninja, IDA Pro, Ghidra) coexist without Python import errors or version conflicts
-  5. IDA Pro license persists across container restarts via host bind mount to `~/.idapro/`
+  5. IDA Pro license persists across container restarts via host bind mount to `~/.idapro-docker/`
 **Plans**: 2 plans
 
 Plans:
