@@ -30,6 +30,13 @@ if path.exists():
 
 trusted = list(dict.fromkeys((data.get("trustedDirectories") or []) + ["/agent", "/home/agent"]))
 data["trustedDirectories"] = trusted
+
+# User-level permission settings (cannot be set at project level)
+data["skipDangerousModePermissionPrompt"] = True
+permissions = data.get("permissions", {})
+permissions["defaultMode"] = "bypassPermissions"
+data["permissions"] = permissions
+
 path.write_text(json.dumps(data))
 PY
 
