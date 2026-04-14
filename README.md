@@ -253,7 +253,7 @@ Aggressive defaults are applied via native config files and the container entryp
 - Default reasoning: `xhigh`
 - Default permissions: full auto-approval, no sandbox
 - Features: `multi_agent`, `child_agents_md`
-- Configured via project template (`workspace/.codex/config.toml`) copied to user level by the entrypoint script
+- Configured at user level (`~/.codex/config.toml`) by the entrypoint script
 - See [Codex CLI Authentication](#codex-cli-authentication) for credential setup
 
 ## Customization
@@ -296,7 +296,6 @@ Aggressive defaults are applied via native config files and the container entryp
 │   │       ├── yara_rules/
 │   │       └── status_templates/
 │   ├── .codex/
-│   │   ├── config.toml
 │   │   ├── agents/openai.yaml
 │   │   └── skills/malware-analysis-orchestrator/
 │   │       ├── SKILL.md

@@ -6,7 +6,6 @@ CLAUDE_DIR="${AGENT_HOME}/.claude"
 CLAUDE_SETTINGS_FILE="${CLAUDE_DIR}/settings.json"
 CODEX_CONFIG_DIR="${AGENT_HOME}/.codex"
 CODEX_CONFIG_FILE="${CODEX_CONFIG_DIR}/config.toml"
-CODEX_BASE_CONFIG_TEMPLATE="${CODEX_BASE_CONFIG_TEMPLATE:-/agent/.codex/config.toml}"
 CLAUDE_PROJECT_MCP="/agent/.mcp.json"
 
 BINJA_ROOT="/agent/mcp/binary-ninja-headless-mcp"
@@ -41,12 +40,18 @@ path.write_text(json.dumps(data))
 PY
 
 write_codex_base_config() {
-  if [ ! -f "${CODEX_BASE_CONFIG_TEMPLATE}" ]; then
-    echo "error: missing Codex config template: ${CODEX_BASE_CONFIG_TEMPLATE}" >&2
-    exit 1
-  fi
+  cat > "${CODEX_CONFIG_FILE}" <<'TOML'
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+model = "gpt-5.4"
+model_reasoning_effort = "xhigh"
+plan_mode_reasoning_effort = "xhigh"
+suppress_unstable_features_warning = true
 
-  install -m 0644 "${CODEX_BASE_CONFIG_TEMPLATE}" "${CODEX_CONFIG_FILE}"
+[features]
+multi_agent = true
+child_agents_md = true
+TOML
 }
 
 # Ensure Binary Ninja Python API is installed for the current user.
