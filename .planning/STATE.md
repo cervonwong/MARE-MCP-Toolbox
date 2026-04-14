@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Phase 1 context rediscussed (ida-pro-mcp switch)
 last_updated: "2026-04-14T04:32:54.866Z"
-last_activity: 2026-04-14 -- Phase 1 planning complete
+last_activity: 2026-04-14 -- Completed quick task 260414-fsg: Replace docker-bin wrappers with native config files for Claude and Codex
 progress:
   total_phases: 4
   completed_phases: 0
@@ -78,6 +78,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260414-el8 | Refactor: create workspace/ directory, move skills to native .claude/.codex locations, update mount config and README | 2026-04-14 | dfa6cdb | [260414-el8-refactor-create-workspace-directory-move](./quick/260414-el8-refactor-create-workspace-directory-move/) |
+| 260414-fsg | Replace docker-bin wrappers with native config files for Claude and Codex | 2026-04-14 | 3b3c981 | [260414-fsg-replace-docker-bin-wrappers-with-native-](./quick/260414-fsg-replace-docker-bin-wrappers-with-native-/) |
 
 ## Session Continuity
 
