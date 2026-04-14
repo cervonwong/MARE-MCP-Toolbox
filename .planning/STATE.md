@@ -5,7 +5,7 @@ milestone_name: milestone
 status: planning
 stopped_at: Phase 1 context gathered
 last_updated: "2026-04-08T11:12:53.485Z"
-last_activity: 2026-04-08 -- Roadmap created
+last_activity: 2026-04-14 - Completed quick task 260414-el8: Workspace refactor
 progress:
   total_phases: 4
   completed_phases: 0
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-08)
 Phase: 1 of 4 (IDA Pro Backend)
 Plan: 0 of 0 in current phase
 Status: Ready to plan
-Last activity: 2026-04-08 -- Roadmap created
+Last activity: 2026-04-14 - Completed quick task 260414-el8: Workspace refactor
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -70,6 +70,12 @@ None yet.
 
 - Python 3.12+ compatibility matrix across Kali rolling, IDA 9.x, Binary Ninja, and pyghidra needs validation in Phase 1
 - Tool surface curation (exact list of 15-25 gateway tools) needs design work during Phase 2 planning
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260414-el8 | Refactor: create workspace/ directory, move skills to native .claude/.codex locations, update mount config and README | 2026-04-14 | dfa6cdb | [260414-el8-refactor-create-workspace-directory-move](./quick/260414-el8-refactor-create-workspace-directory-move/) |
 
 ## Session Continuity
 
