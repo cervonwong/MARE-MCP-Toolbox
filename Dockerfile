@@ -101,16 +101,12 @@ RUN useradd -m -s /bin/bash agent \
 
 # Install default Codex and Claude settings for the agent user
 RUN mkdir -p /home/agent/.binaryninja /home/agent/.codex /home/agent/.claude \
- && printf '%s\n' '{"trustedDirectories":["/agent","/home/agent"]}' > /home/agent/.claude/settings.json \
  && printf '%s\n' "export PS1='\\w\\\\$ '" > /home/agent/.bashrc \
  && chown -R agent:agent /home/agent/.binaryninja /home/agent/.codex /home/agent/.claude \
  && chown agent:agent /home/agent/.bashrc
 
 # Install Codex CLI
 RUN npm i -g @openai/codex
-
-# Wrap Codex so interactive sessions default to unrestricted execution inside the container sandbox
-RUN install -m 0755 /opt/docker-bin/codex /usr/local/bin/codex
 
 # Install MCP client configuration helper
 RUN install -m 0755 /opt/docker-bin/configure-agent-mcp.sh /usr/local/bin/configure-agent-mcp.sh
@@ -121,9 +117,6 @@ RUN set -eux; \
     chmod +x /tmp/install-claude.sh; \
     gosu agent env HOME=/home/agent USER=agent LOGNAME=agent /tmp/install-claude.sh; \
     rm -f /tmp/install-claude.sh; \
-    mv /home/agent/.local/bin/claude /home/agent/.local/bin/claude-real; \
-    install -m 0755 /opt/docker-bin/claude /home/agent/.local/bin/claude; \
-    chown agent:agent /home/agent/.local/bin/claude /home/agent/.local/bin/claude-real; \
     ln -sf /home/agent/.local/bin/claude /usr/local/bin/claude; \
     gosu agent env HOME=/home/agent USER=agent LOGNAME=agent claude --version
 
