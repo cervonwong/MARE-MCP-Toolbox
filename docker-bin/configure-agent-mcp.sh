@@ -59,17 +59,26 @@ if [ -f /opt/binaryninja/scripts/install_api.py ]; then
   fi
 fi
 
-# Detect which MCP backend is available
+# Detect which MCP backend is available.
+# Priority order: IDA Pro > Binary Ninja > Ghidra
+# Only one backend is active at a time (per project decision).
 mcp_name=""
 mcp_command=""
 mcp_args=""
 mcp_env=""
 
-if [ -f /opt/binaryninja/scripts/install_api.py ] && [ -f "${BINJA_ROOT}/binary_ninja_headless_mcp.py" ]; then
+if [ -d "/opt/ida-pro" ] && [ "$(ls -A /opt/ida-pro 2>/dev/null)" ] && command -v ida-mcp >/dev/null 2>&1; then
+  mcp_name="ida_mcp"
+  mcp_command="ida-mcp"
+  mcp_args="[]"
+  mcp_env="{\"IDADIR\": \"/opt/ida-pro\"}"
+  echo "[mcp] Using IDA Pro (highest priority installed)"
+elif [ -f /opt/binaryninja/scripts/install_api.py ] && [ -f "${BINJA_ROOT}/binary_ninja_headless_mcp.py" ]; then
   mcp_name="binary_ninja_headless_mcp"
   mcp_command="python3"
   mcp_args="[\"${BINJA_ROOT}/binary_ninja_headless_mcp.py\"]"
   mcp_env="{}"
+  echo "[mcp] Using Binary Ninja (IDA Pro not installed)"
 elif [ -f "${GHIDRA_ROOT}/ghidra_headless_mcp.py" ] || { [ -f "${GHIDRA_ROOT}/pyproject.toml" ] && [ -d "${GHIDRA_ROOT}/ghidra_headless_mcp" ]; }; then
   mcp_name="ghidra_headless_mcp"
   mcp_command="python3"
@@ -87,9 +96,9 @@ elif [ -f "${GHIDRA_ROOT}/ghidra_headless_mcp.py" ] || { [ -f "${GHIDRA_ROOT}/py
   else
     mcp_env="{}"
   fi
+  echo "[mcp] Using Ghidra (neither IDA Pro nor Binary Ninja installed)"
 else
-  echo "warning: no MCP backend (Binary Ninja or Ghidra) found, skipping MCP configuration" >&2
-  # Write empty MCP configs
+  echo "[mcp] warning: no MCP backend (IDA Pro, Binary Ninja, or Ghidra) found, skipping MCP configuration" >&2
   printf '%s\n' '{"mcpServers":{}}' > "${CLAUDE_PROJECT_MCP}"
   write_codex_base_config
   exit 0
