@@ -22,10 +22,10 @@ An agentic malware analysis platform built on a Kali Linux Docker container with
 ### IDA Pro Headless MCP Backend
 | Technology | Version | Purpose | Why | Confidence |
 |------------|---------|---------|-----|------------|
-| ida-mcp (jtsylve) | 2.1.0 | Headless IDA Pro MCP server | Best-in-class: 190+ tools, multi-binary support, built on idalib, PyPI-installable, active development (April 2026 release). Uses stdio transport which matches existing Binary Ninja/Ghidra pattern exactly. | HIGH |
-| IDA Pro | 9+ | Disassembler engine | Required by ida-mcp; idalib (IDA-as-a-library) enables headless operation without GUI | HIGH |
-| Python | 3.12+ | Runtime for ida-mcp | Required by ida-mcp 2.x; container already has Python 3.x, may need version bump | HIGH |
-| uv | latest | Python package manager | Recommended by ida-mcp for installation; faster than pip, handles tool isolation | MEDIUM |
+| ida-pro-mcp (mrexodia) | latest | IDA Pro MCP server with headless idalib mode | 50+ tools, supports both GUI plugin and headless idalib modes. Headless mode (`idalib-mcp`) runs an SSE server — already network-accessible, no proxy needed for remote access. Active development. | HIGH |
+| IDA Pro | 9+ | Disassembler engine | Required for idalib support; provides the analysis engine | HIGH |
+| idapro (bundled) | from IDA install | Python idalib wrapper | Installed from IDA's `idalib/python` directory (not PyPI). Activated via `py-activate-idalib.py`. Must be first import in scripts. | HIGH |
+| Python | 3.11+ | Runtime for ida-pro-mcp | Required by ida-pro-mcp; container already has Python 3.x | HIGH |
 ### Remote MCP Gateway Server
 | Technology | Version | Purpose | Why | Confidence |
 |------------|---------|---------|-----|------------|
@@ -49,8 +49,8 @@ An agentic malware analysis platform built on a Kali Linux Docker container with
 ## Alternatives Considered
 | Category | Recommended | Alternative | Why Not |
 |----------|-------------|-------------|---------|
-| IDA MCP server | ida-mcp (jtsylve) | ida-pro-mcp (mrexodia) | mrexodia's version requires IDA GUI running (plugin-based), not headless. Does not fit Docker container pattern. |
-| IDA MCP server | ida-mcp (jtsylve) | ida-headless-mcp (zboralski) | Less mature, fewer tools (~30 vs ~190), less active development |
+| IDA MCP server | ida-pro-mcp (mrexodia) | ida-mcp (jtsylve) | jtsylve's version has 190+ tools and stdio transport, but ida-pro-mcp's headless idalib mode with built-in SSE server better fits the remote MCP architecture (no proxy needed). User preference. |
+| IDA MCP server | ida-pro-mcp (mrexodia) | ida-headless-mcp (zboralski) | Less mature, fewer tools (~30 vs ~50), less active development |
 | Remote transport | mcp-proxy | Custom FastMCP gateway | Unnecessary dev work for v1. mcp-proxy does stdio-to-HTTP bridging out of the box. |
 | Remote transport | mcp-proxy | TypeScript MCP SDK + Express | Adds Node.js server dependency to Python-centric container for no benefit |
 | Remote transport | Streamable HTTP | SSE (legacy) | SSE deprecated June 2025. Both Claude Code and mastra.ai try Streamable HTTP first. |
@@ -59,7 +59,7 @@ An agentic malware analysis platform built on a Kali Linux Docker container with
 ## Do NOT Use
 | Technology | Why Not |
 |------------|---------|
-| ida-pro-mcp (mrexodia) for headless | Requires running IDA GUI as a plugin host. Not suitable for headless Docker. |
+| ida-mcp (jtsylve) | Not selected — ida-pro-mcp chosen instead for built-in SSE transport and user preference. |
 | SSE transport (deprecated) | Deprecated in MCP spec June 2025. Use Streamable HTTP. Clients fall back to SSE automatically if needed. |
 | MastraMCPClient (old class) | Deprecated in mastra.ai. Use `MCPClient` from `@mastra/mcp`. |
 | mcp-remote (npm) | Had CVE-2025-6514 (CVSS 9.6 command injection). Use official SDK or mcp-proxy instead. |
@@ -78,15 +78,15 @@ An agentic malware analysis platform built on a Kali Linux Docker container with
 | Component | Min Version | Tested With | Notes |
 |-----------|-------------|-------------|-------|
 | IDA Pro | 9.0 | 9.x | Requires idalib support |
-| Python | 3.12 | 3.12+ | ida-mcp requirement (stricter than container's current Python) |
+| Python | 3.11 | 3.11+ | ida-pro-mcp requirement |
 | mcp (Python SDK) | 1.20+ | 1.27.0 | Streamable HTTP support |
 | mcp-proxy | 0.3.0+ | 0.3.2 | Streamable HTTP bridging |
 | Claude Code | current | current | `type: "http"` in .mcp.json |
 | @mastra/mcp | 1.3.0+ | 1.3.1 | MCPClient with url transport |
 ## Sources
-- [ida-mcp PyPI](https://pypi.org/project/ida-mcp/) -- v2.1.0, April 2026
-- [ida-mcp GitHub (jtsylve)](https://github.com/jtsylve/ida-mcp) -- headless, stdio, 190+ tools
-- [ida-mcp 2.0 announcement](https://jtsylve.blog/post/2026/03/25/Announcing-ida-mcp-2) -- architecture details
+- [ida-pro-mcp GitHub (mrexodia)](https://github.com/mrexodia/ida-pro-mcp) -- GUI plugin + headless idalib, SSE transport, 50+ tools
+- [idapro PyPI](https://pypi.org/project/idapro/) -- official Hex-Rays idalib Python wrapper (v0.0.7)
+- [idalib docs (Hex-Rays)](https://docs.hex-rays.com/user-guide/idalib) -- idalib installation and activation
 - [MCP Transports spec](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports) -- Streamable HTTP standard
 - [MCP Python SDK](https://pypi.org/project/mcp/) -- v1.27.0
 - [mcp-proxy GitHub](https://github.com/sparfenyuk/mcp-proxy) -- stdio-to-HTTP bridge
