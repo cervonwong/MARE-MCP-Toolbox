@@ -183,3 +183,64 @@ def test_upload_streams_not_buffers(tmp_uploads, monkeypatch):
     assert "request.stream()" in src, "T-02-UPLOAD: must use streaming"
     assert "await request.body()" not in src, "T-02-UPLOAD: must NOT call request.body()"
     assert "await request.form()" not in src, "T-02-UPLOAD: must NOT call request.form()"
+
+
+# ---------- Full-app integration: /upload behind build_app() ----------
+
+@pytest.fixture
+def full_app(monkeypatch, tmp_path, tmp_uploads):
+    monkeypatch.setenv("MCP_GATEWAY_TOKEN", "integration-token")
+    monkeypatch.setenv("MCP_GATEWAY_TOKEN_FILE", str(tmp_path / "tok"))
+    monkeypatch.setenv("MCP_GATEWAY_SKIP_BACKEND", "1")
+    import mcp_gateway.app as app_mod
+    app_mod._MCP_INSTANCE = None
+    return app_mod.build_app()
+
+
+def test_upload_through_full_app_happy_path(full_app, tmp_uploads):
+    body = b"integration-test-sample-bytes"
+    expected = hashlib.sha256(body).hexdigest()
+    with TestClient(full_app) as c:
+        r = c.post(
+            "/upload",
+            content=body,
+            headers={
+                "Authorization": "Bearer integration-token",
+                "X-Filename": "integration.bin",
+            },
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["sample_id"] == expected
+
+
+def test_upload_through_full_app_unauth(full_app):
+    with TestClient(full_app) as c:
+        r = c.post("/upload", content=b"x", headers={"X-Filename": "x.bin"})
+        assert r.status_code == 401
+
+
+def test_upload_through_full_app_placeholder_gone(full_app):
+    """The 501 placeholder must no longer fire for POST /upload with valid bearer."""
+    with TestClient(full_app) as c:
+        r = c.post(
+            "/upload",
+            content=b"xx",
+            headers={"Authorization": "Bearer integration-token", "X-Filename": "p.bin"},
+        )
+        # Must NOT be 501 (the old placeholder). 200 on success.
+        assert r.status_code != 501
+
+
+def test_upload_evil_origin_rejected(full_app):
+    """OriginMiddleware must still block malicious Origin even on /upload."""
+    with TestClient(full_app) as c:
+        r = c.post(
+            "/upload",
+            content=b"x",
+            headers={
+                "Authorization": "Bearer integration-token",
+                "X-Filename": "x.bin",
+                "Origin": "http://evil.com",
+            },
+        )
+        assert r.status_code == 403
