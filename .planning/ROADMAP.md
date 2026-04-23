@@ -46,11 +46,14 @@ Plans:
   3. Disassembler tools (decompile, list_functions, get_xrefs) route to the installed backend transparently -- the client sees a unified interface regardless of whether BN, IDA, or Ghidra is active
   4. A remote client can upload a binary sample via the file transfer mechanism and then run analysis tools against it
   5. The gateway binds to localhost only by default and requires explicit configuration to listen on all interfaces
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md -- Package scaffold + bearer auth + backend detection (GW-04, GW-05)
+- [ ] 02-02-PLAN.md -- FastMCP Streamable HTTP server + 21 curated tools + orchestrator shell-outs (GW-01, GW-02)
+- [ ] 02-03-PLAN.md -- Backend-as-client (IDA http, BN/Ghidra stdio) + unified tool routing (GW-03)
+- [ ] 02-04-PLAN.md -- POST /upload streaming handler with sha256 dedup + size cap (GW-06)
+- [ ] 02-05-PLAN.md -- Dockerfile + compose.yaml + e2e smoke tests + doc corrections (all GW-*)
 
 ### Phase 3: Container Integration
 **Goal**: The container starts with both local agent mode and remote MCP gateway mode operational, with no changes to existing local workflows
@@ -87,6 +90,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. IDA Pro Backend | 0/3 | Planned | - |
-| 2. MCP Gateway | 0/0 | Not started | - |
+| 2. MCP Gateway | 0/5 | Planned | - |
 | 3. Container Integration | 0/0 | Not started | - |
 | 4. External Client Integration | 0/0 | Not started | - |
