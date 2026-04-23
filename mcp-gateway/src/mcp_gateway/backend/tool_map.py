@@ -18,7 +18,9 @@ from typing import Callable
 # equivalents, so args_transform is identity. v2 (DIS-V2-01) will add real shape
 # normalization.
 
-_identity: Callable[[dict], dict] = lambda args: dict(args)
+def _identity(args: dict) -> dict:
+    """Identity transform: returns a shallow copy of the args dict."""
+    return dict(args)
 
 TOOL_MAP: dict[str, dict[str, tuple[str, Callable[[dict], dict]]]] = {
     "decompile": {

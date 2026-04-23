@@ -227,7 +227,6 @@ async def test_disasm_returns_stub_when_no_backend(monkeypatch):
 
 def test_build_app_skips_backend_when_env_flag_set(monkeypatch, tmp_path):
     """MCP_GATEWAY_SKIP_BACKEND=1 must not try to enter a PinnedBackend."""
-    import os
     from mcp_gateway.app import build_app
 
     monkeypatch.setenv("MCP_GATEWAY_SKIP_BACKEND", "1")
@@ -268,6 +267,9 @@ async def test_lifespan_enters_and_exits_pinned_backend(monkeypatch, tmp_path):
     def _fake_detect():
         return "ida"
 
+    # Reset the module-level FastMCP singleton so session_manager.run() can be
+    # entered fresh (StreamableHTTPSessionManager raises if reused across tests).
+    monkeypatch.setattr(app_mod, "_MCP_INSTANCE", None)
     monkeypatch.setattr(app_mod, "detect_backend", _fake_detect)
     monkeypatch.setattr(app_mod, "PinnedBackend", _FakePinned)
     monkeypatch.setenv("MCP_GATEWAY_TOKEN", "test-token")

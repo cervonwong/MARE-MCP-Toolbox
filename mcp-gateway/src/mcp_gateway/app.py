@@ -1,8 +1,6 @@
-"""Starlette application factory + FastMCP integration + middleware wiring.
+"""Starlette application factory + FastMCP integration + middleware wiring + backend lifespan.
 
-Fulfills GW-01 (FastMCP Streamable HTTP), wires Plan 01 auth, registers 21 tools
-from Plan 02 Task 2. The /upload route is a placeholder here returning 501;
-Plan 04 replaces it with a real streaming handler.
+GW-01 (FastMCP Streamable HTTP) + GW-03 (unified backend routing via PinnedBackend).
 """
 from __future__ import annotations
 import contextlib
@@ -18,7 +16,9 @@ from mcp.server.transport_security import TransportSecuritySettings
 
 from .auth import BearerAuthMiddleware, OriginMiddleware, load_or_generate_token
 from .backend.detect import detect_backend
+from .backend.client import PinnedBackend
 from .tools import register_all_tools
+from . import session_state
 
 log = logging.getLogger("mcp_gateway")
 
@@ -67,14 +67,20 @@ def build_app() -> Starlette:
          MCP_GATEWAY_SKIP_BACKEND=1 (test-only escape hatch).
       3) Create FastMCP instance and register all 21 tools (GW-02).
       4) Build Starlette app with /healthz, /upload placeholder, /mcp mount.
-      5) Add OriginMiddleware (outer, DNS rebind T-02-NET) + BearerAuthMiddleware (inner, T-02-AUTH).
+      5) Lifespan enters a PinnedBackend (Plan 03) that holds a ClientSession
+         to the active disassembler MCP for the gateway's lifetime (D-09).
+         When MCP_GATEWAY_SKIP_BACKEND=1, no PinnedBackend is entered and
+         disasm tools return their Plan 02 stub.
+      6) Add OriginMiddleware (outer, DNS rebind T-02-NET) + BearerAuthMiddleware (inner, T-02-AUTH).
     """
     token = load_or_generate_token()
 
     skip_backend = os.environ.get("MCP_GATEWAY_SKIP_BACKEND") == "1"
     if skip_backend:
-        log.warning("[gateway] MCP_GATEWAY_SKIP_BACKEND=1 -- backend detection bypassed (test mode)")
-        backend_name = "none"
+        log.warning(
+            "[gateway] MCP_GATEWAY_SKIP_BACKEND=1 -- backend detection bypassed (test mode)"
+        )
+        backend_name: str | None = None
     else:
         backend_name = detect_backend()
         log.info("[gateway] backend: %s", backend_name)
@@ -84,15 +90,39 @@ def build_app() -> Starlette:
 
     @contextlib.asynccontextmanager
     async def lifespan(app: Starlette):
-        # Plan 03 extends this lifespan to enter a PinnedBackend context.
-        log.info(
-            "[gateway] ready on %s:%s",
-            os.environ.get("MCP_GATEWAY_HOST", "127.0.0.1"),
-            os.environ.get("MCP_GATEWAY_PORT", "8080"),
-        )
-        log.info("[gateway] token file: %s", os.environ.get("MCP_GATEWAY_TOKEN_FILE", "/agent/.mcp-gateway-token"))
-        async with mcp.session_manager.run():
-            yield
+        if backend_name is None:
+            # Test/escape-hatch path -- no backend, disasm tools return stub.
+            try:
+                async with mcp.session_manager.run():
+                    log.info(
+                        "[gateway] ready on %s:%s (no backend)",
+                        os.environ.get("MCP_GATEWAY_HOST", "127.0.0.1"),
+                        os.environ.get("MCP_GATEWAY_PORT", "8080"),
+                    )
+                    yield
+            finally:
+                session_state.PINNED_BACKEND = None
+            return
+
+        # Real backend path (D-09: pinned for lifetime, D-10: fail loud on crash).
+        async with PinnedBackend(backend_name) as pinned:
+            session_state.PINNED_BACKEND = pinned
+            try:
+                async with mcp.session_manager.run():
+                    log.info(
+                        "[gateway] ready on %s:%s",
+                        os.environ.get("MCP_GATEWAY_HOST", "127.0.0.1"),
+                        os.environ.get("MCP_GATEWAY_PORT", "8080"),
+                    )
+                    log.info(
+                        "[gateway] token file: %s",
+                        os.environ.get(
+                            "MCP_GATEWAY_TOKEN_FILE", "/agent/.mcp-gateway-token"
+                        ),
+                    )
+                    yield
+            finally:
+                session_state.PINNED_BACKEND = None
 
     app = Starlette(
         routes=[

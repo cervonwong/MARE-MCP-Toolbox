@@ -1,8 +1,12 @@
 """Unified disassembler tools (3): decompile, list_functions, get_xrefs.
 
-Delegates to session_state.PINNED_BACKEND (set by Plan 03's lifespan).
-Plan 02: if PINNED_BACKEND is None, return structured "backend not yet wired" error.
-Plan 03: wire the real delegation via PinnedBackend.call() + tool_map.translate().
+Delegates to session_state.PINNED_BACKEND (set by Plan 03's lifespan in app.py).
+If PINNED_BACKEND is None (test mode via MCP_GATEWAY_SKIP_BACKEND=1 or no backend),
+returns structured "backend not yet wired" stub.
+
+Plan 03 wired PinnedBackend.call_unified -- the `.call_unified` method maps the
+unified name to the backend's tool via tool_map.translate and returns a dict
+with {unified_tool, backend, backend_tool, content, is_error}.
 """
 from __future__ import annotations
 from typing import Optional
