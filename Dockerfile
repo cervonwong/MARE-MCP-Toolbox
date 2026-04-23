@@ -129,6 +129,21 @@ RUN set -eux; \
     else \
       echo "[warn] py-activate-idalib.py not found -- idalib may not work" >&2; \
     fi; \
+    # Symlink IDA Pro's bundled tools (idat, idat64, idapyswitch, ida, ...)
+    # onto PATH so `command -v` and the ida-accept-eula helper can find
+    # them without hardcoding /opt/ida-pro paths.
+    for tool in ida ida64 idat idat64 idapyswitch idalib-activate hcli; do \
+      src="$(find /opt/ida-pro -maxdepth 3 -name "${tool}" -type f -executable -print -quit 2>/dev/null)"; \
+      [ -n "${src}" ] && ln -sf "${src}" "/usr/local/bin/${tool}"; \
+    done; \
+    # Configure IDAPython to point at the system Python 3. idat won't load
+    # IDAPython without this ("Python3TargetDLL value is not set" warning);
+    # idalib imports IDAPython so we must run idapyswitch at build time.
+    if command -v idapyswitch >/dev/null 2>&1; then \
+      idapyswitch --auto-apply || echo "[warn] idapyswitch --auto-apply failed" >&2; \
+    else \
+      echo "[warn] idapyswitch not found on PATH -- IDAPython will not load" >&2; \
+    fi; \
     pip install --no-cache-dir --break-system-packages "https://github.com/mrexodia/ida-pro-mcp/archive/refs/heads/main.zip"
 
 # detect-it-easy may expose `diec`; provide `die` alias + verify tools
@@ -155,6 +170,66 @@ RUN npm i -g @openai/codex
 
 # Install MCP client configuration helper
 RUN install -m 0755 /opt/docker-bin/configure-agent-mcp.sh /usr/local/bin/configure-agent-mcp.sh
+
+# IDA Pro batch-mode EULA bootstrap helper
+# ----------------------------------------
+# The IDA Pro GUI EULA (stored in ~/.idapro/ida.reg) is *not* the same as
+# the batch-mode EULA that idalib / idat -A require. On first batch-mode
+# use, IDA prompts the user to accept a separate agreement; that flag is
+# then persisted in ida.reg too. Since ~/.idapro is bind-mounted from the
+# host (~/.idapro-docker by default), running this script once per host
+# permanently unblocks idalib-mcp for every future container.
+#
+# We deliberately do NOT try to auto-accept non-interactively: no
+# documented env var / API exists, and scripting the prompt is fragile
+# across IDA versions. The helper makes the one-time interactive step as
+# ergonomic as possible.
+RUN cat > /usr/local/bin/ida-accept-eula <<'EOF' \
+ && chmod 0755 /usr/local/bin/ida-accept-eula
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ ! -d /opt/ida-pro ] || [ -z "$(ls -A /opt/ida-pro 2>/dev/null)" ]; then
+  echo "[eula] IDA Pro is not installed in this image." >&2
+  exit 1
+fi
+
+IDAT="$(command -v idat64 || command -v idat || true)"
+if [ -z "${IDAT}" ]; then
+  for candidate in /opt/ida-pro/idat64 /opt/ida-pro/idat; do
+    [ -x "${candidate}" ] && IDAT="${candidate}" && break
+  done
+fi
+if [ -z "${IDAT}" ]; then
+  echo "[eula] could not locate idat/idat64 under /opt/ida-pro" >&2
+  exit 1
+fi
+
+# Make sure IDAPython is configured. idat logs "Python3TargetDLL value is
+# not set" when this hasn't been run; idalib imports IDAPython and will
+# fail silently without it. Safe to run every time -- idapyswitch no-ops
+# when the current config already matches.
+if command -v idapyswitch >/dev/null 2>&1; then
+  idapyswitch --auto-apply >/dev/null 2>&1 || true
+else
+  echo "[eula] warn: idapyswitch not on PATH -- IDAPython may not load" >&2
+fi
+
+STUB="$(mktemp --suffix=.bin)"
+trap 'rm -f "${STUB}" "${STUB}".id0 "${STUB}".id1 "${STUB}".id2 "${STUB}".nam "${STUB}".til "${STUB}".i64 "${STUB}".idb' EXIT
+# Minimal ELF so idat has something to chew on without real analysis cost.
+printf '\x7fELF\x02\x01\x01' > "${STUB}"
+dd if=/dev/zero bs=1 count=57 >> "${STUB}" 2>/dev/null
+
+echo "[eula] launching idat in batch mode to trigger/persist EULA acceptance"
+echo "[eula] (if a license agreement appears, type I AGREE or y to accept --"
+echo "[eula]  the flag then persists in ~/.idapro/ida.reg)"
+# Intentionally omit -A (autonomous): that flag suppresses the EULA
+# dialog, which is the whole point of this script. We still pass -B so
+# idat exits after the prompt instead of dropping into analysis UI.
+"${IDAT}" -B "${STUB}" || true
+echo "[eula] done. If a prompt appeared and you accepted, rerun your MCP client."
+EOF
 
 # Install Claude Code CLI (native installer)
 RUN set -eux; \
@@ -185,6 +260,36 @@ export USER="${AGENT_USER}"
 export LOGNAME="${AGENT_USER}"
 
 gosu "${AGENT_USER}" /usr/local/bin/configure-agent-mcp.sh
+
+# Start idalib-mcp as a background Streamable-HTTP server when IDA Pro is
+# installed. The server exposes both /mcp and /sse on :8745 and is bound to
+# 127.0.0.1. Claude Code and Codex connect to it per the generated .mcp.json
+# / codex config. Bind to 127.0.0.1 explicitly (IPv4) -- the zeromcp
+# TCPServer is IPv4-only.
+if command -v idalib-mcp >/dev/null 2>&1 \
+  && [ -d /opt/ida-pro ] && [ -n "$(ls -A /opt/ida-pro 2>/dev/null)" ]; then
+  IDALIB_LOG="/tmp/idalib-mcp.log"
+  # Check an existing server isn't already bound (survives container
+  # restarts that reuse the network namespace, e.g. docker exec loops).
+  if ! (echo > /dev/tcp/127.0.0.1/8745) >/dev/null 2>&1; then
+    echo "[mcp] starting idalib-mcp on 127.0.0.1:8745 (log: ${IDALIB_LOG})"
+    gosu "${AGENT_USER}" env HOME="${AGENT_HOME}" \
+      nohup idalib-mcp --host 127.0.0.1 --port 8745 \
+      >"${IDALIB_LOG}" 2>&1 &
+  else
+    echo "[mcp] idalib-mcp already listening on 127.0.0.1:8745 -- skipping"
+  fi
+
+  # Hint if the batch-mode EULA hasn't been accepted yet. The "EULA 90"
+  # key in ida.reg covers the GUI EULA; idalib needs a separate
+  # batch-mode acceptance on first use.
+  if [ -f "${AGENT_HOME}/.idapro/ida.reg" ] \
+    && ! grep -aq "BatchEula\|batch_accepted\|AcceptedBatch" "${AGENT_HOME}/.idapro/ida.reg" 2>/dev/null; then
+    echo "[mcp] note: if idalib_open() fails with 'License not yet accepted,"
+    echo "[mcp]       cannot run in batch mode', run:  ida-accept-eula"
+    echo "[mcp]       (one-time per host; persists in ~/.idapro-docker/ida.reg)"
+  fi
+fi
 
 # Persist Claude state inside the mounted ~/.claude/ directory instead of a
 # separate fragile file mount.  Symlink ~/.claude.json -> ~/.claude/state.json

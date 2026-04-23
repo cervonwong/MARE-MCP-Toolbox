@@ -15,7 +15,7 @@ Via MCP, the agent can also use Binary Ninja or Ghidra to inspect functions, fol
 ## Features
 
 - Kali Linux container with 50+ RE and malware analysis tools
-- Automatic MCP backend selection (Binary Ninja or Ghidra)
+- Automatic MCP backend selection with priority chain (IDA Pro > Binary Ninja > Ghidra)
 - `malware-analysis-orchestrator` skill for Claude Code and Codex CLI
 - Helper scripts for strings, imports, YARA, capa, signal ranking, hypothesis generation
 - Bundled YARA rules (crypto, anti-debug/anti-VM, capabilities, packer -- from [Yara-Rules/rules][yara-rules], GPL-2.0)
@@ -28,7 +28,7 @@ Via MCP, the agent can also use Binary Ninja or Ghidra to inspect functions, fol
 
 - Docker with `buildx`
 - Anthropic API key or Claude account (for Claude Code) or OpenAI API key (for Codex)
-- Recommended: Binary Ninja Linux zip with a headless-capable license (see [Setup](#setup) below)
+- Recommended (choose one disassembler): IDA Pro 9+ Linux archive with a valid `.hexlic`, or Binary Ninja Linux zip with a headless-capable license — see [Setup](#setup). Without either, Ghidra is installed as a fallback.
 
 ## Quick Start
 
@@ -37,14 +37,15 @@ Via MCP, the agent can also use Binary Ninja or Ghidra to inspect functions, fol
 ```bash
 git clone https://github.com/mrphrazer/agentic-malware-analysis.git
 cd agentic-malware-analysis
-cp /path/to/binaryninja_linux.zip ./binaryninja.zip   # recommended; without it Ghidra is used instead
-./run_docker.sh
+cp /path/to/idapro.zip ./idapro.zip                   # optional; highest priority if present
+cp /path/to/binaryninja_linux.zip ./binaryninja.zip   # optional; used if IDA Pro is absent
+./run_docker.sh                                        # falls back to Ghidra if neither zip is present
 ```
 
 What happens:
 
 1. Prepares a Docker Buildx builder
-2. If `binaryninja.zip` is present, Binary Ninja and its MCP server are installed; otherwise Ghidra and its MCP server are installed as a fallback
+2. Disassembler selection by priority: if `idapro.zip` is present, IDA Pro (headless `idalib-mcp`, Streamable HTTP on `127.0.0.1:8745`) is installed and selected; else if `binaryninja.zip` is present, Binary Ninja and its MCP server (stdio transport) are installed; otherwise Ghidra and its MCP server (stdio transport) are installed as a fallback
 3. Clones the selected MCP server repo into `workspace/mcp/`
 4. Builds the image (or reuses a cached one based on content hash)
 5. Seeds BN license, Claude credentials, and Codex credentials from host directories
@@ -74,9 +75,43 @@ See [examples/README.md](examples/README.md) for sample details and background.
 
 ## Setup
 
-### Binary Ninja (recommended)
+Backend priority order at build time is **IDA Pro > Binary Ninja > Ghidra**. The first available option is installed and registered with the agent. Only one backend is active per container.
 
-Binary Ninja provides substantially better analysis results than Ghidra through its [headless MCP server][binary-ninja-headless-mcp] and is the recommended disassembler backend. If no Binary Ninja zip is present, the environment falls back to Ghidra automatically.
+### IDA Pro (highest priority)
+
+IDA Pro 9+ is supported through the headless [ida-pro-mcp][ida-pro-mcp] server (`idalib-mcp`), which speaks MCP over **Streamable HTTP** on `127.0.0.1:8745` (the same server also exposes `/sse` on the same port for clients that prefer SSE; Codex uses that). If `idapro.zip` is present at build time, IDA Pro is installed and selected ahead of Binary Ninja and Ghidra. The entrypoint auto-starts `idalib-mcp` as a background process when the image is built with IDA Pro.
+
+To use IDA Pro, place your IDA 9+ Linux archive in the repository root **before** running `run_docker.sh`:
+
+```bash
+cp /path/to/idapro.zip ./idapro.zip
+```
+
+The file must be named `idapro.zip`. Alternatively, point to it explicitly:
+
+```bash
+IDA_PRO_ZIP=/path/to/idapro.zip ./run_docker.sh
+```
+
+**License:** IDA Pro 9.x ships a single `ida.hexlic` file (the legacy `ida.key` format was retired with IDA 8). Place your license at `~/.idapro/ida.hexlic` on the host; `run_docker.sh` copies it into a Docker-specific directory (`~/.idapro-docker/` by default) that is mounted into the container at `/home/agent/.idapro`. The license is never baked into the image. If you still have a legacy `ida.key`, drop it next to the `.hexlic`; both are seeded when present. To use a different host directory:
+
+```bash
+IDA_USER_DIR=/path/to/idapro-user-dir ./run_docker.sh
+```
+
+**One-time batch-mode EULA acceptance:** IDA Pro has two separate EULAs — the GUI one and a batch/headless one that `idalib-mcp` requires. If `idalib_open()` fails with `License not yet accepted, cannot run in batch mode`, run the bundled helper **once** inside the container:
+
+```bash
+ida-accept-eula
+```
+
+This launches Hex-Rays' first-party `idat` binary in batch mode, which triggers IDA Pro's own EULA prompt — accept it once and the flag is persisted in `~/.idapro/ida.reg`. Because that directory is bind-mounted from `~/.idapro-docker/` on the host, the acceptance survives every future container build and run on that host.
+
+The helper is a thin wrapper around the official `idat -A -c -B <stub>` invocation; no third-party code touches the license state. Auto-accepting non-interactively is not supported by Hex-Rays (there is no documented env var or API), so the first-run step remains manual by design.
+
+### Binary Ninja
+
+Binary Ninja provides substantially better analysis results than Ghidra through its [headless MCP server][binary-ninja-headless-mcp]. It is used when no IDA Pro archive is present. If neither IDA Pro nor Binary Ninja is present, the environment falls back to Ghidra automatically.
 
 To use Binary Ninja, place your Linux headless zip in the repository root **before** running `run_docker.sh`:
 
@@ -140,7 +175,7 @@ CODEX_USER_DIR=/path/to/codex-dir ./run_docker.sh
 
 **Agent CLIs:** Claude Code, Codex CLI
 
-**Conditional:** Binary Ninja headless + Python API (if zip provided) _or_ Ghidra + `pyghidra`
+**Conditional (by priority):** IDA Pro 9+ headless via `idalib-mcp` (if `idapro.zip` provided) _or_ Binary Ninja headless + Python API (if `binaryninja.zip` provided) _or_ Ghidra + `pyghidra` (fallback)
 
 ### Runtime Configuration
 
@@ -150,17 +185,19 @@ CODEX_USER_DIR=/path/to/codex-dir ./run_docker.sh
 - Volume mounts:
   - Host `workspace/` → `/agent`
   - BN user dir → `/home/agent/.binaryninja`
+  - IDA user dir → `/home/agent/.idapro` (holds `ida.hexlic`)
   - Claude state dir → `/home/agent/.claude`
   - Codex state dir → `/home/agent/.codex`
 
 ## MCP Integration
 
-The environment automatically selects and configures one MCP backend. Binary Ninja is recommended; Ghidra serves as a fallback when no Binary Ninja zip is provided.
+The environment automatically selects and configures one MCP backend following the priority chain **IDA Pro > Binary Ninja > Ghidra**.
 
-- **Binary Ninja installed** → [binary-ninja-headless-mcp][binary-ninja-headless-mcp] (registered as `binary_ninja_headless_mcp`)
-- **No Binary Ninja** → [ghidra-headless-mcp][ghidra-headless-mcp] (registered as `ghidra_headless_mcp`)
+- **IDA Pro installed** → [ida-pro-mcp][ida-pro-mcp] (registered as `ida_mcp`, Streamable HTTP at `http://127.0.0.1:8745/mcp`; Codex connects to `/sse` on the same server)
+- **No IDA, Binary Ninja installed** → [binary-ninja-headless-mcp][binary-ninja-headless-mcp] (registered as `binary_ninja_headless_mcp`, stdio transport)
+- **Neither present** → [ghidra-headless-mcp][ghidra-headless-mcp] (registered as `ghidra_headless_mcp`, stdio transport)
 
-The selected repo is cloned at runtime by `run_docker.sh` into `workspace/mcp/`. On container start, `configure-agent-mcp.sh` writes the project-scoped `.mcp.json` (Claude Code) and Codex config with the correct MCP server entry.
+`configure-agent-mcp.sh` detects which disassembler is present inside the container (checking `idalib-mcp` on PATH first, then Binary Ninja, then Ghidra) and writes the correct `.mcp.json` (Claude Code) and Codex config. For IDA Pro, the config uses `"type": "sse"` with the `idalib-mcp` server URL; for BN/Ghidra it uses `"type": "stdio"`. Binary Ninja and Ghidra MCP servers are cloned at runtime by `run_docker.sh` into `workspace/mcp/`; IDA Pro's MCP server is installed directly from PyPI/GitHub during the image build.
 
 Override the upstream repos:
 
@@ -262,6 +299,8 @@ Aggressive defaults are applied via native config files and the container entryp
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
+| `IDA_PRO_ZIP` | `./idapro.zip` | Path to IDA Pro 9+ Linux archive |
+| `IDA_USER_DIR` | `~/.idapro-docker` | IDA Pro license (`ida.hexlic`) and user settings |
 | `BINARY_NINJA_ZIP` | `./binaryninja.zip` | Path to Binary Ninja Linux zip |
 | `BINARY_NINJA_USER_DIR` | `~/.binaryninja-docker` | BN license, settings, and plugins |
 | `CLAUDE_USER_DIR` | `~/.claude-docker` | Claude auth and state |
@@ -326,9 +365,9 @@ Note: `workspace/mcp/` and `workspace/status/` are created at runtime and gitign
 
 - `SYS_PTRACE` and `seccomp=unconfined` are required for debugging and dynamic analysis -- intentional
 - Agent config defaults to full permissions inside the container sandbox -- by design for autonomous analysis
-- MCP communication is unauthenticated (stdio transport)
+- MCP communication is unauthenticated (stdio transport for BN/Ghidra; local-only Streamable HTTP on `127.0.0.1:8745` for IDA Pro)
 - Do not expose the container to untrusted networks or users
-- The Binary Ninja license is stored on the host, not in the image
+- Binary Ninja and IDA Pro licenses are stored on the host, not in the image; the proprietary archives (`idapro.zip`, `binaryninja*.zip`) are gitignored
 
 ## Contact
 
@@ -336,6 +375,7 @@ Tim Blazytko ([@mr_phrazer](https://x.com/mr_phrazer))
 
 [binary-ninja-headless-mcp]: https://github.com/mrphrazer/binary-ninja-headless-mcp
 [ghidra-headless-mcp]: https://github.com/mrphrazer/ghidra-headless-mcp
+[ida-pro-mcp]: https://github.com/mrexodia/ida-pro-mcp
 [claude-code]: https://docs.anthropic.com/en/docs/claude-code
 [codex-cli]: https://github.com/openai/codex
 [blog-post]: https://synthesis.to/2026/03/18/agentic_malware_analysis.html

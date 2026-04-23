@@ -76,8 +76,11 @@ mcp_env=""
 
 if [ -d "/opt/ida-pro" ] && [ "$(ls -A /opt/ida-pro 2>/dev/null)" ] && command -v idalib-mcp >/dev/null 2>&1; then
   mcp_name="ida_mcp"
-  mcp_type="sse"
-  mcp_url="http://localhost:8745/sse"
+  mcp_type="http"
+  # Use 127.0.0.1 literal: idalib-mcp's zeromcp server is IPv4-only, and
+  # bun's fetch (used by Claude Code) tries ::1 first when resolving
+  # "localhost", hanging 30s before falling back. 127.0.0.1 avoids that.
+  mcp_url="http://127.0.0.1:8745/mcp"
   mcp_command=""
   mcp_args=""
   mcp_env=""
@@ -116,12 +119,12 @@ else
 fi
 
 # Write Claude Code .mcp.json
-if [ "${mcp_type}" = "sse" ]; then
+if [ "${mcp_type}" = "http" ]; then
   cat > "${CLAUDE_PROJECT_MCP}" <<EOF
 {
   "mcpServers": {
     "${mcp_name}": {
-      "type": "sse",
+      "type": "http",
       "url": "${mcp_url}"
     }
   }
@@ -145,11 +148,15 @@ fi
 # Write Codex config with MCP server
 write_codex_base_config
 
-if [ "${mcp_type}" = "sse" ]; then
+if [ "${mcp_type}" = "http" ]; then
+  # idalib-mcp serves both /mcp (Streamable HTTP) and /sse on the same
+  # port. Claude Code uses /mcp via http transport; Codex's MCP client
+  # connects via SSE to the same server.
+  codex_sse_url="${mcp_url%/mcp}/sse"
   cat >> "${CODEX_CONFIG_FILE}" <<EOF
 
 [mcp_servers.${mcp_name}]
-url = "${mcp_url}"
+url = "${codex_sse_url}"
 type = "sse"
 EOF
 else
