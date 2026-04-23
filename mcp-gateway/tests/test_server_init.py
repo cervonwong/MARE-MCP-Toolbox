@@ -4,8 +4,6 @@ Maps to VALIDATION.md row GW-01 (Streamable HTTP initialize returns session id).
 Uses Starlette's TestClient with lifespan triggering mcp.session_manager.run().
 """
 from __future__ import annotations
-import json
-from pathlib import Path
 
 import pytest
 from starlette.testclient import TestClient

@@ -19,7 +19,6 @@ from mcp.server.transport_security import TransportSecuritySettings
 from .auth import BearerAuthMiddleware, OriginMiddleware, load_or_generate_token
 from .backend.detect import detect_backend
 from .tools import register_all_tools
-from . import session_state
 
 log = logging.getLogger("mcp_gateway")
 

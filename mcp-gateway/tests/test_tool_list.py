@@ -17,7 +17,6 @@ IMPORTANT -- FastMCP internals vs public API:
   listing goes through the public API.
 """
 from __future__ import annotations
-from pathlib import Path
 
 import pytest
 from mcp.server.fastmcp import FastMCP

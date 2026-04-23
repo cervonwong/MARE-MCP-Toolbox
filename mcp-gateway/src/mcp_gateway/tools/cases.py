@@ -3,10 +3,8 @@ get_active_case, list_uploads, get_sample_info).
 """
 from __future__ import annotations
 import hashlib
-import os
 import re
 from pathlib import Path
-from typing import Optional
 
 from mcp.server.fastmcp import FastMCP
 

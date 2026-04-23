@@ -3,8 +3,6 @@
 We patch subprocess_runner.run_script to capture argv rather than actually execute scripts.
 """
 from __future__ import annotations
-from pathlib import Path
-from typing import Any
 
 import pytest
 from mcp.server.fastmcp import FastMCP
