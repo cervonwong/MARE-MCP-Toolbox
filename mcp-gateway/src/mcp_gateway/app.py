@@ -18,6 +18,7 @@ from .auth import BearerAuthMiddleware, OriginMiddleware, load_or_generate_token
 from .backend.detect import detect_backend
 from .backend.client import PinnedBackend
 from .tools import register_all_tools
+from .uploads import upload_handler
 from . import session_state
 
 log = logging.getLogger("mcp_gateway")
@@ -50,14 +51,6 @@ async def _healthz(request):
     return JSONResponse({"ok": True})
 
 
-async def _upload_placeholder(request):
-    """Placeholder -- replaced by Plan 04's real streaming handler."""
-    return JSONResponse(
-        {"error": "upload handler not yet installed", "plan": "Plan 04"},
-        status_code=501,
-    )
-
-
 def build_app() -> Starlette:
     """Assemble the gateway ASGI app.
 
@@ -66,7 +59,7 @@ def build_app() -> Starlette:
       2) Detect backend (D-09). Raise if none installed (D-10 fail-loud) unless
          MCP_GATEWAY_SKIP_BACKEND=1 (test-only escape hatch).
       3) Create FastMCP instance and register all 21 tools (GW-02).
-      4) Build Starlette app with /healthz, /upload placeholder, /mcp mount.
+      4) Build Starlette app with /healthz, /upload (streaming handler, Plan 04), /mcp mount.
       5) Lifespan enters a PinnedBackend (Plan 03) that holds a ClientSession
          to the active disassembler MCP for the gateway's lifetime (D-09).
          When MCP_GATEWAY_SKIP_BACKEND=1, no PinnedBackend is entered and
@@ -127,7 +120,7 @@ def build_app() -> Starlette:
     app = Starlette(
         routes=[
             Route("/healthz", _healthz, methods=["GET"]),
-            Route("/upload", _upload_placeholder, methods=["POST"]),
+            Route("/upload", upload_handler, methods=["POST"]),
             Mount("/mcp", app=mcp.streamable_http_app()),
         ],
         lifespan=lifespan,
