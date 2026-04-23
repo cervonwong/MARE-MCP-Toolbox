@@ -172,3 +172,121 @@ async def test_call_unified_unknown_raises(ida_like_backend_mcp):
     async with _FakePinnedBackend("ida", ida_like_backend_mcp) as pinned:
         with pytest.raises(KeyError):
             await pinned.call_unified("not_a_tool")
+
+
+# ---------- End-to-end: disasm tool handler -> PINNED_BACKEND.call_unified ----------
+
+@pytest.mark.asyncio
+async def test_disasm_tool_handler_delegates_to_pinned(ida_like_backend_mcp, monkeypatch):
+    """disasm.py::decompile must call session_state.PINNED_BACKEND.call_unified with args."""
+    from mcp_gateway import session_state
+    from mcp_gateway.tools import disasm as disasm_mod
+
+    # Set up a fake PinnedBackend that captures the call
+    captured = {}
+
+    class _Capture:
+        backend = "ida"
+
+        async def call_unified(self, unified_name, args):
+            captured.update({"unified_name": unified_name, "args": args})
+            return {
+                "unified_tool": unified_name,
+                "content": [{"type": "text", "text": "captured"}],
+            }
+
+    monkeypatch.setattr(session_state, "PINNED_BACKEND", _Capture())
+    m = FastMCP("t", stateless_http=True)
+    disasm_mod.register(m)
+    # FastMCP internal -- if upgraded past 1.27, rewrite using
+    # create_connected_server_and_client_session.call_tool(name, args)
+    decompile_fn = m._tool_manager._tools["decompile"].fn
+
+    r = await decompile_fn(function="main")
+    assert captured["unified_name"] == "decompile"
+    assert captured["args"]["function"] == "main"
+    assert r["content"][0]["text"] == "captured"
+
+
+@pytest.mark.asyncio
+async def test_disasm_returns_stub_when_no_backend(monkeypatch):
+    """With PINNED_BACKEND=None, disasm tools return a structured stub error."""
+    from mcp_gateway import session_state
+    from mcp_gateway.tools import disasm as disasm_mod
+
+    monkeypatch.setattr(session_state, "PINNED_BACKEND", None)
+    m = FastMCP("t", stateless_http=True)
+    disasm_mod.register(m)
+
+    decompile_fn = m._tool_manager._tools["decompile"].fn
+    r = await decompile_fn(function="main")
+    assert "error" in r and r["error"] == "backend not yet wired"
+
+
+# ---------- build_app() lifespan PinnedBackend wiring ----------
+
+def test_build_app_skips_backend_when_env_flag_set(monkeypatch, tmp_path):
+    """MCP_GATEWAY_SKIP_BACKEND=1 must not try to enter a PinnedBackend."""
+    import os
+    from mcp_gateway.app import build_app
+
+    monkeypatch.setenv("MCP_GATEWAY_SKIP_BACKEND", "1")
+    monkeypatch.setenv("MCP_GATEWAY_TOKEN", "test-token")
+    monkeypatch.setenv("MCP_GATEWAY_TOKEN_FILE", str(tmp_path / ".tok"))
+    app = build_app()
+    assert app is not None
+
+
+def test_build_app_imports_pinnedbackend_from_client():
+    """Regression: app.py must import PinnedBackend from backend.client (not stubbed)."""
+    import mcp_gateway.app as app_mod
+    from mcp_gateway.backend.client import PinnedBackend
+    assert app_mod.PinnedBackend is PinnedBackend
+
+
+@pytest.mark.asyncio
+async def test_lifespan_enters_and_exits_pinned_backend(monkeypatch, tmp_path):
+    """Lifespan must enter a PinnedBackend when a real backend is detected,
+    set session_state.PINNED_BACKEND, and reset it to None on exit (D-09 + D-10).
+    """
+    from mcp_gateway import session_state
+    from mcp_gateway import app as app_mod
+
+    calls = {"entered": 0, "exited": 0, "during_lifespan_pinned": None}
+
+    class _FakePinned:
+        def __init__(self, backend):
+            self.backend = backend
+
+        async def __aenter__(self):
+            calls["entered"] += 1
+            return self
+
+        async def __aexit__(self, *a):
+            calls["exited"] += 1
+
+    def _fake_detect():
+        return "ida"
+
+    monkeypatch.setattr(app_mod, "detect_backend", _fake_detect)
+    monkeypatch.setattr(app_mod, "PinnedBackend", _FakePinned)
+    monkeypatch.setenv("MCP_GATEWAY_TOKEN", "test-token")
+    monkeypatch.setenv("MCP_GATEWAY_TOKEN_FILE", str(tmp_path / ".tok"))
+    monkeypatch.delenv("MCP_GATEWAY_SKIP_BACKEND", raising=False)
+
+    # Ensure the test starts with None so we can confirm reset on exit.
+    monkeypatch.setattr(session_state, "PINNED_BACKEND", None)
+
+    app = app_mod.build_app()
+    # Drive the lifespan manually
+    async with app.router.lifespan_context(app):
+        calls["during_lifespan_pinned"] = session_state.PINNED_BACKEND
+
+    assert calls["entered"] == 1, "PinnedBackend was never entered by lifespan"
+    assert calls["exited"] == 1, "PinnedBackend was never exited by lifespan"
+    assert isinstance(calls["during_lifespan_pinned"], _FakePinned), (
+        "session_state.PINNED_BACKEND was not set inside the lifespan"
+    )
+    assert session_state.PINNED_BACKEND is None, (
+        "session_state.PINNED_BACKEND was not reset after lifespan exit"
+    )
