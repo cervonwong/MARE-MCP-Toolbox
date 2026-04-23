@@ -47,22 +47,22 @@ used_pct=""
 
 # Active sample: newest dir under workspace/status/
 sample=""
-if [ -d /workspace/status ]; then
-  sample=$(ls -1t /workspace/status 2>/dev/null | head -1)
+if [ -d /agent/status ]; then
+  sample=$(ls -1t /agent/status 2>/dev/null | head -1)
 fi
 
 # Which disassembler MCP is wired in
 backend=""
-if [ -f /workspace/.mcp.json ]; then
-  if   grep -q '"binaryninja"' /workspace/.mcp.json 2>/dev/null; then backend="binja"
-  elif grep -q '"ghidra"'      /workspace/.mcp.json 2>/dev/null; then backend="ghidra"
-  elif grep -q '"ida"'         /workspace/.mcp.json 2>/dev/null; then backend="ida"
+if [ -f /agent/.mcp.json ]; then
+  if   grep -q '"binaryninja"' /agent/.mcp.json 2>/dev/null; then backend="binja"
+  elif grep -q '"ghidra"'      /agent/.mcp.json 2>/dev/null; then backend="ghidra"
+  elif grep -q '"ida"'         /agent/.mcp.json 2>/dev/null; then backend="ida"
   fi
 fi
 
-# Short path: replace /workspace with 🔬
+# Short path: replace /agent with 🔬
 short_path="${cwd:-$PWD}"
-short_path="${short_path/#\/workspace/🔬}"
+short_path="${short_path/#\/agent/🔬}"
 short_path="${short_path/#\/home\/agent/🐳}"
 
 reset='\033[0m'
