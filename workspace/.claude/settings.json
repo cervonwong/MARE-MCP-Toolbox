@@ -3,5 +3,9 @@
     "defaultMode": "bypassPermissions"
   },
   "model": "opus",
-  "effortLevel": "high"
+  "effortLevel": "high",
+  "statusLine": {
+    "type": "command",
+    "command": "bash /workspace/.claude/statusline.sh"
+  }
 }
