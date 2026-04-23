@@ -6,6 +6,6 @@
   "effortLevel": "high",
   "statusLine": {
     "type": "command",
-    "command": "bash /workspace/.claude/statusline.sh"
+    "command": "bash /agent/.claude/statusline.sh"
   }
 }
