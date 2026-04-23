@@ -831,6 +831,7 @@ async def test_disasm_tool_handler_delegates_to_pinned(ida_like_backend_mcp, mon
     monkeypatch.setattr(session_state, "PINNED_BACKEND", _Capture())
     m = FastMCP("t", stateless_http=True)
     disasm_mod.register(m)
+    # FastMCP internal — if upgraded past 1.27, rewrite using create_connected_server_and_client_session.call_tool(name, args)
     decompile_fn = m._tool_manager._tools["decompile"].fn
 
     r = await decompile_fn(function="main")
@@ -839,8 +840,14 @@ async def test_disasm_tool_handler_delegates_to_pinned(ida_like_backend_mcp, mon
     assert r["content"][0]["text"] == "captured"
 
 
-def test_disasm_returns_stub_when_no_backend(monkeypatch):
-    """With PINNED_BACKEND=None, disasm tools return a structured stub error."""
+@pytest.mark.asyncio
+async def test_disasm_returns_stub_when_no_backend(monkeypatch):
+    """With PINNED_BACKEND=None, disasm tools return a structured stub error.
+
+    Uses async def + await instead of deprecated asyncio.get_event_loop().run_until_complete()
+    which fails on Python 3.12+ (Kali 2025+ ships 3.12). pytest-asyncio asyncio_mode='auto'
+    picks this up.
+    """
     from mcp_gateway import session_state
     from mcp_gateway.tools import disasm as disasm_mod
     from mcp.server.fastmcp import FastMCP
@@ -849,10 +856,9 @@ def test_disasm_returns_stub_when_no_backend(monkeypatch):
     m = FastMCP("t", stateless_http=True)
     disasm_mod.register(m)
 
-    # Note: decompile is async; we need to run it.
-    import asyncio
+    # FastMCP internal — if upgraded past 1.27, rewrite using create_connected_server_and_client_session.call_tool(name, args)
     decompile_fn = m._tool_manager._tools["decompile"].fn
-    r = asyncio.get_event_loop().run_until_complete(decompile_fn(function="main"))
+    r = await decompile_fn(function="main")
     assert "error" in r and r["error"] == "backend not yet wired"
 ```
   </action>

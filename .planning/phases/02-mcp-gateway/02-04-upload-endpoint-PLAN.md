@@ -2,10 +2,11 @@
 phase: 02-mcp-gateway
 plan: 04
 type: execute
-wave: 3
+wave: 4
 depends_on:
   - 02-01
   - 02-02
+  - 02-03
 files_modified:
   - mcp-gateway/src/mcp_gateway/uploads.py
   - mcp-gateway/src/mcp_gateway/app.py

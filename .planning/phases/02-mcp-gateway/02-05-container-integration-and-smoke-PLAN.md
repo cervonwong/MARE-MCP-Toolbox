@@ -2,7 +2,7 @@
 phase: 02-mcp-gateway
 plan: 05
 type: execute
-wave: 4
+wave: 5
 depends_on:
   - 02-01
   - 02-02
@@ -179,7 +179,7 @@ Replace it with (adding the gateway deps inline, sorted for readability):
 RUN python3 -m pip install --no-cache-dir --break-system-packages \
     pytest pytest-asyncio ruff flare-floss uv ipython ipdb \
     capstone ropper unblob \
-    "mcp>=1.27.0" "starlette>=0.37" "uvicorn>=0.27" \
+    "mcp>=1.27,<1.28" "starlette>=0.37" "uvicorn>=0.27" \
     "python-multipart>=0.0.9" "httpx>=0.27" "anyio>=4.5"
 ```
 

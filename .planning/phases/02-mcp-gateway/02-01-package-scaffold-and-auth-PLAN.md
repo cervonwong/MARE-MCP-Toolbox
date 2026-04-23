@@ -51,7 +51,7 @@ must_haves:
   artifacts:
     - path: "mcp-gateway/pyproject.toml"
       provides: "Package metadata, pytest-asyncio config, entry point"
-      contains: "mcp>=1.27.0"
+      contains: "mcp>=1.27,<1.28"
     - path: "mcp-gateway/src/mcp_gateway/auth.py"
       provides: "load_or_generate_token, BearerAuthMiddleware, OriginMiddleware"
       exports: ["load_or_generate_token", "BearerAuthMiddleware", "OriginMiddleware"]
@@ -187,7 +187,7 @@ version = "0.1.0"
 description = "MARE-MCP-Toolbox gateway: curated MCP tool surface over Streamable HTTP"
 requires-python = ">=3.11"
 dependencies = [
-    "mcp>=1.27.0",
+    "mcp>=1.27,<1.28",
     "starlette>=0.37",
     "uvicorn>=0.27",
     "python-multipart>=0.0.9",
@@ -338,7 +338,7 @@ chmod 0755 both e2e shell scripts.
     <automated>pip install -e mcp-gateway/ && python -c "import mcp_gateway; print(mcp_gateway.__version__)" && pytest mcp-gateway/tests/ --collect-only -q</automated>
   </verify>
   <acceptance_criteria>
-    - File `mcp-gateway/pyproject.toml` exists and contains string `mcp>=1.27.0`
+    - File `mcp-gateway/pyproject.toml` exists and contains string `mcp>=1.27,<1.28` (tight pin per checker: keeps reliance on `_tool_manager` stable until we migrate to public client API)
     - File `mcp-gateway/pyproject.toml` contains string `asyncio_mode = "auto"`
     - File `mcp-gateway/pyproject.toml` contains `mcp-gateway = "mcp_gateway.cli:main"`
     - `pip install -e mcp-gateway/` exits 0

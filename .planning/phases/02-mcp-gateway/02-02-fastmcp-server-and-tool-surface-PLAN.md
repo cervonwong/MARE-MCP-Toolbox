@@ -386,26 +386,22 @@ def test_resolve_empty_string(mocked_dirs):
 
 # -------- run_script --------
 
-def test_run_script_echo():
-    result = asyncio.get_event_loop().run_until_complete(
-        run_script(["/bin/echo", "hello"], cwd="/tmp")
-    )
+async def test_run_script_echo():
+    # pytest-asyncio auto mode (asyncio_mode="auto" in pyproject.toml) picks up async tests.
+    # Avoids deprecated asyncio.get_event_loop().run_until_complete() which breaks on Python 3.12+.
+    result = await run_script(["/bin/echo", "hello"], cwd="/tmp")
     assert result["exit_code"] == 0
     assert "hello" in result["stdout"]
 
 
-def test_run_script_nonzero_exit_does_not_raise():
-    result = asyncio.get_event_loop().run_until_complete(
-        run_script(["/bin/false"], cwd="/tmp")
-    )
+async def test_run_script_nonzero_exit_does_not_raise():
+    result = await run_script(["/bin/false"], cwd="/tmp")
     assert result["exit_code"] == 1
 
 
-def test_run_script_timeout():
+async def test_run_script_timeout():
     with pytest.raises(asyncio.TimeoutError):
-        asyncio.get_event_loop().run_until_complete(
-            run_script(["/bin/sleep", "60"], cwd="/tmp", timeout=0.2)
-        )
+        await run_script(["/bin/sleep", "60"], cwd="/tmp", timeout=0.2)
 
 
 def test_run_script_never_uses_shell_true():
@@ -878,7 +874,10 @@ async def _invoke(fn, *args, **kwargs):
 
 def _get_tool(mcp: FastMCP, name: str):
     """Extract the underlying handler callable from a registered FastMCP tool."""
-    # FastMCP stores registered tools on _tool_manager; the handler is `.fn`.
+    # FastMCP internal — if upgraded past 1.27, rewrite using create_connected_server_and_client_session.call_tool(name, args)
+    # Private-attr access is acceptable here because unit tests need direct access to the
+    # bound function for argv-shape assertions (the public API would hide argv inside a
+    # subprocess call). Name listing / tools/list tests use the public API (see test_tool_list.py).
     mgr = getattr(mcp, "_tool_manager", None)
     if mgr is None:
         raise AssertionError("FastMCP version missing _tool_manager")
@@ -1002,6 +1001,9 @@ def mocked_run_triage(monkeypatch, tmp_path):
 
 
 def _get_tool(mcp: FastMCP, name: str):
+    # FastMCP internal — if upgraded past 1.27, rewrite using create_connected_server_and_client_session.call_tool(name, args)
+    # This is acceptable for unit-level tests that need direct function access for argv assertion;
+    # name listing and integration tests should use the public API (see test_tool_list.py).
     return mcp._tool_manager._tools[name].fn
 
 
@@ -1276,12 +1278,24 @@ Maps to VALIDATION.md rows:
   - GW-02 test_tool_count_in_range
   - GW-02 test_atomic_tools_map_to_scripts
   - GW-01/GW-02 (tools/list integration)
+
+IMPORTANT — FastMCP internals vs public API:
+  The preferred way to list tool names is via the public MCP client API:
+    `async with create_connected_server_and_client_session(mcp._mcp_server) as session:`
+    `    resp = await session.list_tools()`
+    `    names = {t.name for t in resp.tools}`
+  That path is stable across SDK versions (protocol-level tools/list).
+  The `mcp._tool_manager._tools` attribute is internal to FastMCP 1.27 and will break
+  on future SDK upgrades — we pin `mcp>=1.27,<1.28` in pyproject.toml to guard against that.
+  The private-attr fallback is only kept where it adds value (count sanity check); name
+  listing goes through the public API.
 """
 from __future__ import annotations
 from pathlib import Path
 
 import pytest
 from mcp.server.fastmcp import FastMCP
+from mcp.shared.memory import create_connected_server_and_client_session
 
 from mcp_gateway.tools import register_all_tools
 
@@ -1305,23 +1319,31 @@ def registered():
     return m
 
 
-def test_all_expected_tools_present(registered):
-    names = set(registered._tool_manager._tools.keys())
+async def _list_tool_names(mcp: FastMCP) -> set[str]:
+    """PUBLIC API path — uses protocol-level tools/list over in-memory transport."""
+    async with create_connected_server_and_client_session(mcp._mcp_server) as session:
+        resp = await session.list_tools()
+        return {t.name for t in resp.tools}
+
+
+async def test_all_expected_tools_present(registered):
+    names = await _list_tool_names(registered)
     assert EXPECTED_TOOLS.issubset(names), f"missing: {EXPECTED_TOOLS - names}"
 
 
-def test_tool_count_in_range(registered):
-    n = len(registered._tool_manager._tools)
+async def test_tool_count_in_range(registered):
+    names = await _list_tool_names(registered)
+    n = len(names)
     assert 15 <= n <= 25, f"tool count {n} violates GW-02 (15-25)"
 
 
-def test_no_unexpected_tools(registered):
-    names = set(registered._tool_manager._tools.keys())
+async def test_no_unexpected_tools(registered):
+    names = await _list_tool_names(registered)
     extras = names - EXPECTED_TOOLS
     assert not extras, f"unexpected tools registered: {extras}"
 
 
-def test_atomic_tools_map_to_scripts(registered):
+async def test_atomic_tools_map_to_scripts(registered):
     """Every shell/py script in orchestrator scripts/ has an atomic tool wrapper."""
     # The mapping is (script_basename -> tool_name); update when scripts are added/renamed.
     mapping = {
@@ -1335,9 +1357,19 @@ def test_atomic_tools_map_to_scripts(registered):
         "update_state.py": "update_state",
         "resolve_case.sh": "resolve_case",
     }
-    names = set(registered._tool_manager._tools.keys())
+    names = await _list_tool_names(registered)
     for script, tool in mapping.items():
         assert tool in names, f"atomic tool {tool!r} for script {script!r} not registered"
+
+
+def test_tool_count_private_sanity(registered):
+    """Quick sanity check via FastMCP internal — guards `mcp>=1.27,<1.28` pin.
+    If this breaks on SDK upgrade, rewrite ALL tests in this file using
+    `create_connected_server_and_client_session` (the public API path above).
+    """
+    # FastMCP internal — if upgraded past 1.27, rewrite using create_connected_server_and_client_session.call_tool(name, args)
+    n = len(registered._tool_manager._tools)
+    assert 15 <= n <= 25, f"private-attr sanity: tool count {n} violates GW-02 (15-25)"
 ```
   </action>
   <verify>
