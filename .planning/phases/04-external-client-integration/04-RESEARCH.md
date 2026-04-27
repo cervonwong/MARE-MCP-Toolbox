@@ -929,32 +929,32 @@ MARE_GATEWAY_URL=http://localhost:8080/mcp
 
 **Confirmed (no longer assumed):** `mare://` custom URI scheme accepted by FastMCP (verified in venv); `httpx` already a dependency (verified in `pyproject.toml`); 13-artifact list (verified in `artifact-spec.md`); FastMCP `_mcp_server` low-level handler API (verified in venv via `inspect.getsource`).
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Single sample fixture for the mastra starter test**
    - What we know: `workspace/examples/samples/mfc42ul.dll` exists.
    - What's unclear: Does the starter's `npm start` need to mount/copy this sample into the container, or can it reference it via URL/sha after upload?
-   - Recommendation: Starter accepts a CLI arg with a host-side path, reads bytes locally, POSTs to `/upload`, gets sha256 back. The test passes `workspace/examples/samples/mfc42ul.dll` as that arg. Plan should confirm.
+   - RESOLVED: Starter accepts a CLI arg with a host-side path, reads bytes locally, POSTs to `/upload`, gets sha256 back. The test passes `workspace/examples/samples/mfc42ul.dll` as that arg. Plan should confirm.
 
 2. **README structure for two-mode framing (D-16)**
    - What we know: D-16 requires a full rewrite covering local + remote modes, both client configs, resource browsing.
    - What's unclear: Order of sections — "what is this" first, or "install" first?
-   - Recommendation: Outline below; planner adapts. Section beats: (a) one-line value prop, (b) "Two ways to use this" mode comparison table, (c) Quick start: local mode, (d) Quick start: remote mode (with `--remote` ready-block screenshot/quote), (e) Connect Claude Code (link to `templates/claude-code/.mcp.json`), (f) Connect mastra.ai (link to `templates/mastra/`), (g) Browse case artifacts (mention MCP Resources + sample URIs), (h) Troubleshooting (`--print-config`, token rotation, port conflicts).
+   - RESOLVED: Outline below; planner adapts. Section beats: (a) one-line value prop, (b) "Two ways to use this" mode comparison table, (c) Quick start: local mode, (d) Quick start: remote mode (with `--remote` ready-block screenshot/quote), (e) Connect Claude Code (link to `templates/claude-code/.mcp.json`), (f) Connect mastra.ai (link to `templates/mastra/`), (g) Browse case artifacts (mention MCP Resources + sample URIs), (h) Troubleshooting (`--print-config`, token rotation, port conflicts).
 
 3. **Resource truncation policy**
    - What we know: CONTEXT D-04 says "default to read whole file unless this proves problematic."
    - What's unclear: What's "problematic"? `01_strings_raw.txt` for a large binary could be 10+ MB.
-   - Recommendation: No truncation in Phase 4. If a real artifact exceeds 50 MB, the user will hit it and we revisit. Document the no-cap policy in `tools/resources.py` docstring.
+   - RESOLVED: No truncation in Phase 4. If a real artifact exceeds 50 MB, the user will hit it and we revisit. Document the no-cap policy in `tools/resources.py` docstring.
 
 4. **Mastra `@mastra/core` peer compat (A8 follow-through)**
    - What we know: `@mastra/mcp@1.3.x` peer range allows `@mastra/core` up to `<2.0.0-0`.
    - What's unclear: Does `1.28.0` actually work with `1.3.1`?
-   - Recommendation: Plan must include a manual `npm install && npm run build` smoke during execution. If it fails, downgrade core to `^1.20` (closest to 1.3.x's release window). User confirmation required only if the downgrade breaks API surface used in `src/index.ts`.
+   - RESOLVED: Plan must include a manual `npm install && npm run build` smoke during execution. If it fails, downgrade core to `^1.20` (closest to 1.3.x's release window). User confirmation required only if the downgrade breaks API surface used in `src/index.ts`.
 
 5. **Should `mcp-gateway/README.md` be updated alongside the top-level rewrite?**
    - What we know: D-16 says "may receive a small client-integration update."
    - What's unclear: Is "small update" worth the planning bandwidth, or skip?
-   - Recommendation: Add a single new section ("Client integration: see top-level README") with a link. Five-line addition, low cost, prevents the gateway README from being a dead end.
+   - RESOLVED: Add a single new section ("Client integration: see top-level README") with a link. Five-line addition, low cost, prevents the gateway README from being a dead end.
 
 ## Environment Availability
 
