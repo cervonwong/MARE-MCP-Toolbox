@@ -32,8 +32,9 @@ EXPECTED_TOOLS = {
     "rank_signals", "build_hypothesis", "update_state", "resolve_case", "get_artifact",
     # Disassembler (3)
     "decompile", "list_functions", "get_xrefs",
-    # Case/sample mgmt (5)
+    # Case/sample mgmt (6) — get_active_backend added in Plan 05 (D-07 pass-through model)
     "list_cases", "set_active_case", "get_active_case", "list_uploads", "get_sample_info",
+    "get_active_backend",
 }
 
 

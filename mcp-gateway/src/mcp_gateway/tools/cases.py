@@ -73,3 +73,21 @@ def register(mcp: FastMCP) -> None:
             "size": p.stat().st_size,
             "path": str(p),
         }
+
+    @mcp.tool()
+    def get_active_backend() -> dict:
+        """Return the disassembler backend currently pinned for this gateway lifetime.
+
+        D-07 pass-through model: backend tools (e.g., 'decompile', 'program.open',
+        'list_funcs') are registered under their NATIVE names. Clients call this
+        tool to learn which backend is active so they can drive the right surface.
+
+        Returns:
+            {"backend": "ida" | "bn" | "ghidra" | "none"}
+        """
+        pinned = session_state.PINNED_BACKEND
+        if pinned is None:
+            return {"backend": "none"}
+        # PinnedBackend exposes a `name` attribute (str) per Plan 03.
+        name = getattr(pinned, "name", None) or getattr(pinned, "backend", None) or "unknown"
+        return {"backend": str(name)}
