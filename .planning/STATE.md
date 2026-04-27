@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-06-PLAN.md
-last_updated: "2026-04-27T08:40:26.549Z"
+stopped_at: Completed 04-05-PLAN.md
+last_updated: "2026-04-27T08:42:19.326Z"
 last_activity: 2026-04-27
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 16
-  completed_plans: 14
-  percent: 0
+  completed_plans: 15
+  percent: 94
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** Automated malware triage and deep analysis via AI agents with full access to professional RE tooling -- accessible both from inside the container and from external MCP clients.
-**Current focus:** Phase 03 — container-integration
+**Current focus:** Phase 04 — external-client-integration
 
 ## Current Position
 
 Phase: 4
-Plan: Not started
-Status: Executing Phase 03
+Plan: 5 of 7 complete
+Status: Executing Phase 04 (external-client-integration)
 Last activity: 2026-04-27
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█████████░] 94%
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [░░░░░░░░░░] 0%
 *Updated after each plan completion*
 | Phase 02 P05 | 20min | 4 tasks | 9 files |
 | Phase 04 P06 | 2min | 2 tasks | 2 files |
+| Phase 04 P05 | 3min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,7 @@ Recent decisions affecting current work:
 - [Phase 02]: get_active_backend MCP tool added (Rule 2 fix) — surfaces pinned backend name to clients per D-07 pass-through model; tool count 21 → 22, still in GW-02 [15,25] budget
 - [Phase 04]: Full rewrite of README (not patch) to establish two-mode framing as the v2 headline — v2 two-mode framing is fundamentally different narrative from v1 local-only README
 - [Phase 04]: Grep-style pytest enforces README section structure — catches env-var drift or missing template references — Same pattern as test_claude_code_template.py for consistency
+- [Phase 04]: Session-scoped httpx.Client (not mcp SDK ClientSession) for raw JSON-RPC control over Streamable HTTP — mcp SDK ClientSession would obscure wire format and make auth-bypass testing harder
 
 ### Pending Todos
 
@@ -92,6 +94,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-27T08:40:26.546Z
-Stopped at: Completed 04-06-PLAN.md
+Last session: 2026-04-27T08:42:19.323Z
+Stopped at: Completed 04-05-PLAN.md
 Resume file: None
