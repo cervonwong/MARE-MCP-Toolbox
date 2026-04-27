@@ -41,6 +41,7 @@ class PinnedBackend:
                 f"unsupported backend: {backend!r} (expected one of {SUPPORTED_BACKENDS})"
             )
         self.backend = backend
+        self.name = backend  # public alias (see tools/cases.get_active_backend)
         self._stack = AsyncExitStack()
         self._call_lock = asyncio.Lock()
         self.session: ClientSession | None = None

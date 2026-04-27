@@ -88,6 +88,7 @@ def register(mcp: FastMCP) -> None:
         pinned = session_state.PINNED_BACKEND
         if pinned is None:
             return {"backend": "none"}
-        # PinnedBackend exposes a `name` attribute (str) per Plan 03.
-        name = getattr(pinned, "name", None) or getattr(pinned, "backend", None) or "unknown"
+        # PinnedBackend exposes both `.backend` (canonical, set in __init__) and
+        # `.name` (public alias). Prefer `.backend`; fall back to `.name` defensively.
+        name = getattr(pinned, "backend", None) or getattr(pinned, "name", None) or "unknown"
         return {"backend": str(name)}
