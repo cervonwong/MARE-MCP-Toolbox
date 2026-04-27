@@ -1,0 +1,10 @@
+# Phase 3 remote-mode overlay (D-02).
+# Layered with: docker compose -f compose.yaml -f compose.remote.yaml up -d kali
+# Replaces the base CMD with a keepalive so `compose up -d` keeps the full
+# image running detached (the gateway + idalib daemons launch from
+# agent-entrypoint.sh; user can `docker exec` for an interactive shell).
+services:
+  kali:
+    command: ["tail", "-f", "/dev/null"]
+    tty: false
+    stdin_open: false
