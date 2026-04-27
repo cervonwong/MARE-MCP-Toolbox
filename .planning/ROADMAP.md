@@ -66,7 +66,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 03-01-PLAN.md -- Container integration: dual-mode launcher (--remote flag), compose ports block + remote-mode overlay, Dockerfile MCP_GATEWAY_ENABLED guard, smoke tests
+- [x] 03-01-PLAN.md -- Container integration: dual-mode launcher (--remote flag), compose ports block + remote-mode overlay, Dockerfile MCP_GATEWAY_ENABLED guard, smoke tests
 
 ### Phase 4: External Client Integration
 **Goal**: Claude Code on the host and mastra.ai agents can connect to the containerized tools and run complete analysis workflows
