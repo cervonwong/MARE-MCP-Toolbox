@@ -10,7 +10,7 @@
 #   - idempotent re-run reprints same token
 set -euo pipefail
 
-REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd -P)"
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../../.." && pwd -P)"
 cd "$REPO_ROOT"
 
 # shellcheck disable=SC1091

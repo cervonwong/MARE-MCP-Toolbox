@@ -3,7 +3,7 @@ set -euo pipefail
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 
 # Shared trap: ensure container is torn down even if a sub-script aborts mid-flight.
-REPO_ROOT="$(cd -- "$HERE/../../.." && pwd -P)"
+REPO_ROOT="$(cd -- "$HERE/../../../.." && pwd -P)"
 cleanup() {
   ( cd "$REPO_ROOT" && \
     docker compose -f compose.yaml -f compose.remote.yaml down --remove-orphans >/dev/null 2>&1 || true; \
