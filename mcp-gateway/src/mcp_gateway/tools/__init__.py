@@ -11,8 +11,9 @@ def register_all_tools(mcp: FastMCP) -> None:
     """
     # Imports inside the function avoid import-cycle risk during FastMCP module
     # discovery and keep the function as the single registration seam.
-    from . import cases, artifacts, workflows, disasm  # noqa: F401
+    from . import cases, artifacts, workflows, disasm, resources  # noqa: F401
     cases.register(mcp)
     artifacts.register(mcp)
     workflows.register(mcp)
     disasm.register(mcp)
+    resources.register(mcp)
