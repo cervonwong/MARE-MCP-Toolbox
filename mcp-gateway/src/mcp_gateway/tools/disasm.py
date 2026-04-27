@@ -31,28 +31,29 @@ def register(mcp: FastMCP) -> None:
         """Decompile a function in the active/selected sample via the pinned backend."""
         if session_state.PINNED_BACKEND is None:
             return _backend_error_stub("decompile")
-        sample_path = resolve_sample(sample) if sample else None
-        # Plan 03 replaces this body with real tool_map.translate + backend.call dispatch.
-        return await session_state.PINNED_BACKEND.call_unified(
-            "decompile", {"function": function, "sample_path": sample_path}
-        )
+        # Drop sample_path entirely when no sample provided -- some backends reject
+        # explicit None for path-typed params with confusing schema-validation errors.
+        args: dict = {"function": function}
+        if sample is not None:
+            args["sample_path"] = resolve_sample(sample)
+        return await session_state.PINNED_BACKEND.call_unified("decompile", args)
 
     @mcp.tool()
     async def list_functions(sample: Optional[str] = None) -> dict:
         """List all functions in the active/selected sample."""
         if session_state.PINNED_BACKEND is None:
             return _backend_error_stub("list_functions")
-        sample_path = resolve_sample(sample) if sample else None
-        return await session_state.PINNED_BACKEND.call_unified(
-            "list_functions", {"sample_path": sample_path}
-        )
+        args: dict = {}
+        if sample is not None:
+            args["sample_path"] = resolve_sample(sample)
+        return await session_state.PINNED_BACKEND.call_unified("list_functions", args)
 
     @mcp.tool()
     async def get_xrefs(function: str, sample: Optional[str] = None) -> dict:
         """List cross-references to a function in the active/selected sample."""
         if session_state.PINNED_BACKEND is None:
             return _backend_error_stub("get_xrefs")
-        sample_path = resolve_sample(sample) if sample else None
-        return await session_state.PINNED_BACKEND.call_unified(
-            "get_xrefs", {"function": function, "sample_path": sample_path}
-        )
+        args: dict = {"function": function}
+        if sample is not None:
+            args["sample_path"] = resolve_sample(sample)
+        return await session_state.PINNED_BACKEND.call_unified("get_xrefs", args)
