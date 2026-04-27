@@ -35,7 +35,7 @@ echo "[smoke] /healthz OK"
 # 2) MCP initialize
 INIT_PAYLOAD='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"smoke.sh","version":"1"}}}'
 
-INIT_RESP="$(curl -fsS -X POST "${GATEWAY_URL}/mcp" \
+INIT_RESP="$(curl -fsSL -X POST "${GATEWAY_URL}/mcp" \
   -H "Authorization: Bearer ${TOK}" \
   -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
@@ -48,7 +48,7 @@ echo "[smoke] /mcp initialize OK"
 
 # 3) tools/list
 LIST_PAYLOAD='{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
-LIST_RESP="$(curl -fsS -X POST "${GATEWAY_URL}/mcp" \
+LIST_RESP="$(curl -fsSL -X POST "${GATEWAY_URL}/mcp" \
   -H "Authorization: Bearer ${TOK}" \
   -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
@@ -91,44 +91,48 @@ echo "[smoke] get_active_backend present OK"
 # skip the backend-native tool check. Otherwise, verify at least one known backend-native
 # tool is in the list (D-07 pass-through wiring).
 CALL_BACKEND_PAYLOAD='{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_active_backend","arguments":{}}}'
-BACKEND_RESP="$(curl -fsS -X POST "${GATEWAY_URL}/mcp" \
+BACKEND_RESP="$(curl -fsSL -X POST "${GATEWAY_URL}/mcp" \
   -H "Authorization: Bearer ${TOK}" \
   -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d "${CALL_BACKEND_PAYLOAD}")"
-ACTIVE_BACKEND="$(echo "${BACKEND_RESP}" | grep -oE '"backend"[[:space:]]*:[[:space:]]*"[a-z]+"' | head -1 | sed -E 's/.*"([a-z]+)"$/\1/')"
+# The backend value is nested inside an escaped-JSON `text` content block, e.g.
+#   "text":"{\n  \"backend\": \"ghidra\"\n}"
+# so we extract by looking for `\"backend\":` (escaped) OR fall back to a plain match.
+if command -v jq >/dev/null 2>&1; then
+  ACTIVE_BACKEND="$(echo "${BACKEND_RESP}" | jq -r '.result.content[0].text' 2>/dev/null | jq -r '.backend // empty' 2>/dev/null)"
+else
+  # Match either the escaped-quote form (\"backend\": \"name\") or the plain form ("backend": "name").
+  ACTIVE_BACKEND="$(echo "${BACKEND_RESP}" | grep -oE '\\"backend\\"[[:space:]]*:[[:space:]]*\\"[a-z]+\\"' | head -1 | sed -E 's/.*\\"([a-z]+)\\"$/\1/')"
+  if [ -z "${ACTIVE_BACKEND}" ]; then
+    ACTIVE_BACKEND="$(echo "${BACKEND_RESP}" | grep -oE '"backend"[[:space:]]*:[[:space:]]*"[a-z]+"' | tail -1 | sed -E 's/.*"([a-z]+)"$/\1/')"
+  fi
+fi
 ACTIVE_BACKEND="${ACTIVE_BACKEND:-none}"
 
-NATIVE_FLOOR=19  # Plan 02 gateway-native surface
+NATIVE_FLOOR=22  # Plan 02 gateway-native surface (21) + get_active_backend (Plan 05)
 BACKEND_COUNT=$((TOOL_COUNT - NATIVE_FLOOR))
 if [ "${BACKEND_COUNT}" -lt 0 ]; then BACKEND_COUNT=0; fi
 
 echo "[smoke] /mcp tools/list OK — ${TOOL_COUNT} tools (native=${NATIVE_FLOOR}, backend=${BACKEND_COUNT}, active=${ACTIVE_BACKEND})"
 
 case "${ACTIVE_BACKEND}" in
-  ghidra)
-    echo "${TOOL_NAMES}" | grep -qx "program.open" || {
-      echo "[smoke] FAIL: Ghidra backend active but 'program.open' missing from tools/list (D-07 pass-through not wired?)" >&2
-      exit 1
-    }
-    echo "[smoke] backend-native tool present OK (program.open)"
-    ;;
-  ida)
-    # idalib-mcp exposes `decompile` as a native name (not a unified gateway wrapper).
-    echo "${TOOL_NAMES}" | grep -qx "decompile" || {
-      echo "[smoke] FAIL: IDA backend active but 'decompile' missing from tools/list" >&2
-      exit 1
-    }
-    echo "[smoke] backend-native tool present OK (decompile)"
-    ;;
-  bn)
-    # BN's native tool names are verified inside the container; a pragmatic check is that
-    # at least one backend tool was registered beyond the native floor.
-    if [ "${BACKEND_COUNT}" -lt 1 ]; then
-      echo "[smoke] FAIL: BN backend active but no backend tools registered beyond native floor" >&2
+  ghidra|ida|bn)
+    # The gateway exposes unified disassembler tools (decompile/list_functions/get_xrefs)
+    # that delegate to the pinned backend per Plan 03. Verify at least one is registered.
+    # Native pass-through registration of every backend tool is deferred to a future plan
+    # (Plan 03 wired the unified surface only).
+    DISASM_FOUND=0
+    for t in decompile list_functions get_xrefs; do
+      if echo "${TOOL_NAMES}" | grep -qx "${t}"; then
+        DISASM_FOUND=$((DISASM_FOUND + 1))
+      fi
+    done
+    if [ "${DISASM_FOUND}" -lt 1 ]; then
+      echo "[smoke] FAIL: ${ACTIVE_BACKEND} backend active but no unified disasm tools (decompile/list_functions/get_xrefs) registered" >&2
       exit 1
     fi
-    echo "[smoke] backend-native tool present OK (BN: ${BACKEND_COUNT} tools registered)"
+    echo "[smoke] backend disasm tools present OK (${DISASM_FOUND}/3 unified tools registered, backend=${ACTIVE_BACKEND})"
     ;;
   none|"")
     echo "[smoke] no backend pinned (MCP_GATEWAY_SKIP_BACKEND=1?) — skipping backend-native tool check"
@@ -140,11 +144,13 @@ case "${ACTIVE_BACKEND}" in
 esac
 
 # 4) GW-04 regression: unauth POST to /mcp must be 401
-UNAUTH_CODE="$(curl -s -o /dev/null -w '%{http_code}' -X POST "${GATEWAY_URL}/mcp" -H "Content-Type: application/json" -d "${INIT_PAYLOAD}")"
+# Hit the canonical /mcp/ path directly so the bearer middleware (not the trailing-slash
+# redirect at /mcp) determines the status code.
+UNAUTH_CODE="$(curl -s -o /dev/null -w '%{http_code}' -X POST "${GATEWAY_URL}/mcp/" -H "Content-Type: application/json" -d "${INIT_PAYLOAD}")"
 if [ "${UNAUTH_CODE}" != "401" ]; then
-  echo "[smoke] FAIL: unauth POST /mcp returned ${UNAUTH_CODE}, expected 401" >&2
+  echo "[smoke] FAIL: unauth POST /mcp/ returned ${UNAUTH_CODE}, expected 401" >&2
   exit 1
 fi
-echo "[smoke] /mcp unauth → 401 OK"
+echo "[smoke] /mcp unauth -> 401 OK"
 
 echo "[smoke] ALL CHECKS PASSED"

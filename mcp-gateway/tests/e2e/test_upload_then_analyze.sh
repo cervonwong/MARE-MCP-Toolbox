@@ -45,14 +45,14 @@ echo "[upload-e2e] upload OK — sample_id=${SAMPLE_ID}"
 
 # 3) First initialize, then tools/call collect_strings(sample=<sha256>)
 INIT_PAYLOAD='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"upload-e2e","version":"1"}}}'
-curl -fsS -X POST "${GATEWAY_URL}/mcp" \
+curl -fsSL -X POST "${GATEWAY_URL}/mcp" \
   -H "Authorization: Bearer ${TOK}" \
   -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d "${INIT_PAYLOAD}" >/dev/null
 
 CALL_PAYLOAD="$(printf '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"collect_strings","arguments":{"sample":"%s"}}}' "${SAMPLE_ID}")"
-CALL_RESP="$(curl -fsS -X POST "${GATEWAY_URL}/mcp" \
+CALL_RESP="$(curl -fsSL -X POST "${GATEWAY_URL}/mcp" \
   -H "Authorization: Bearer ${TOK}" \
   -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
