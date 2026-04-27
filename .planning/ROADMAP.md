@@ -80,10 +80,10 @@ Plans:
 **Plans**: 7 plans
 
 Plans:
-- [ ] 04-01-PLAN.md -- Claude Code .mcp.json template + JSON-shape unit test (CLI-01, CLI-03)
-- [ ] 04-02-PLAN.md -- run_docker.sh --print-config flag + print_ready_block() refactor + subprocess test (CLI-01)
-- [ ] 04-03-PLAN.md -- MCP Resources (mare://cases/...) module + tools/__init__.py wiring + MIME and unit tests (CLI-04)
-- [ ] 04-04-PLAN.md -- templates/mastra/ runnable starter project + static template unit test (CLI-02, CLI-03)
+- [x] 04-01-PLAN.md -- Claude Code .mcp.json template + JSON-shape unit test (CLI-01, CLI-03)
+- [x] 04-02-PLAN.md -- run_docker.sh --print-config flag + print_ready_block() refactor + subprocess test (CLI-01)
+- [x] 04-03-PLAN.md -- MCP Resources (mare://cases/...) module + tools/__init__.py wiring + MIME and unit tests (CLI-04)
+- [x] 04-04-PLAN.md -- templates/mastra/ runnable starter project + static template unit test (CLI-02, CLI-03)
 - [ ] 04-05-PLAN.md -- mcp-gateway/tests/e2e/ suite: conftest + Claude Code smoke + resources + mastra starter subprocess (CLI-01, CLI-02, CLI-04)
 - [ ] 04-06-PLAN.md -- Top-level README.md rewrite (D-16 two-mode framing) + grep-based structure test (CLI-03)
 - [ ] 04-07-PLAN.md -- 04-UAT.md manual UAT checklist + checkpoint:human-action signoff gate (CLI-01)
