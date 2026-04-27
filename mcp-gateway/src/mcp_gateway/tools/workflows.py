@@ -10,6 +10,7 @@ from pathlib import Path
 from mcp.server.fastmcp import FastMCP
 
 from ..subprocess_runner import SCRIPTS, run_script
+from .artifacts import CASE_TIMEOUT_S, FAST_TIMEOUT_S
 from .samples import resolve_sample
 
 
@@ -25,7 +26,7 @@ def register(mcp: FastMCP) -> None:
         init = await run_script(
             ["bash", str(SCRIPTS / "init_status_tree.sh"), path],
             cwd="/agent",
-            timeout=60.0,
+            timeout=FAST_TIMEOUT_S,
         )
         # init_status_tree.sh prints the case dir path as the last stdout line
         case_dir = init["stdout"].strip().split("\n")[-1] if init["exit_code"] == 0 else ""
@@ -40,25 +41,29 @@ def register(mcp: FastMCP) -> None:
             argv = ["bash", str(SCRIPTS / base), path]
             if case_dir:
                 argv.append(case_dir)
-            r = await run_script(argv, cwd="/agent", timeout=600.0)
+            r = await run_script(argv, cwd="/agent", timeout=CASE_TIMEOUT_S)
             steps.append({"step": name, "exit_code": r["exit_code"], "stderr_head": r["stderr"][:500]})
 
-        for name, py_script in [
-            ("rank_signals",     "rank_signals.py"),
-            ("build_hypothesis", "build_hypothesis.py"),
-        ]:
+        # Mirror per-script timeouts from artifacts.py (atomic-tool wrappers) so
+        # the same script has the same timeout policy whether invoked directly or
+        # through run_triage. See WR-06.
+        py_steps = [
+            ("rank_signals",     "rank_signals.py",     CASE_TIMEOUT_S),
+            ("build_hypothesis", "build_hypothesis.py", FAST_TIMEOUT_S),
+        ]
+        for name, py_script, timeout in py_steps:
             if not case_dir:
                 steps.append({"step": name, "exit_code": -1, "stderr_head": "no case_dir from init"})
                 continue
             argv = ["python3", str(SCRIPTS / py_script), "--status-dir", case_dir]
-            r = await run_script(argv, cwd="/agent", timeout=600.0)
+            r = await run_script(argv, cwd="/agent", timeout=timeout)
             steps.append({"step": name, "exit_code": r["exit_code"], "stderr_head": r["stderr"][:500]})
 
         if case_dir:
             r = await run_script(
                 ["python3", str(SCRIPTS / "update_state.py"), "--status-dir", case_dir, "--phase", "triage_complete"],
                 cwd="/agent",
-                timeout=60.0,
+                timeout=FAST_TIMEOUT_S,
             )
             steps.append({"step": "update_state", "exit_code": r["exit_code"], "stderr_head": r["stderr"][:500]})
 
@@ -71,7 +76,7 @@ def register(mcp: FastMCP) -> None:
         Full deep-analysis is v2 scope (references deep-analysis-checklist.md).
         """
         argv = ["python3", str(SCRIPTS / "update_state.py"), "--status-dir", case_dir, "--phase", "planning_complete"]
-        return await run_script(argv, cwd="/agent", timeout=60.0)
+        return await run_script(argv, cwd="/agent", timeout=FAST_TIMEOUT_S)
 
     @mcp.tool()
     def generate_report(case_dir: str) -> dict:
