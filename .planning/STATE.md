@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-05-PLAN.md
-last_updated: "2026-04-27T08:42:19.326Z"
+stopped_at: Completed 04-07-PLAN.md
+last_updated: "2026-04-27T09:10:51.986Z"
 last_activity: 2026-04-27
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 16
-  completed_plans: 15
+  completed_plans: 16
   percent: 94
 ---
 
@@ -56,6 +56,7 @@ Progress: [█████████░] 94%
 | Phase 02 P05 | 20min | 4 tasks | 9 files |
 | Phase 04 P06 | 2min | 2 tasks | 2 files |
 | Phase 04 P05 | 3min | 3 tasks | 5 files |
+| Phase 04 P07 | 2min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,7 @@ Recent decisions affecting current work:
 - [Phase 04]: Full rewrite of README (not patch) to establish two-mode framing as the v2 headline — v2 two-mode framing is fundamentally different narrative from v1 local-only README
 - [Phase 04]: Grep-style pytest enforces README section structure — catches env-var drift or missing template references — Same pattern as test_claude_code_template.py for consistency
 - [Phase 04]: Session-scoped httpx.Client (not mcp SDK ClientSession) for raw JSON-RPC control over Streamable HTTP — mcp SDK ClientSession would obscure wire format and make auth-bypass testing harder
+- [Phase 04]: UAT checklist gates Phase 4 completion on human signoff (CLI-01) — Required to satisfy D-12 part b — human verification cannot be automated
 
 ### Pending Todos
 
@@ -94,6 +96,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-27T08:42:19.323Z
-Stopped at: Completed 04-05-PLAN.md
+Last session: 2026-04-27T09:10:51.981Z
+Stopped at: Completed 04-07-PLAN.md
 Resume file: None
