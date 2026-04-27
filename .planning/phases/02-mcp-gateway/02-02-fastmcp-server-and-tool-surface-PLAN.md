@@ -13,7 +13,6 @@ files_modified:
   - mcp-gateway/src/mcp_gateway/tools/cases.py
   - mcp-gateway/src/mcp_gateway/tools/artifacts.py
   - mcp-gateway/src/mcp_gateway/tools/workflows.py
-  - mcp-gateway/src/mcp_gateway/tools/disasm.py
   - mcp-gateway/tests/test_server_init.py
   - mcp-gateway/tests/test_tool_list.py
   - mcp-gateway/tests/test_artifact_tools.py
@@ -33,10 +32,11 @@ tags:
 must_haves:
   truths:
     - "FastMCP Streamable HTTP `initialize` request succeeds via ASGI TestClient with valid bearer"
-    - "`tools/list` returns exactly 21 curated tools (3 composite + 10 atomic + 3 disasm + 5 case/sample mgmt)"
-    - "Count of exposed tools is between 15 and 25 (GW-02)"
+    - "`tools/list` returns exactly 19 gateway-native tools (3 composite + 10 atomic + 6 case/sample/meta)"
+    - "Count of gateway-native tools is between 15 and 25 (GW-02 applies to native surface only per revised D-02)"
     - "Every orchestrator script in `workspace/.claude/skills/malware-analysis-orchestrator/scripts/` has a matching atomic tool"
-    - "Disassembler tools (`decompile`, `list_functions`, `get_xrefs`) are registered even though backend wiring is stubbed until Plan 03"
+    - "`get_active_backend` tool is registered and returns the pinned backend name when `session_state.PINNED_BACKEND` is set (Plan 03 wires), or 'none' under `MCP_GATEWAY_SKIP_BACKEND=1`"
+    - "No unified disasm tools are registered at gateway level — backend disassembler tools are re-exposed with native names by Plan 03 (D-07 pass-through model)"
     - "`resolve_sample(<sha256>)` returns `/agent/uploads/<sha256>/*` first match"
     - "`resolve_sample(<container-path>)` returns the path unchanged IF it is under `/agent/uploads/`, `/agent/examples/`, or `/agent/status/`"
     - "`resolve_sample('../etc/passwd')` raises ValueError (T-02-PATHTRAVERSAL)"
@@ -124,13 +124,14 @@ update_state.py --status-dir <case_dir> --phase <x> → writes INDEX.md, CURRENT
 resolve_case.sh <sample>                            → stdout: latest status/<NNN>-<filename>/ path
 ```
 
-<!-- Full 21-tool inventory (D-01..D-04) -->
+<!-- Gateway-native 19-tool inventory (D-01..D-04, D-07). Backend pass-through tools are
+     added by Plan 03 at lifespan start (D-07); they do NOT appear in this list. -->
 ```
-Composite (3):      run_triage, run_deep_analysis, generate_report
-Atomic (10):        init_case, collect_strings, collect_imports, scan_yara, scan_capa,
-                    rank_signals, build_hypothesis, update_state, resolve_case, get_artifact
-Disassembler (3):   decompile, list_functions, get_xrefs
-Case/sample (5):    list_cases, set_active_case, get_active_case, list_uploads, get_sample_info
+Composite (3):         run_triage, run_deep_analysis, generate_report
+Atomic (10):           init_case, collect_strings, collect_imports, scan_yara, scan_capa,
+                       rank_signals, build_hypothesis, update_state, resolve_case, get_artifact
+Case/sample/meta (6):  list_cases, set_active_case, get_active_case, list_uploads, get_sample_info,
+                       get_active_backend
 ```
 </interfaces>
 </context>
@@ -176,17 +177,18 @@ from mcp.server.fastmcp import FastMCP
 
 
 def register_all_tools(mcp: FastMCP) -> None:
-    """Register the curated 21-tool surface on a FastMCP instance.
+    """Register the curated 19-tool gateway-native surface on a FastMCP instance.
 
-    Ordering mirrors D-01..D-04 (composite + atomic + disasm + case/sample mgmt).
+    Ordering mirrors D-01..D-04 (composite + atomic + case/sample/meta).
+    Backend disassembler tools are added later by Plan 03 at lifespan start
+    (D-07 pass-through) — they are NOT registered here.
     """
     # Imports inside the function avoid import-cycle risk during FastMCP module
     # discovery and keep the function as the single registration seam.
-    from . import cases, artifacts, workflows, disasm  # noqa: F401
+    from . import cases, artifacts, workflows  # noqa: F401
     cases.register(mcp)
     artifacts.register(mcp)
     workflows.register(mcp)
-    disasm.register(mcp)
 ```
 
 Create `mcp-gateway/src/mcp_gateway/tools/samples.py`:
@@ -427,12 +429,11 @@ def test_run_script_never_uses_shell_true():
 </task>
 
 <task type="auto" tdd="true">
-  <name>Task 2: Tool modules — cases, artifacts, workflows, disasm (21 tools total)</name>
+  <name>Task 2: Tool modules — cases, artifacts, workflows (19 gateway-native tools total)</name>
   <files>
     mcp-gateway/src/mcp_gateway/tools/cases.py,
     mcp-gateway/src/mcp_gateway/tools/artifacts.py,
     mcp-gateway/src/mcp_gateway/tools/workflows.py,
-    mcp-gateway/src/mcp_gateway/tools/disasm.py,
     mcp-gateway/tests/test_artifact_tools.py,
     mcp-gateway/tests/test_workflow_tools.py
   </files>
@@ -465,9 +466,8 @@ def test_run_script_never_uses_shell_true():
     - `workflows.py::run_triage(sample)` calls atomic tools in order: init_case → collect_strings → collect_imports → scan_yara → scan_capa → rank_signals → build_hypothesis → update_state(phase="triage_complete"); continues on individual step failures; returns `[{step, exit_code, stderr}]` list
     - `workflows.py::run_deep_analysis(case_dir)` Phase 2 stub: updates state to phase "planning_complete"
     - `workflows.py::generate_report(case_dir)` reads `<case_dir>/10_reporting_draft.md` and returns contents (404 if missing)
-    - `disasm.py::decompile(function, sample=None)` returns MCP error `{"error": "backend not yet wired", "plan": "Plan 03"}` when `session_state.PINNED_BACKEND is None`; when set, delegates via tool_map (Plan 03 wires this)
-    - `disasm.py::list_functions(sample=None)` same shape
-    - `disasm.py::get_xrefs(function, sample=None)` same shape
+    - `cases.py::get_active_backend()` returns `{"backend": "ida"|"bn"|"ghidra"|"none"}`; reads `session_state.PINNED_BACKEND.backend` when set, else "none" (Plan 03 sets PINNED_BACKEND)
+    - No disassembler tools are registered at gateway level in Plan 02. Plan 03 adds backend-native tools dynamically via pass-through at lifespan start (D-07).
     - Each tool module exposes a `register(mcp: FastMCP)` function that decorates handlers via `@mcp.tool()`
   </behavior>
   <action>
@@ -551,6 +551,19 @@ def register(mcp: FastMCP) -> None:
             "size": p.stat().st_size,
             "path": str(p),
         }
+
+    @mcp.tool()
+    def get_active_backend() -> dict:
+        """Return which disassembler backend is pinned for this gateway process.
+
+        Client/orchestrator-skill uses this to branch on backend before calling
+        backend-native pass-through tools (e.g., Ghidra's `program.open`,
+        IDA's `decompile`, etc. — added by Plan 03 at lifespan start per D-07).
+        Returns `{"backend": "ida"|"bn"|"ghidra"|"none"}`.
+        """
+        pinned = session_state.PINNED_BACKEND
+        name = getattr(pinned, "backend", None) if pinned is not None else None
+        return {"backend": name or "none"}
 ```
 
 Create `mcp-gateway/src/mcp_gateway/tools/artifacts.py`:
@@ -769,64 +782,7 @@ def register(mcp: FastMCP) -> None:
         return {"content": draft.read_text(encoding="utf-8", errors="replace"), "path": str(draft)}
 ```
 
-Create `mcp-gateway/src/mcp_gateway/tools/disasm.py`:
-
-```python
-"""Unified disassembler tools (3): decompile, list_functions, get_xrefs.
-
-Delegates to session_state.PINNED_BACKEND (set by Plan 03's lifespan).
-Plan 02: if PINNED_BACKEND is None, return structured "backend not yet wired" error.
-Plan 03: wire the real delegation via PinnedBackend.call() + tool_map.translate().
-"""
-from __future__ import annotations
-from typing import Optional
-
-from mcp.server.fastmcp import FastMCP
-
-from .. import session_state
-from .samples import resolve_sample
-
-
-def _backend_error_stub(unified: str) -> dict:
-    return {
-        "error": "backend not yet wired",
-        "unified_tool": unified,
-        "note": "Plan 03 will wire the PinnedBackend dispatch here.",
-    }
-
-
-def register(mcp: FastMCP) -> None:
-    @mcp.tool()
-    async def decompile(function: str, sample: Optional[str] = None) -> dict:
-        """Decompile a function in the active/selected sample via the pinned backend."""
-        if session_state.PINNED_BACKEND is None:
-            return _backend_error_stub("decompile")
-        sample_path = resolve_sample(sample) if sample else None
-        # Plan 03 replaces this body with real tool_map.translate + backend.call dispatch.
-        return await session_state.PINNED_BACKEND.call_unified(
-            "decompile", {"function": function, "sample_path": sample_path}
-        )
-
-    @mcp.tool()
-    async def list_functions(sample: Optional[str] = None) -> dict:
-        """List all functions in the active/selected sample."""
-        if session_state.PINNED_BACKEND is None:
-            return _backend_error_stub("list_functions")
-        sample_path = resolve_sample(sample) if sample else None
-        return await session_state.PINNED_BACKEND.call_unified(
-            "list_functions", {"sample_path": sample_path}
-        )
-
-    @mcp.tool()
-    async def get_xrefs(function: str, sample: Optional[str] = None) -> dict:
-        """List cross-references to a function in the active/selected sample."""
-        if session_state.PINNED_BACKEND is None:
-            return _backend_error_stub("get_xrefs")
-        sample_path = resolve_sample(sample) if sample else None
-        return await session_state.PINNED_BACKEND.call_unified(
-            "get_xrefs", {"function": function, "sample_path": sample_path}
-        )
-```
+(No separate disasm module. Backend disassembler tools are registered dynamically by Plan 03 at lifespan start per D-07. `get_active_backend` lives in `cases.py` above.)
 
 Create `mcp-gateway/tests/test_artifact_tools.py`:
 
@@ -1058,18 +1014,18 @@ def test_generate_report_returns_content(mcp_instance, tmp_path):
   <acceptance_criteria>
     - `pytest mcp-gateway/tests/test_artifact_tools.py -x --no-header -q` exits 0
     - `pytest mcp-gateway/tests/test_workflow_tools.py -x --no-header -q` exits 0
-    - `grep -c '@mcp.tool()' mcp-gateway/src/mcp_gateway/tools/cases.py` == 5 (5 case/sample tools)
+    - `grep -c '@mcp.tool()' mcp-gateway/src/mcp_gateway/tools/cases.py` == 6 (5 case/sample tools + get_active_backend)
     - `grep -c '@mcp.tool()' mcp-gateway/src/mcp_gateway/tools/artifacts.py` == 10 (10 atomic tools)
     - `grep -c '@mcp.tool()' mcp-gateway/src/mcp_gateway/tools/workflows.py` == 3 (3 composite tools)
-    - `grep -c '@mcp.tool()' mcp-gateway/src/mcp_gateway/tools/disasm.py` == 3 (3 disasm tools)
-    - Total: 5+10+3+3 = 21 tools across the four modules
+    - Total: 6+10+3 = 19 gateway-native tools across the three modules
+    - `test -f mcp-gateway/src/mcp_gateway/tools/disasm.py` FAILS (no disasm module per Option 2 / D-07)
     - `grep -q 'register_all_tools' mcp-gateway/src/mcp_gateway/tools/__init__.py`
     - `grep -q "asyncio.create_subprocess_exec\|from ..subprocess_runner import" mcp-gateway/src/mcp_gateway/tools/artifacts.py`
     - `grep -q 'resolve_sample' mcp-gateway/src/mcp_gateway/tools/artifacts.py`
-    - `grep -q 'session_state.PINNED_BACKEND' mcp-gateway/src/mcp_gateway/tools/disasm.py`
-    - `python -c "from mcp_gateway.tools import register_all_tools; from mcp.server.fastmcp import FastMCP; m = FastMCP('t', stateless_http=True); register_all_tools(m); print(len(m._tool_manager._tools))"` prints `21`
+    - `grep -q 'def get_active_backend' mcp-gateway/src/mcp_gateway/tools/cases.py`
+    - `python -c "from mcp_gateway.tools import register_all_tools; from mcp.server.fastmcp import FastMCP; m = FastMCP('t', stateless_http=True); register_all_tools(m); print(len(m._tool_manager._tools))"` prints `19`
   </acceptance_criteria>
-  <done>All 21 tools registered across the 4 modules; atomic + composite tool argv assembly verified; disasm tools return stub error awaiting Plan 03; 11 tests green.</done>
+  <done>All 19 gateway-native tools registered across the 3 modules; atomic + composite tool argv assembly verified; `get_active_backend` returns "none" until Plan 03 sets PINNED_BACKEND; 11 tests green. Plan 03 adds backend-native disassembler tools via dynamic pass-through.</done>
 </task>
 
 <task type="auto" tdd="true">
@@ -1093,9 +1049,10 @@ def test_generate_report_returns_content(mcp_instance, tmp_path):
     - `build_app()` calls `detect_backend()` and logs which backend was selected; if no backend → raise (fail loud per D-10), but in test environments provide `MCP_GATEWAY_SKIP_BACKEND=1` to bypass
     - GET `/healthz` (no auth) → 200 `{"ok": true}`
     - POST `/mcp` with valid bearer + `initialize` JSON-RPC payload → successful session initialize
-    - `tools/list` after initialize → returns exactly 21 tools
-    - Count of tools is in [15, 25] (GW-02)
+    - `tools/list` after initialize → returns exactly 19 gateway-native tools (Plan 02 scope; Plan 03 adds backend pass-through)
+    - Count of gateway-native tools is in [15, 25] (GW-02 applies to native surface only per D-02)
     - Every orchestrator script has a matching atomic tool name in the tool list
+    - `get_active_backend` is present and returns `{"backend": "none"}` under `MCP_GATEWAY_SKIP_BACKEND=1`
   </behavior>
   <action>
 Create `mcp-gateway/src/mcp_gateway/app.py`:
@@ -1305,10 +1262,9 @@ EXPECTED_TOOLS = {
     # Atomic (10)
     "init_case", "collect_strings", "collect_imports", "scan_yara", "scan_capa",
     "rank_signals", "build_hypothesis", "update_state", "resolve_case", "get_artifact",
-    # Disassembler (3)
-    "decompile", "list_functions", "get_xrefs",
-    # Case/sample mgmt (5)
+    # Case/sample/meta (6)
     "list_cases", "set_active_case", "get_active_case", "list_uploads", "get_sample_info",
+    "get_active_backend",
 }
 
 
@@ -1334,13 +1290,25 @@ async def test_all_expected_tools_present(registered):
 async def test_tool_count_in_range(registered):
     names = await _list_tool_names(registered)
     n = len(names)
-    assert 15 <= n <= 25, f"tool count {n} violates GW-02 (15-25)"
+    # GW-02 applies to the gateway-native surface only per revised D-02.
+    # Plan 03 adds backend pass-through tools on top at lifespan start.
+    assert 15 <= n <= 25, f"native tool count {n} violates GW-02 (15-25)"
 
 
 async def test_no_unexpected_tools(registered):
     names = await _list_tool_names(registered)
+    # At Plan 02 scope there should be no tools beyond the gateway-native set.
+    # Plan 03 adds backend pass-through tools via lifespan, not via register_all_tools.
     extras = names - EXPECTED_TOOLS
     assert not extras, f"unexpected tools registered: {extras}"
+
+
+async def test_no_disasm_tools_at_gateway_native_layer(registered):
+    """D-07: disasm tools must come from backend pass-through (Plan 03), not native registration."""
+    names = await _list_tool_names(registered)
+    assert "decompile" not in names
+    assert "list_functions" not in names
+    assert "get_xrefs" not in names
 
 
 async def test_atomic_tools_map_to_scripts(registered):
@@ -1369,7 +1337,7 @@ def test_tool_count_private_sanity(registered):
     """
     # FastMCP internal — if upgraded past 1.27, rewrite using create_connected_server_and_client_session.call_tool(name, args)
     n = len(registered._tool_manager._tools)
-    assert 15 <= n <= 25, f"private-attr sanity: tool count {n} violates GW-02 (15-25)"
+    assert n == 19, f"private-attr sanity: expected 19 gateway-native tools, got {n}"
 ```
   </action>
   <verify>
@@ -1419,7 +1387,7 @@ def test_tool_count_private_sanity(registered):
 <verification>
 After all 3 tasks:
 1. Full plan test suite: `pytest mcp-gateway/tests/ -x --no-header -q` — exits 0 with >= 35 tests
-2. Tool count: `python -c "from mcp_gateway.tools import register_all_tools; from mcp.server.fastmcp import FastMCP; m = FastMCP('t', stateless_http=True); register_all_tools(m); print(len(m._tool_manager._tools))"` prints `21`
+2. Tool count: `python -c "from mcp_gateway.tools import register_all_tools; from mcp.server.fastmcp import FastMCP; m = FastMCP('t', stateless_http=True); register_all_tools(m); print(len(m._tool_manager._tools))"` prints `19` (Plan 03 will add backend pass-through on top)
 3. Initialize handshake: `test_mcp_initialize_succeeds` green (uses Starlette TestClient + Streamable HTTP)
 4. Security greps:
    - `grep -rn 'shell=True' mcp-gateway/src/` → no hits
@@ -1430,23 +1398,25 @@ After all 3 tasks:
 
 <success_criteria>
 - GW-01 met: `build_app()` returns a Starlette app that answers `initialize` over Streamable HTTP at `/mcp` with valid bearer (`test_mcp_initialize_succeeds`)
-- GW-02 met: exactly 21 tools registered, all within the 15-25 target, every orchestrator script maps to an atomic tool
+- GW-02 met (native surface): exactly 19 gateway-native tools registered, within the 15-25 target, every orchestrator script maps to an atomic tool
 - T-02-SUBPROC mitigated: no `shell=True` anywhere; argv-only execution
 - T-02-PATHTRAVERSAL mitigated: resolve_sample + get_artifact reject all traversal forms
 - T-02-AUTH enforced: `/mcp` without bearer → 401, `/upload` without bearer → 401, `/healthz` open
 - T-02-NET enforced: evil Origin → 403, localhost/127.0.0.1/null/missing → 200
-- Disasm tools registered but correctly return stub error when `session_state.PINNED_BACKEND is None` (Plan 03 wires real delegation)
+- No disasm tools at gateway-native layer — Plan 03 pass-through adds backend tools with native names (D-07)
+- `get_active_backend` tool registered; returns "none" pre-Plan-03
 - `/upload` placeholder returns 501 (Plan 04 will replace)
-- All decisions honored: D-01 (layered tools), D-02 (13 atomic + workflows + disasm), D-03 (verb-first names), D-04 (case tools), D-05 (no raw passthrough), D-08 (reuse scripts), D-09 (detect_backend called)
+- All decisions honored: D-01 (layered tools), D-02 (19 native + backend passthrough), D-03 (verb-first for gateway-native), D-04 (case tools + single-session process-global ACTIVE_CASE), D-05 (no raw CLI passthrough), D-07 (backend tools deferred to Plan 03), D-08 (reuse scripts), D-09 (detect_backend called)
 </success_criteria>
 
 <output>
 After completion, create `.planning/phases/02-mcp-gateway/02-02-SUMMARY.md`.
 Include:
-- 21-tool inventory table with script mappings
+- 19-tool gateway-native inventory table with script mappings; note backend pass-through is added by Plan 03 (D-07)
 - FastMCP + Starlette wiring (middleware order, routes)
-- Test counts: test_sample_resolution.py (12), test_artifact_tools.py (6), test_workflow_tools.py (4), test_server_init.py (4), test_tool_list.py (4)
+- Test counts: test_sample_resolution.py (12), test_artifact_tools.py (6), test_workflow_tools.py (4), test_server_init.py (4), test_tool_list.py (5 — adds `test_no_disasm_tools_at_gateway_native_layer`)
 - Threat mitigations: T-02-SUBPROC, T-02-PATHTRAVERSAL (both in Task 1/2); T-02-AUTH/T-02-NET carried into app.py
+- Handoff to Plan 03: `session_state.PINNED_BACKEND` is still `None`; `get_active_backend` returns "none"; no disasm tools yet. Plan 03 enters `PinnedBackend` in lifespan, sets `session_state.PINNED_BACKEND`, and calls the backend's `tools/list` to register pass-through handlers on the gateway FastMCP instance under each backend tool's native name.
 - Handoff to Plan 03: `session_state.PINNED_BACKEND` is still `None`; `disasm.py` tools return stub — Plan 03 wires real backend dispatch via `.call_unified(unified_name, args)` method on PinnedBackend
 - Handoff to Plan 04: `/upload` route returns 501 — Plan 04 replaces `_upload_placeholder` with streaming handler
 </output>

@@ -221,3 +221,31 @@
 ## Deferred Ideas
 
 All deferred ideas from this discussion are listed in CONTEXT.md's `<deferred>` section. Key items: MCP Resources (Phase 4), MCP Prompts / dynamic notifications / multi-session (v2), unified disassembler abstraction & comparison mode (v2), Claude Code / mastra.ai client templates (Phase 4), compose.yaml port publishing (Phase 3), dual-mode entrypoint tuning (Phase 3).
+
+---
+
+## Option 2 pivot (2026-04-23, post-plan-review)
+
+**Trigger:** Plan-review surfaced two issues against Plans 02/03:
+1. Critical — Plan 03's `tool_map` identity-passthrough did not model Ghidra's `program.open` → `session_id` lifecycle; fake-backend tests passed against a shape that does not match production (`mcp/ghidra-headless-mcp/ghidra_headless_mcp/fake_ghidra.py:156,340,605` + `ghidra_headless_mcp/server.py:42,56,66` — real tools require `session_id` as first arg).
+2. Low — CONTEXT.md D-04's "per MCP session" wording vs Plan 01/02's process-global `ACTIVE_CASE` under `stateless_http=True`. Not a locked-decision conflict (Discretion clause permitted single-session for Phase 2), but the wording was misleading.
+
+**Options considered:**
+- Option 1 — Keep unified disasm names (`decompile`, `list_functions`, `get_xrefs`); build a real translation layer that opens programs, threads session_ids, and normalizes args across IDA/BN/Ghidra.
+- Option 2 — Drop unification for disasm. Pass the pinned backend's tools through under their NATIVE names and NATIVE schemas. Expose `get_active_backend()` so clients/skills branch on backend.
+- Option 3 — Hybrid: native disasm names + gateway-managed session binding via `set_active_case`.
+
+**Decision:** Option 2.
+
+**Rationale:**
+- Disassembler APIs are genuinely different (Ghidra's session model, IDA's pre-bound daemon, BN's per-binary load). Forcing a unified surface required lossy arg normalization without reducing client complexity — the orchestrator skill already needs some backend awareness.
+- Removes the translation tax entirely: no `tool_map`, no `call_unified`, no arg rewriters. Clients get the full backend power.
+- GW-02's "15-25 tools" is reinterpreted to apply to the gateway-native surface only (D-02 revision); backend pass-through is additive and outside that budget.
+- Trade-off accepted: the orchestrator skill (and any other client) now calls `get_active_backend()` first and branches. This is simpler than the translation-layer alternative.
+
+**Revisions made:**
+- CONTEXT.md D-02, D-03, D-04, D-07 rewritten to reflect pass-through.
+- Plan 02 drops `tools/disasm.py` (no unified disasm); adds `get_active_backend` native tool to `tools/cases.py`. Gateway-native count: 21 → 19.
+- Plan 03 completely rewritten. `tool_map.py` removed. New `backend/passthrough.py` enumerates the backend's `tools/list` and re-registers each on the gateway FastMCP under native name + native `inputSchema`. Session/program lifecycle is a client concern under pass-through.
+- D-04 wording tightened: "process-global single-session for Phase 2; per-MCP-session deferred to v2 (GW-V2-03)".
+- Downstream follow-ups (not done yet): RESEARCH.md and VALIDATION.md still describe the unified model; they need a later cleanup pass. Plan 04 (upload) unaffected. Plan 05 (smoke) needs a small tweak: assert a known backend-native tool name is present in `tools/list` (e.g., `program.open` for Ghidra).

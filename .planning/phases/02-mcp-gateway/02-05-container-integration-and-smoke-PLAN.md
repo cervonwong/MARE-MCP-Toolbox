@@ -35,15 +35,17 @@ must_haves:
   truths:
     - "Container image builds with mcp-gateway installed under /opt/mcp-gateway"
     - "`docker compose up` starts the gateway daemon on 127.0.0.1:8080 inside the container (alongside idalib-mcp if IDA installed)"
-    - "Gateway log shows: `[gateway] backend: <name>` → `[gateway] ready on 127.0.0.1:8080`"
+    - "Gateway log shows: `[gateway] backend: <name>` → `[gateway] backend tools registered: <count>` → `[gateway] ready on 127.0.0.1:8080`"
     - "`/agent/.mcp-gateway-token` exists with mode 0600 after startup (readable on host because /agent is bind-mounted)"
     - "`curl http://127.0.0.1:8080/healthz` inside container returns 200"
     - "`curl -H \"Authorization: Bearer $TOK\" http://127.0.0.1:8080/mcp` with MCP initialize payload returns 200"
     - "`curl -X POST -H \"Authorization: Bearer $TOK\" -H \"X-Filename: smoke.bin\" --data-binary @<sample> http://127.0.0.1:8080/upload` returns 200 with sample_id"
-    - "After upload, `tools/call collect_strings(sample=<sha256>)` returns exit_code=0 and writes status files"
+    - "After upload, `tools/call collect_strings(sample=<sha256>)` returns exit_code=0 and writes status files (collect_strings is a gateway-native tool — no backend required)"
+    - "`tools/list` over the running gateway returns at least the 19 gateway-native tools plus the pinned backend's native tool surface (D-07 pass-through — no disasm tools unified at gateway layer)"
+    - "`get_active_backend` tool returns the pinned backend name; when a real backend is attached, backend-native tools appear in tools/list under their NATIVE names (e.g., `program.open` for Ghidra, `decompile` for IDA)"
     - "Existing inner-agent MCP config (INF-05) continues to work — configure-agent-mcp.sh still runs, /agent/.mcp.json still written"
-    - "REQUIREMENTS.md GW-03 text corrected from 'BN > IDA > Ghidra' to 'IDA > BN > Ghidra' (research A8)"
-    - "CLAUDE.md 'Recommended Stack' updated: custom FastMCP gateway preferred; mcp-proxy moved to 'Alternatives Considered' with rationale"
+    - "REQUIREMENTS.md GW-03 text corrected from 'BN > IDA > Ghidra' to 'IDA > BN > Ghidra' (research A8) AND annotated to note D-07's pass-through model supersedes the 'unified interface' wording (single endpoint, not unified tool names)"
+    - "CLAUDE.md 'Recommended Stack' updated: custom FastMCP gateway preferred (19 gateway-native tools + transparent backend pass-through); mcp-proxy moved to 'Alternatives Considered' with rationale"
   artifacts:
     - path: "Dockerfile"
       provides: "pip install mcp-gateway package + python-multipart + pytest-asyncio into the image"
@@ -341,12 +343,13 @@ Find the line:
 
 Replace with:
 ```
-- [ ] **GW-03**: Disassembler tools route to whichever backend is installed (IDA > BN > Ghidra), presenting a unified interface to clients
+- [ ] **GW-03**: Disassembler tools route through the pinned backend (IDA > BN > Ghidra priority), exposed via a single authenticated endpoint. Backend tools are passed through with their native names and schemas (see .planning/phases/02-mcp-gateway/02-CONTEXT.md D-07); clients call `get_active_backend()` to learn which native surface is active.
 ```
 
-Add a one-line footnote at the bottom of the GW section or in the "Traceability" section noting the correction, e.g.:
+Add a two-line footnote at the bottom of the GW section or in the "Traceability" section noting the corrections, e.g.:
 ```
 <!-- Corrected 2026-04-23 (Phase 2 Plan 05): GW-03 priority is IDA > BN > Ghidra per Phase 1 D-06, Phase 2 D-09, and docker-bin/configure-agent-mcp.sh lines 67-119. Prior wording "BN > IDA > Ghidra" was stale. -->
+<!-- Clarified 2026-04-23 (Phase 2 Option 2 pivot — see 02-DISCUSSION-LOG.md): "unified interface" refers to the single authenticated endpoint + bearer token, NOT unified tool names. Backend disassembler tools pass through under their native names per D-07. Clients use `get_active_backend()` to discover the active surface. -->
 ```
 
 **Step 3 — Update `CLAUDE.md` Recommended Stack:**
@@ -357,7 +360,7 @@ Find the section `### Remote MCP Gateway Server` (under "Recommended Stack"). Th
 ### Remote MCP Gateway Server
 | Technology | Version | Purpose | Why | Confidence |
 |------------|---------|---------|-----|------------|
-| Custom FastMCP gateway (mcp-gateway/) | 0.1.0+ | In-process gateway: Streamable HTTP server + /upload + bearer auth + curated 21-tool surface + backend aggregation | A 1:1 stdio→HTTP bridge cannot: (a) aggregate IDA/BN/Ghidra under unified tool names, (b) host a /upload endpoint, (c) apply bearer auth + Origin validation uniformly. Custom gateway built on `mcp.server.fastmcp.FastMCP` solves all four in one process. See .planning/phases/02-mcp-gateway/02-CONTEXT.md D-01..D-20. | HIGH |
+| Custom FastMCP gateway (mcp-gateway/) | 0.1.0+ | In-process gateway: Streamable HTTP server + /upload + bearer auth + 19 curated gateway-native tools + transparent pass-through of the pinned backend's native tools | A 1:1 stdio→HTTP bridge cannot: (a) host a /upload endpoint, (b) serve orchestrator pipeline scripts as atomic MCP tools (`collect_strings`, `scan_yara`, etc.), (c) apply bearer auth + Origin validation uniformly, (d) re-register backend tools dynamically alongside gateway-native ones. The custom gateway built on `mcp.server.fastmcp.FastMCP` solves all four in one process. Disassembler tools pass through under their NATIVE names (D-07) — clients call `get_active_backend()` to discover which backend's surface is active. See .planning/phases/02-mcp-gateway/02-CONTEXT.md D-01..D-20. | HIGH |
 | mcp (Python SDK) | 1.27.0+ | MCP protocol implementation (FastMCP server + ClientSession) | Single SDK for both the gateway server and the gateway's client-to-backend sessions. Supports Streamable HTTP (2025-03-26) + stdio transport. | HIGH |
 | Streamable HTTP | Protocol 2025-03-26 | Network transport | The current MCP standard. SSE was deprecated June 2025. All major clients (Claude Code, mastra.ai) support Streamable HTTP with automatic SSE fallback. | HIGH |
 ```
@@ -417,7 +420,9 @@ If detection fails because no disassembler is installed in the test image (pure 
     - Running `bash mcp-gateway/tests/e2e/smoke.sh` prints to stdout at minimum:
       - `[smoke] /healthz OK`
       - `[smoke] /mcp initialize OK`
-      - `[smoke] /mcp tools/list OK — N tools` where N is in [15, 25]
+      - `[smoke] /mcp tools/list OK — N tools (native=M, backend=K)` where native M >= 15 (19 expected from Plan 02) and total N >= M (K may be 0 under MCP_GATEWAY_SKIP_BACKEND)
+      - `[smoke] get_active_backend present OK`
+      - When the gateway has a real backend pinned: `[smoke] backend-native tool present OK (<name>)` confirming at least one known backend tool (e.g., `program.open` for Ghidra, `decompile` for IDA, or a BN equivalent) appears in tools/list
     - `mcp-gateway/tests/e2e/test_upload_then_analyze.sh` is executable
     - Running `bash mcp-gateway/tests/e2e/test_upload_then_analyze.sh` exits 0 when the container is up
     - `test_upload_then_analyze.sh` uploads a tiny synthetic sample, captures the sha256 from response, then calls `collect_strings(sample=<sha256>)` via MCP tool call and asserts exit_code=0
@@ -485,19 +490,90 @@ LIST_RESP="$(curl -fsS -X POST "${GATEWAY_URL}/mcp" \
   -H "Content-Type: application/json" \
   -d "${LIST_PAYLOAD}")"
 
-# Count tools: crude but container-portable (avoid jq dependency hard-fail)
+# Count tools + extract names
+# D-02 revised: 15-25 is the gateway-native budget. Total may be larger once Plan 03's
+# pass-through registers the backend's native tools too — so we check a lower bound
+# only and verify specific names to prove D-07 pass-through is wired.
 if command -v jq >/dev/null 2>&1; then
   TOOL_COUNT="$(echo "${LIST_RESP}" | jq '.result.tools | length')"
+  TOOL_NAMES="$(echo "${LIST_RESP}" | jq -r '.result.tools[].name')"
 else
   TOOL_COUNT="$(echo "${LIST_RESP}" | grep -oE '"name"[[:space:]]*:' | wc -l)"
+  TOOL_NAMES="$(echo "${LIST_RESP}" | grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]+"' | sed -E 's/.*"([^"]+)"$/\1/')"
 fi
 
-if [ "${TOOL_COUNT}" -lt 15 ] || [ "${TOOL_COUNT}" -gt 25 ]; then
-  echo "[smoke] FAIL: tool count ${TOOL_COUNT} outside GW-02 range 15-25" >&2
+if [ "${TOOL_COUNT}" -lt 15 ]; then
+  echo "[smoke] FAIL: tool count ${TOOL_COUNT} below the 15 native floor" >&2
   echo "${LIST_RESP}" >&2
   exit 1
 fi
-echo "[smoke] /mcp tools/list OK — ${TOOL_COUNT} tools"
+
+# Gateway-native floor: expect the 19 Plan 02 tools. Check a couple of canaries.
+echo "${TOOL_NAMES}" | grep -qx "get_active_backend" || {
+  echo "[smoke] FAIL: native tool 'get_active_backend' missing from tools/list" >&2
+  exit 1
+}
+echo "${TOOL_NAMES}" | grep -qx "run_triage" || {
+  echo "[smoke] FAIL: native tool 'run_triage' missing from tools/list" >&2
+  exit 1
+}
+echo "${TOOL_NAMES}" | grep -qx "collect_strings" || {
+  echo "[smoke] FAIL: native tool 'collect_strings' missing from tools/list" >&2
+  exit 1
+}
+echo "[smoke] get_active_backend present OK"
+
+# Ask the gateway which backend is pinned. If "none" (MCP_GATEWAY_SKIP_BACKEND=1 path),
+# skip the backend-native tool check. Otherwise, verify at least one known backend-native
+# tool is in the list (D-07 pass-through wiring).
+CALL_BACKEND_PAYLOAD='{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_active_backend","arguments":{}}}'
+BACKEND_RESP="$(curl -fsS -X POST "${GATEWAY_URL}/mcp" \
+  -H "Authorization: Bearer ${TOK}" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Content-Type: application/json" \
+  -d "${CALL_BACKEND_PAYLOAD}")"
+ACTIVE_BACKEND="$(echo "${BACKEND_RESP}" | grep -oE '"backend"[[:space:]]*:[[:space:]]*"[a-z]+"' | head -1 | sed -E 's/.*"([a-z]+)"$/\1/')"
+ACTIVE_BACKEND="${ACTIVE_BACKEND:-none}"
+
+NATIVE_FLOOR=19  # Plan 02 gateway-native surface
+BACKEND_COUNT=$((TOOL_COUNT - NATIVE_FLOOR))
+if [ "${BACKEND_COUNT}" -lt 0 ]; then BACKEND_COUNT=0; fi
+
+echo "[smoke] /mcp tools/list OK — ${TOOL_COUNT} tools (native≈${NATIVE_FLOOR}, backend≈${BACKEND_COUNT}, active=${ACTIVE_BACKEND})"
+
+case "${ACTIVE_BACKEND}" in
+  ghidra)
+    echo "${TOOL_NAMES}" | grep -qx "program.open" || {
+      echo "[smoke] FAIL: Ghidra backend active but 'program.open' missing from tools/list (D-07 pass-through not wired?)" >&2
+      exit 1
+    }
+    echo "[smoke] backend-native tool present OK (program.open)"
+    ;;
+  ida)
+    # idalib-mcp exposes `decompile` as a native name (not a unified gateway wrapper).
+    echo "${TOOL_NAMES}" | grep -qx "decompile" || {
+      echo "[smoke] FAIL: IDA backend active but 'decompile' missing from tools/list" >&2
+      exit 1
+    }
+    echo "[smoke] backend-native tool present OK (decompile)"
+    ;;
+  bn)
+    # BN's native tool names are verified inside the container; a pragmatic check is that
+    # at least one backend tool was registered beyond the native floor.
+    if [ "${BACKEND_COUNT}" -lt 1 ]; then
+      echo "[smoke] FAIL: BN backend active but no backend tools registered beyond native floor" >&2
+      exit 1
+    fi
+    echo "[smoke] backend-native tool present OK (BN: ${BACKEND_COUNT} tools registered)"
+    ;;
+  none|"")
+    echo "[smoke] no backend pinned (MCP_GATEWAY_SKIP_BACKEND=1?) — skipping backend-native tool check"
+    ;;
+  *)
+    echo "[smoke] FAIL: unknown backend value from get_active_backend: '${ACTIVE_BACKEND}'" >&2
+    exit 1
+    ;;
+esac
 
 # 4) GW-04 regression: unauth POST to /mcp must be 401
 UNAUTH_CODE="$(curl -s -o /dev/null -w '%{http_code}' -X POST "${GATEWAY_URL}/mcp" -H "Content-Type: application/json" -d "${INIT_PAYLOAD}")"
@@ -681,25 +757,26 @@ After all 4 tasks:
 <success_criteria>
 - Phase 2 goal met end-to-end: curated tool surface accessible over Streamable HTTP + bearer auth + /upload, verified inside real container
 - GW-01 ✓ (smoke.sh initialize returns 200 with serverInfo)
-- GW-02 ✓ (smoke.sh tools/list returns 15-25 tools)
-- GW-03 ✓ (tools/list includes decompile, list_functions, get_xrefs; routing verified in Plan 03 unit tests; end-to-end only fully green with a real backend)
+- GW-02 ✓ (gateway-native surface has >= 15 tools; total includes backend pass-through on top per revised D-02)
+- GW-03 ✓ under D-07 pass-through: `get_active_backend` returns the pinned backend name, and tools/list includes that backend's native tools (e.g., `program.open` for Ghidra or `decompile` for IDA) — smoke.sh asserts this; no gateway-side disasm unification
 - GW-04 ✓ (smoke.sh unauth → 401)
 - GW-05 ✓ (compose.yaml has no ports: block; container binds 127.0.0.1 by default)
 - GW-06 ✓ (test_upload_then_analyze.sh uploads + uses sha256 in tool call)
 - INF-05 regression clean (existing inner-agent config unchanged)
-- Doc drift corrected: REQUIREMENTS.md GW-03 priority, CLAUDE.md Recommended Stack
+- Doc drift corrected: REQUIREMENTS.md GW-03 priority + pass-through clarification, CLAUDE.md Recommended Stack updated to reflect 19 native + pass-through model
 - Human-verify checkpoint passed
 </success_criteria>
 
 <output>
 After completion, create `.planning/phases/02-mcp-gateway/02-05-SUMMARY.md`.
 Include:
-- Full Phase 2 capability summary (what the gateway does end-to-end)
+- Full Phase 2 capability summary (what the gateway does end-to-end, under the Option 2 pass-through model)
 - Dockerfile changes: gateway package install + entrypoint daemon block (line ranges)
 - compose.yaml changes: 5 passthrough env vars (no port publishing — Phase 3)
-- REQUIREMENTS.md correction: GW-03 "BN > IDA > Ghidra" → "IDA > BN > Ghidra"
-- CLAUDE.md update: custom FastMCP gateway promoted; mcp-proxy moved to alternatives
-- e2e test coverage: healthz + initialize + tools/list + unauth + upload + tools/call collect_strings
+- REQUIREMENTS.md correction: GW-03 "BN > IDA > Ghidra" → "IDA > BN > Ghidra" + pass-through clarification footnote
+- CLAUDE.md update: custom FastMCP gateway promoted (19 native + pass-through); mcp-proxy moved to alternatives
+- Observed tool counts: `native≈19, backend≈<N>` per backend — record the exact N values from the smoke.sh output for IDA / BN / Ghidra (whichever is actually installed in the smoke image)
+- e2e test coverage: healthz + initialize + tools/list (with native canary + backend-native canary per D-07) + unauth + upload + tools/call collect_strings
 - Phase 3 handoff: gateway is ready; INF-02 (port publishing) and INF-01 (dual-mode entrypoint refinement) to come
-- Phase 4 handoff: bearer token visible on host at `./.mcp-gateway-token`; host-side client configs (CLI-01, CLI-02, CLI-03) will consume this
+- Phase 4 handoff: bearer token visible on host at `./.mcp-gateway-token`; host-side client configs (CLI-01, CLI-02, CLI-03) will consume this. Client code / orchestrator skill will need to branch on `get_active_backend()` to drive the appropriate backend-native tools.
 </output>
