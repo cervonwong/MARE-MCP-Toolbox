@@ -1,0 +1,26 @@
+{
+  "name": "mare-mastra-starter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MARE-MCP-Toolbox starter — mastra.ai client for the containerized analysis gateway.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mastra/core": "^1.28.0",
+    "@mastra/mcp": "~1.3.1",
+    "dotenv": "^16.4.5",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  }
+}

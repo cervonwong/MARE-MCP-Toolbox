@@ -24,3 +24,8 @@ venv/
 .idea/
 *.swp
 *~
+
+# Mastra starter / template node artifacts (Phase 4)
+templates/**/node_modules/
+templates/**/dist/
+templates/**/.env
