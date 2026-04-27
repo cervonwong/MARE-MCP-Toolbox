@@ -77,10 +77,16 @@ Plans:
   2. A mastra.ai agent connects to the container via MCPClient and can run an analysis workflow using the same Streamable HTTP endpoint
   3. Pre-built config templates for both Claude Code and mastra.ai are provided and work without modification beyond inserting the bearer token
   4. Case artifacts (sample profile, strings output, YARA results, reports) are browsable as MCP Resources by connected clients
-**Plans**: TBD
+**Plans**: 7 plans
 
 Plans:
-- [ ] 04-01: TBD
+- [ ] 04-01-PLAN.md -- Claude Code .mcp.json template + JSON-shape unit test (CLI-01, CLI-03)
+- [ ] 04-02-PLAN.md -- run_docker.sh --print-config flag + print_ready_block() refactor + subprocess test (CLI-01)
+- [ ] 04-03-PLAN.md -- MCP Resources (mare://cases/...) module + tools/__init__.py wiring + MIME and unit tests (CLI-04)
+- [ ] 04-04-PLAN.md -- templates/mastra/ runnable starter project + static template unit test (CLI-02, CLI-03)
+- [ ] 04-05-PLAN.md -- mcp-gateway/tests/e2e/ suite: conftest + Claude Code smoke + resources + mastra starter subprocess (CLI-01, CLI-02, CLI-04)
+- [ ] 04-06-PLAN.md -- Top-level README.md rewrite (D-16 two-mode framing) + grep-based structure test (CLI-03)
+- [ ] 04-07-PLAN.md -- 04-UAT.md manual UAT checklist + checkpoint:human-action signoff gate (CLI-01)
 
 ## Progress
 
@@ -92,4 +98,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | 1. IDA Pro Backend | 0/3 | Planned | - |
 | 2. MCP Gateway | 0/5 | Planned | - |
 | 3. Container Integration | 0/1 | Planned | - |
-| 4. External Client Integration | 0/0 | Not started | - |
+| 4. External Client Integration | 0/7 | Planned | - |
