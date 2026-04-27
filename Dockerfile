@@ -55,10 +55,12 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
  && rm -rf /var/lib/apt/lists/* \
  && node -v && npm -v
 
-# Install Python tooling system-wide
+# Install Python tooling system-wide (includes mcp-gateway runtime deps)
 RUN python3 -m pip install --no-cache-dir --break-system-packages \
-    pytest ruff flare-floss uv ipython ipdb \
-    capstone ropper unblob
+    pytest pytest-asyncio ruff flare-floss uv ipython ipdb \
+    capstone ropper unblob \
+    "mcp>=1.27,<1.28" "starlette>=0.37" "uvicorn>=0.27" \
+    "python-multipart>=0.0.9" "httpx>=0.27" "anyio>=4.5"
 
 # Verify Python version (IDA Pro requires 3.12+)
 RUN python3 -c "import sys; v=sys.version_info; print(f'Python {v.major}.{v.minor}.{v.micro}')"
@@ -111,6 +113,14 @@ RUN --mount=type=bind,from=binja-stage,target=/tmp/binja-stage \
     mv "${bn_root}" /opt/binaryninja; \
     python3 /opt/binaryninja/scripts/install_api.py; \
     test -f /opt/binaryninja/scripts/install_api.py
+
+# Install the MARE MCP gateway package (editable so dev iterations survive
+# without rebuild of the whole image). Source tree is baked into the image
+# at /opt/mcp-gateway and re-exported as the `mcp-gateway` console script.
+COPY mcp-gateway/ /opt/mcp-gateway/
+RUN pip install --no-cache-dir --break-system-packages -e /opt/mcp-gateway \
+    && which mcp-gateway \
+    && python3 -c "import mcp_gateway; print(f'mcp-gateway {mcp_gateway.__version__} installed')"
 
 # Copy IDA Pro installation from builder (empty dir when INSTALL_IDA_PRO=0)
 COPY --from=ida-builder /opt/ida-pro /opt/ida-pro
@@ -289,6 +299,32 @@ if command -v idalib-mcp >/dev/null 2>&1 \
     echo "[mcp]       cannot run in batch mode', run:  ida-accept-eula"
     echo "[mcp]       (one-time per host; persists in ~/.idapro-docker/ida.reg)"
   fi
+fi
+
+# Start the MARE MCP gateway daemon (Phase 2: remote Streamable HTTP + /upload).
+# Runs alongside idalib-mcp; clients authenticate with the bearer token written
+# to /agent/.mcp-gateway-token (0600). The gateway binds 127.0.0.1 by default
+# (D-19); set MCP_GATEWAY_HOST=0.0.0.0 to expose on all container interfaces.
+GATEWAY_HOST="${MCP_GATEWAY_HOST:-127.0.0.1}"
+GATEWAY_PORT="${MCP_GATEWAY_PORT:-8080}"
+GATEWAY_LOG="/tmp/mcp-gateway.log"
+if command -v mcp-gateway >/dev/null 2>&1; then
+  # Skip start if the port is already bound (container restart, docker exec loops).
+  if ! (echo > "/dev/tcp/${GATEWAY_HOST}/${GATEWAY_PORT}") >/dev/null 2>&1; then
+    echo "[gateway] starting on ${GATEWAY_HOST}:${GATEWAY_PORT} (log: ${GATEWAY_LOG})"
+    gosu "${AGENT_USER}" env HOME="${AGENT_HOME}" \
+      MCP_GATEWAY_TOKEN="${MCP_GATEWAY_TOKEN:-}" \
+      MCP_GATEWAY_HOST="${GATEWAY_HOST}" \
+      MCP_GATEWAY_PORT="${GATEWAY_PORT}" \
+      MCP_GATEWAY_MAX_UPLOAD_MB="${MCP_GATEWAY_MAX_UPLOAD_MB:-1024}" \
+      MCP_GATEWAY_QUIET="${MCP_GATEWAY_QUIET:-}" \
+      nohup mcp-gateway --host "${GATEWAY_HOST}" --port "${GATEWAY_PORT}" \
+      >"${GATEWAY_LOG}" 2>&1 &
+  else
+    echo "[gateway] already listening on ${GATEWAY_HOST}:${GATEWAY_PORT} -- skipping"
+  fi
+else
+  echo "[gateway] warning: mcp-gateway not installed in this image" >&2
 fi
 
 # Persist Claude state inside the mounted ~/.claude/ directory instead of a
