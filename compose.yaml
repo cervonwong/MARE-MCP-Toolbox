@@ -13,6 +13,8 @@ services:
       - "${IDA_USER_DIR:-/tmp/.idapro-docker}:/home/agent/.idapro"
       - "${CLAUDE_USER_DIR:-/tmp/.claude-docker}:/home/agent/.claude"
       - "${CODEX_USER_DIR:-/tmp/.codex-docker}:/home/agent/.codex"
+    ports:
+      - "${MCP_GATEWAY_HOST_BIND:-0.0.0.0}:${MCP_GATEWAY_HOST_PORT:-8080}:${MCP_GATEWAY_PORT:-8080}"
     environment:
       - BN_USER_DIRECTORY=/home/agent/.binaryninja
       - IDADIR=/opt/ida-pro
@@ -25,6 +27,10 @@ services:
       - MCP_GATEWAY_PORT         # default 8080
       - MCP_GATEWAY_MAX_UPLOAD_MB # default 1024 (1 GB)
       - MCP_GATEWAY_QUIET        # set to 1 to suppress bearer log line at startup
+      # Phase 3 dual-mode flags (set by run_docker.sh per --remote vs local).
+      - MCP_GATEWAY_ENABLED      # 1 = start gateway daemon (remote mode); 0 or unset = skip (local mode)
+      - MCP_GATEWAY_HOST_BIND    # host-side bind interface for ports: (default 0.0.0.0; set 127.0.0.1 for localhost-only)
+      - MCP_GATEWAY_HOST_PORT    # host-side published port (default 8080)
     stdin_open: true
     tty: true
     command: ["/bin/bash"]

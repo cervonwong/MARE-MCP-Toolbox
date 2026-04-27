@@ -302,29 +302,36 @@ if command -v idalib-mcp >/dev/null 2>&1 \
 fi
 
 # Start the MARE MCP gateway daemon (Phase 2: remote Streamable HTTP + /upload).
+# Mode-gated by MCP_GATEWAY_ENABLED (Phase 3 D-10/D-11): run_docker.sh sets
+# this to 1 in --remote mode, 0 (or unset) in local mode. Default 0 keeps
+# manual `docker run` users (no compose) seeing v1 behavior.
 # Runs alongside idalib-mcp; clients authenticate with the bearer token written
 # to /agent/.mcp-gateway-token (0600). The gateway binds 127.0.0.1 by default
 # (D-19); set MCP_GATEWAY_HOST=0.0.0.0 to expose on all container interfaces.
-GATEWAY_HOST="${MCP_GATEWAY_HOST:-127.0.0.1}"
-GATEWAY_PORT="${MCP_GATEWAY_PORT:-8080}"
-GATEWAY_LOG="/tmp/mcp-gateway.log"
-if command -v mcp-gateway >/dev/null 2>&1; then
-  # Skip start if the port is already bound (container restart, docker exec loops).
-  if ! (echo > "/dev/tcp/${GATEWAY_HOST}/${GATEWAY_PORT}") >/dev/null 2>&1; then
-    echo "[gateway] starting on ${GATEWAY_HOST}:${GATEWAY_PORT} (log: ${GATEWAY_LOG})"
-    gosu "${AGENT_USER}" env HOME="${AGENT_HOME}" \
-      MCP_GATEWAY_TOKEN="${MCP_GATEWAY_TOKEN:-}" \
-      MCP_GATEWAY_HOST="${GATEWAY_HOST}" \
-      MCP_GATEWAY_PORT="${GATEWAY_PORT}" \
-      MCP_GATEWAY_MAX_UPLOAD_MB="${MCP_GATEWAY_MAX_UPLOAD_MB:-1024}" \
-      MCP_GATEWAY_QUIET="${MCP_GATEWAY_QUIET:-}" \
-      nohup mcp-gateway --host "${GATEWAY_HOST}" --port "${GATEWAY_PORT}" \
-      >"${GATEWAY_LOG}" 2>&1 &
+if [ "${MCP_GATEWAY_ENABLED:-0}" = "1" ]; then
+  GATEWAY_HOST="${MCP_GATEWAY_HOST:-127.0.0.1}"
+  GATEWAY_PORT="${MCP_GATEWAY_PORT:-8080}"
+  GATEWAY_LOG="/tmp/mcp-gateway.log"
+  if command -v mcp-gateway >/dev/null 2>&1; then
+    # Skip start if the port is already bound (container restart, docker exec loops).
+    if ! (echo > "/dev/tcp/${GATEWAY_HOST}/${GATEWAY_PORT}") >/dev/null 2>&1; then
+      echo "[gateway] starting on ${GATEWAY_HOST}:${GATEWAY_PORT} (log: ${GATEWAY_LOG})"
+      gosu "${AGENT_USER}" env HOME="${AGENT_HOME}" \
+        MCP_GATEWAY_TOKEN="${MCP_GATEWAY_TOKEN:-}" \
+        MCP_GATEWAY_HOST="${GATEWAY_HOST}" \
+        MCP_GATEWAY_PORT="${GATEWAY_PORT}" \
+        MCP_GATEWAY_MAX_UPLOAD_MB="${MCP_GATEWAY_MAX_UPLOAD_MB:-1024}" \
+        MCP_GATEWAY_QUIET="${MCP_GATEWAY_QUIET:-}" \
+        nohup mcp-gateway --host "${GATEWAY_HOST}" --port "${GATEWAY_PORT}" \
+        >"${GATEWAY_LOG}" 2>&1 &
+    else
+      echo "[gateway] already listening on ${GATEWAY_HOST}:${GATEWAY_PORT} -- skipping"
+    fi
   else
-    echo "[gateway] already listening on ${GATEWAY_HOST}:${GATEWAY_PORT} -- skipping"
+    echo "[gateway] warning: mcp-gateway not installed in this image" >&2
   fi
 else
-  echo "[gateway] warning: mcp-gateway not installed in this image" >&2
+  echo "[gateway] MCP_GATEWAY_ENABLED!=1 -- skipping (local mode)"
 fi
 
 # Persist Claude state inside the mounted ~/.claude/ directory instead of a
