@@ -29,8 +29,8 @@ An agentic malware analysis platform built on a Kali Linux Docker container with
 ### Remote MCP Gateway Server
 | Technology | Version | Purpose | Why | Confidence |
 |------------|---------|---------|-----|------------|
-| mcp-proxy (sparfenyuk) | 0.3.x | Bridge stdio MCP servers to Streamable HTTP | Purpose-built for exactly this use case. Wraps any stdio MCP server and exposes it over Streamable HTTP. Python-based, Docker-ready, zero custom code needed for basic bridging. | HIGH |
-| mcp (Python SDK) | 1.27.0 | MCP protocol implementation | Underlying SDK used by mcp-proxy and ida-mcp. Supports stdio, SSE, and Streamable HTTP transports. | HIGH |
+| Custom FastMCP gateway (mcp-gateway/) | 0.1.0+ | In-process gateway: Streamable HTTP server + /upload + bearer auth + 19 curated gateway-native tools + transparent pass-through of the pinned backend's native tools | A 1:1 stdio→HTTP bridge cannot: (a) host a /upload endpoint, (b) serve orchestrator pipeline scripts as atomic MCP tools (`collect_strings`, `scan_yara`, etc.), (c) apply bearer auth + Origin validation uniformly, (d) re-register backend tools dynamically alongside gateway-native ones. The custom gateway built on `mcp.server.fastmcp.FastMCP` solves all four in one process. Disassembler tools pass through under their NATIVE names (D-07) — clients call `get_active_backend()` to discover which backend's surface is active. See .planning/phases/02-mcp-gateway/02-CONTEXT.md D-01..D-20. | HIGH |
+| mcp (Python SDK) | 1.27.0+ | MCP protocol implementation (FastMCP server + ClientSession) | Single SDK for both the gateway server and the gateway's client-to-backend sessions. Supports Streamable HTTP (2025-03-26) + stdio transport. | HIGH |
 | Streamable HTTP | Protocol 2025-03-26 | Network transport | The current MCP standard. SSE was deprecated June 2025. All major clients (Claude Code, mastra.ai) support Streamable HTTP with automatic SSE fallback. | HIGH |
 ### Claude Code Host-Side Client
 | Technology | Version | Purpose | Why | Confidence |
@@ -49,16 +49,17 @@ An agentic malware analysis platform built on a Kali Linux Docker container with
 ## Alternatives Considered
 | Category | Recommended | Alternative | Why Not |
 |----------|-------------|-------------|---------|
+| Remote MCP gateway | Custom FastMCP gateway (mcp-gateway/) | mcp-proxy (sparfenyuk) | mcp-proxy is a stdio→HTTP bridge only — it cannot aggregate multiple backends, host /upload, serve orchestrator scripts as atomic tools, or apply uniform bearer+Origin auth. User explicitly chose custom FastMCP (Phase 2 D-01..D-20, .planning/phases/02-mcp-gateway/02-CONTEXT.md). |
 | IDA MCP server | ida-pro-mcp (mrexodia) | ida-mcp (jtsylve) | jtsylve's version has 190+ tools and stdio transport, but ida-pro-mcp's headless idalib mode with built-in SSE server better fits the remote MCP architecture (no proxy needed). User preference. |
 | IDA MCP server | ida-pro-mcp (mrexodia) | ida-headless-mcp (zboralski) | Less mature, fewer tools (~30 vs ~50), less active development |
-| Remote transport | mcp-proxy | Custom FastMCP gateway | Unnecessary dev work for v1. mcp-proxy does stdio-to-HTTP bridging out of the box. |
-| Remote transport | mcp-proxy | TypeScript MCP SDK + Express | Adds Node.js server dependency to Python-centric container for no benefit |
+| Remote transport | Custom FastMCP gateway | TypeScript MCP SDK + Express | Adds Node.js server dependency to Python-centric container for no benefit |
 | Remote transport | Streamable HTTP | SSE (legacy) | SSE deprecated June 2025. Both Claude Code and mastra.ai try Streamable HTTP first. |
 | Auth | Bearer token | OAuth 2.1 | Massive complexity for zero benefit in local/team Docker deployment |
 | MCP aggregation | mcp-proxy (multi-server) | MetaMCP | MetaMCP is a full SaaS platform with web UI -- overkill for container-internal aggregation |
 ## Do NOT Use
 | Technology | Why Not |
 |------------|---------|
+| mcp-proxy as the Phase 2 gateway | Use case mismatch — phase needs aggregation + /upload + auth + orchestrator-tool registration in one process. mcp-proxy is a 1:1 stdio→HTTP bridge only. See Alternatives Considered table. |
 | ida-mcp (jtsylve) | Not selected — ida-pro-mcp chosen instead for built-in SSE transport and user preference. |
 | SSE transport (deprecated) | Deprecated in MCP spec June 2025. Use Streamable HTTP. Clients fall back to SSE automatically if needed. |
 | MastraMCPClient (old class) | Deprecated in mastra.ai. Use `MCPClient` from `@mastra/mcp`. |
@@ -79,8 +80,8 @@ An agentic malware analysis platform built on a Kali Linux Docker container with
 |-----------|-------------|-------------|-------|
 | IDA Pro | 9.0 | 9.x | Requires idalib support |
 | Python | 3.11 | 3.11+ | ida-pro-mcp requirement |
-| mcp (Python SDK) | 1.20+ | 1.27.0 | Streamable HTTP support |
-| mcp-proxy | 0.3.0+ | 0.3.2 | Streamable HTTP bridging |
+| mcp (Python SDK) | 1.20+ | 1.27.0 | Streamable HTTP support; tight pin 1.27.x in mcp-gateway/pyproject.toml |
+| mcp-gateway (custom) | 0.1.0 | 0.1.0 | In-process FastMCP gateway: 19 native tools + backend pass-through + /upload + bearer auth |
 | Claude Code | current | current | `type: "http"` in .mcp.json |
 | @mastra/mcp | 1.3.0+ | 1.3.1 | MCPClient with url transport |
 ## Sources

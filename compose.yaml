@@ -19,6 +19,12 @@ services:
       - HOME=/home/agent
       - USER=agent
       - LOGNAME=agent
+      # MCP gateway (Phase 2) — all optional; gateway has sane defaults.
+      - MCP_GATEWAY_TOKEN        # set to pin token; else generated at startup
+      - MCP_GATEWAY_HOST         # default 127.0.0.1; set 0.0.0.0 to expose on all interfaces
+      - MCP_GATEWAY_PORT         # default 8080
+      - MCP_GATEWAY_MAX_UPLOAD_MB # default 1024 (1 GB)
+      - MCP_GATEWAY_QUIET        # set to 1 to suppress bearer log line at startup
     stdin_open: true
     tty: true
     command: ["/bin/bash"]

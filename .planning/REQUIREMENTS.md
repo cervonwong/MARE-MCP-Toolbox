@@ -18,7 +18,7 @@
 
 - [ ] **GW-01**: Python FastMCP server exposes curated tool surface over Streamable HTTP transport (spec 2025-03-26)
 - [ ] **GW-02**: Gateway exposes ~15-25 orchestrator-level tools mapping to the existing 13-artifact pipeline (triage, collect_strings, collect_imports, scan_yara, scan_capa, decompile_function, list_functions, get_xrefs, etc.)
-- [ ] **GW-03**: Disassembler tools route to whichever backend is installed (BN > IDA > Ghidra), presenting a unified interface to clients
+- [ ] **GW-03**: Disassembler tools route through the pinned backend (IDA > BN > Ghidra priority), exposed via a single authenticated endpoint. Backend tools are passed through with their native names and schemas (see .planning/phases/02-mcp-gateway/02-CONTEXT.md D-07); clients call `get_active_backend()` to learn which native surface is active.
 - [ ] **GW-04**: Bearer token authentication required on all remote MCP endpoints (token generated at container start, passed via environment variable)
 - [ ] **GW-05**: Gateway binds to localhost only by default; explicit opt-in for network exposure
 - [ ] **GW-06**: File upload mechanism allows remote clients to submit samples to the container for analysis
@@ -95,6 +95,9 @@
 - Mapped to phases: 21
 - Unmapped: 0
 
+<!-- Corrected 2026-04-27 (Phase 2 Plan 05): GW-03 priority is IDA > BN > Ghidra per Phase 1 D-06, Phase 2 D-09, and docker-bin/configure-agent-mcp.sh lines 67-119. Prior wording "BN > IDA > Ghidra" was stale. -->
+<!-- Clarified 2026-04-27 (Phase 2 Option 2 pivot — see 02-DISCUSSION-LOG.md): "unified interface" refers to the single authenticated endpoint + bearer token, NOT unified tool names. Backend disassembler tools pass through under their native names per D-07. Clients use `get_active_backend()` to discover the active surface. -->
+
 ---
 *Requirements defined: 2026-04-08*
-*Last updated: 2026-04-08 after roadmap creation*
+*Last updated: 2026-04-27 after Phase 2 Plan 05 (GW-03 wording correction + pass-through clarification)*
