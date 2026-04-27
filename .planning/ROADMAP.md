@@ -63,10 +63,10 @@ Plans:
   1. `docker compose up` starts the container with the MCP gateway listening on the configured port (default 8080) alongside the existing local agent environment
   2. An agent running inside the container (existing Claude Code/Codex workflow) continues working identically to v1 -- no regressions
   3. The gateway port is configurable via Docker Compose environment variables without rebuilding the image
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 03-01: TBD
+- [ ] 03-01-PLAN.md -- Container integration: dual-mode launcher (--remote flag), compose ports block + remote-mode overlay, Dockerfile MCP_GATEWAY_ENABLED guard, smoke tests
 
 ### Phase 4: External Client Integration
 **Goal**: Claude Code on the host and mastra.ai agents can connect to the containerized tools and run complete analysis workflows
@@ -91,5 +91,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. IDA Pro Backend | 0/3 | Planned | - |
 | 2. MCP Gateway | 0/5 | Planned | - |
-| 3. Container Integration | 0/0 | Not started | - |
+| 3. Container Integration | 0/1 | Planned | - |
 | 4. External Client Integration | 0/0 | Not started | - |
