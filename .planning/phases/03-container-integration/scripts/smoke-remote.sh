@@ -57,14 +57,24 @@ assert_contains "$output" "docker compose down" "D-07: teardown hint printed"
 assert_contains "$output" "curl" "D-07: curl example printed"
 
 # INF-02: host port published.
+# Counting under `set -euo pipefail` requires care: under pipefail, a
+# non-matching grep exits 1, the pipeline fails, and `|| echo 0` fires AFTER
+# wc -l already printed its 0 — yielding "0\n0". We disable pipefail/-e for
+# this single block to get a clean count.
+set +e +o pipefail
 if command -v jq >/dev/null 2>&1; then
   pubs=$(docker compose -f compose.yaml -f compose.remote.yaml ps --format json kali 2>/dev/null \
-    | jq -r '[.[]?.Publishers // [] | .[]] | length' 2>/dev/null || echo 0)
+    | jq -rs '[.[] | (if type=="array" then . else [.] end) | .[]?.Publishers // [] | length] | add // 0' 2>/dev/null)
 else
   pubs=$(docker compose -f compose.yaml -f compose.remote.yaml ps --format json kali 2>/dev/null \
-    | grep -o '"PublishedPort"' | wc -l || echo 0)
+    | grep -o '"PublishedPort"' \
+    | wc -l)
 fi
+set -e
+set -o pipefail
 pubs="${pubs:-0}"
+pubs="${pubs//$'\n'/}"
+pubs="${pubs// /}"
 if [[ "$pubs" -lt 1 ]]; then
   echo "[fail] no host port published (Publishers=$pubs)"
   exit 1
