@@ -23,13 +23,13 @@ Automated malware triage and deep analysis via AI agents with full access to pro
 - ✓ Curated MCP tool surface (22 gateway-native tools) over Streamable HTTP with bearer auth — Validated in Phase 2: mcp-gateway
 - ✓ Streaming binary upload with sha256 content-addressing and 1 GB cap — Validated in Phase 2: mcp-gateway
 - ✓ Backend-as-client routing (PinnedBackend ClientSession to IDA/BN/Ghidra) with unified disasm tool surface — Validated in Phase 2: mcp-gateway
+- ✓ Remote MCP server mode — Streamable HTTP exposed via `compose.yaml` ports block driven by `MCP_GATEWAY_HOST_BIND/HOST_PORT`, no rebuild needed — Validated in Phase 3: container-integration
+- ✓ Dual-mode operation — `./run_docker.sh` (v1-identical local) vs `./run_docker.sh --remote` (detached gateway) selected from one image; `MCP_GATEWAY_ENABLED` guard ensures local mode has zero gateway leak — Validated in Phase 3: container-integration
 
 ### Active
 
-- [ ] Remote MCP server mode — expose container tools as MCP endpoints accessible over network transport (SSE/streamable HTTP)
 - [ ] Claude Code host-side MCP client compatibility — connect via `.mcp.json` to container's remote MCP server
 - [ ] Mastra.ai client compatibility — container as MCP server consumable by mastra.ai agent workflows
-- [ ] Dual-mode operation — both "agent inside container" and "remote MCP server" modes work simultaneously or selectively
 
 ### Out of Scope
 
@@ -64,8 +64,10 @@ Automated malware triage and deep analysis via AI agents with full access to pro
 | Bearer token + Origin header auth (no OAuth) | Single-team local/VPN deployment; OAuth 2.1 was overkill | ✓ Done — Phase 2 |
 | sha256 content-addressed upload layout (`<UPLOAD_DIR>/<sha256>/<filename>`) | Dedup by content; round-trip via `resolve_sample` | ✓ Done — Phase 2 |
 | PinnedBackend ClientSession (lifespan-managed) routes disasm tools to active backend | Long-lived session avoids reconnect cost; IDA via Streamable HTTP, BN/Ghidra via stdio subprocess | ✓ Done — Phase 2 |
-| Expose container as remote MCP server | Enables Claude Code host + mastra.ai as clients | — Phase 3 (port publishing) + Phase 4 (client configs) |
-| Dual-mode architecture (local + remote) | Preserve existing workflow while adding new capability | — Phase 3 |
+| Expose container as remote MCP server | Enables Claude Code host + mastra.ai as clients | ✓ Done — Phase 3 (port publishing); Phase 4 (client configs) pending |
+| Dual-mode architecture (local + remote) | Preserve existing workflow while adding new capability | ✓ Done — Phase 3 |
+| `MCP_GATEWAY_ENABLED` Dockerfile guard for no-leak local mode | Structural guarantee that local mode = v1 byte-identical, gateway daemon never starts | ✓ Done — Phase 3 |
+| Single launcher (`run_docker.sh --remote`) vs separate compose files | One UX entry point; mode selected by flag → env exports → compose overlay | ✓ Done — Phase 3 |
 
 ## Evolution
 
@@ -85,4 +87,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-27 after Phase 2 (mcp-gateway) completion*
+*Last updated: 2026-04-27 after Phase 3 (container-integration) completion*
