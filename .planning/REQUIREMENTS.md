@@ -27,7 +27,7 @@
 
 - [ ] **CLI-01**: Claude Code connects to container via `.mcp.json` with `type: "http"` and bearer token header
 - [ ] **CLI-02**: Mastra.ai connects to container via `MCPClient` with same Streamable HTTP endpoint
-- [ ] **CLI-03**: Pre-built config templates provided for Claude Code (`.mcp.json` snippet) and mastra.ai
+- [x] **CLI-03**: Pre-built config templates provided for Claude Code (`.mcp.json` snippet) and mastra.ai
 - [ ] **CLI-04**: MCP Resources expose case artifacts (sample profile, strings, imports, hypotheses, reports) as browsable resources
 
 ### Container Infrastructure
@@ -82,7 +82,7 @@
 | GW-06 | Phase 2 | Complete |
 | CLI-01 | Phase 4 | Pending |
 | CLI-02 | Phase 4 | Pending |
-| CLI-03 | Phase 4 | Pending |
+| CLI-03 | Phase 4 | Complete |
 | CLI-04 | Phase 4 | Pending |
 | INF-01 | Phase 3 | Pending |
 | INF-02 | Phase 3 | Pending |

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 4 context gathered
-last_updated: "2026-04-27T07:19:50.692Z"
+stopped_at: Completed 04-06-PLAN.md
+last_updated: "2026-04-27T08:40:26.549Z"
 last_activity: 2026-04-27
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 9
-  completed_plans: 9
-  percent: 100
+  total_plans: 16
+  completed_plans: 14
+  percent: 0
 ---
 
 # Project State
@@ -54,6 +54,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 02 P05 | 20min | 4 tasks | 9 files |
+| Phase 04 P06 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,8 @@ Recent decisions affecting current work:
 - [Phase 02]: Custom FastMCP gateway promoted to primary in CLAUDE.md; mcp-proxy moved to Alternatives Considered
 - [Phase 02]: REQUIREMENTS.md GW-03 corrected from 'BN > IDA > Ghidra' to 'IDA > BN > Ghidra' priority + pass-through clarification (D-07)
 - [Phase 02]: get_active_backend MCP tool added (Rule 2 fix) — surfaces pinned backend name to clients per D-07 pass-through model; tool count 21 → 22, still in GW-02 [15,25] budget
+- [Phase 04]: Full rewrite of README (not patch) to establish two-mode framing as the v2 headline — v2 two-mode framing is fundamentally different narrative from v1 local-only README
+- [Phase 04]: Grep-style pytest enforces README section structure — catches env-var drift or missing template references — Same pattern as test_claude_code_template.py for consistency
 
 ### Pending Todos
 
@@ -89,6 +92,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-27T07:19:50.685Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-external-client-integration/04-CONTEXT.md
+Last session: 2026-04-27T08:40:26.546Z
+Stopped at: Completed 04-06-PLAN.md
+Resume file: None
