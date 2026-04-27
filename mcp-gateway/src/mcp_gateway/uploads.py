@@ -33,7 +33,15 @@ def _upload_dir() -> Path:
 
 
 def _max_bytes() -> int:
-    mb = int(os.environ.get("MCP_GATEWAY_MAX_UPLOAD_MB", str(DEFAULT_MAX_UPLOAD_MB)))
+    raw = os.environ.get("MCP_GATEWAY_MAX_UPLOAD_MB", str(DEFAULT_MAX_UPLOAD_MB))
+    try:
+        mb = int(raw)
+    except ValueError as e:
+        raise RuntimeError(
+            f"MCP_GATEWAY_MAX_UPLOAD_MB must be an integer, got {raw!r}"
+        ) from e
+    if mb < 0:
+        raise RuntimeError(f"MCP_GATEWAY_MAX_UPLOAD_MB must be >= 0, got {mb}")
     return mb * 1024 * 1024
 
 

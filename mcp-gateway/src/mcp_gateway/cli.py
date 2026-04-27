@@ -9,6 +9,19 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8080
 
 
+def _default_port() -> int:
+    raw = os.environ.get("MCP_GATEWAY_PORT", str(DEFAULT_PORT))
+    try:
+        port = int(raw)
+    except ValueError as e:
+        raise RuntimeError(
+            f"MCP_GATEWAY_PORT must be an integer, got {raw!r}"
+        ) from e
+    if not (0 <= port <= 65535):
+        raise RuntimeError(f"MCP_GATEWAY_PORT must be in 0..65535, got {port}")
+    return port
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="mcp-gateway", description="MARE MCP gateway daemon")
     p.add_argument(
@@ -19,7 +32,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--port",
         type=int,
-        default=int(os.environ.get("MCP_GATEWAY_PORT", str(DEFAULT_PORT))),
+        default=_default_port(),
         help=f"Bind port (default: env MCP_GATEWAY_PORT or {DEFAULT_PORT})",
     )
     return p
