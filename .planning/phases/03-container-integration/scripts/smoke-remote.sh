@@ -10,7 +10,7 @@
 #   - idempotent re-run reprints same token
 set -euo pipefail
 
-REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd -P)"
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../../.." && pwd -P)"
 cd "$REPO_ROOT"
 
 # shellcheck disable=SC1091
@@ -57,14 +57,24 @@ assert_contains "$output" "docker compose down" "D-07: teardown hint printed"
 assert_contains "$output" "curl" "D-07: curl example printed"
 
 # INF-02: host port published.
+# Counting under `set -euo pipefail` requires care: under pipefail, a
+# non-matching grep exits 1, the pipeline fails, and `|| echo 0` fires AFTER
+# wc -l already printed its 0 — yielding "0\n0". We disable pipefail/-e for
+# this single block to get a clean count.
+set +e +o pipefail
 if command -v jq >/dev/null 2>&1; then
   pubs=$(docker compose -f compose.yaml -f compose.remote.yaml ps --format json kali 2>/dev/null \
-    | jq -r '[.[]?.Publishers // [] | .[]] | length' 2>/dev/null || echo 0)
+    | jq -rs '[.[] | (if type=="array" then . else [.] end) | .[]?.Publishers // [] | length] | add // 0' 2>/dev/null)
 else
   pubs=$(docker compose -f compose.yaml -f compose.remote.yaml ps --format json kali 2>/dev/null \
-    | grep -o '"PublishedPort"' | wc -l || echo 0)
+    | grep -o '"PublishedPort"' \
+    | wc -l)
 fi
+set -e
+set -o pipefail
 pubs="${pubs:-0}"
+pubs="${pubs//$'\n'/}"
+pubs="${pubs// /}"
 if [[ "$pubs" -lt 1 ]]; then
   echo "[fail] no host port published (Publishers=$pubs)"
   exit 1
@@ -80,8 +90,30 @@ if ! docker compose -f compose.yaml -f compose.remote.yaml logs kali 2>&1 \
 fi
 echo "[pass] INF-01: gateway log shows bind to 0.0.0.0"
 
+# HTTP listener race: the gateway writes the token file BEFORE binding the
+# listener, so token-presence does not imply HTTP-readiness. Poll the listener
+# directly until it accepts a connection (10s budget, 200ms intervals).
+echo "[smoke] waiting for gateway HTTP listener..."
+HTTP_DEADLINE=$(($(date +%s) + 10))
+HTTP_READY=0
+while [[ $(date +%s) -lt $HTTP_DEADLINE ]]; do
+  if curl -s -o /dev/null --connect-timeout 1 http://127.0.0.1:8080/healthz; then
+    HTTP_READY=1
+    break
+  fi
+  sleep 0.2
+done
+if [[ "$HTTP_READY" -ne 1 ]]; then
+  echo "[fail] gateway HTTP listener did not accept connections within 10s"
+  docker compose -f compose.yaml -f compose.remote.yaml logs kali 2>&1 | tail -30
+  exit 1
+fi
+echo "[pass] gateway HTTP listener accepting connections"
+
 # Bearer auth enforcement: /mcp without auth should NOT return 200.
-HTTP=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/mcp || echo 000)
+# Run curl WITHOUT `|| echo` -- curl's -w always emits the http_code (000 on
+# connect failure), and a fallback echo on the same line concatenates output.
+HTTP=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/mcp 2>/dev/null) || HTTP="000"
 if [[ "$HTTP" == "200" ]]; then
   echo "[fail] /mcp without auth returned 200 -- bearer auth NOT enforced"
   exit 1
@@ -90,7 +122,7 @@ echo "[pass] /mcp without auth returned $HTTP (not 200)"
 
 # /healthz reachable (Phase 2 D-17 makes /healthz open).
 HTTP=$(curl -s -o /dev/null -w '%{http_code}' \
-  -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8080/healthz || echo 000)
+  -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8080/healthz 2>/dev/null) || HTTP="000"
 if [[ ! "$HTTP" =~ ^(200|204)$ ]]; then
   echo "[fail] /healthz returned $HTTP (expected 200/204)"
   exit 1

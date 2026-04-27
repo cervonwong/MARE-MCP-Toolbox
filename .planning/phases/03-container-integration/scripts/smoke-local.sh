@@ -7,7 +7,7 @@
 #   - inner agent toolchain (claude, codex) intact
 set -euo pipefail
 
-REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd -P)"
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../../.." && pwd -P)"
 cd "$REPO_ROOT"
 
 # shellcheck disable=SC1091
@@ -20,14 +20,16 @@ docker compose -f compose.yaml down --remove-orphans >/dev/null 2>&1 || true
 
 echo "[smoke] running run_docker.sh (local mode, no flag)..."
 
-# Capture inner-shell probe output. ./run_docker.sh -c '<script>' passes
-# `-c <script>` through as positional args to bash inside the container,
-# because compose runs `kali` with CMD bash.
-output=$(./run_docker.sh -c '
+# Capture inner-shell probe output. Pass `bash -c '<script>'` because the
+# Dockerfile entrypoint exec's "$@" verbatim (does NOT implicitly wrap with
+# bash); CMD ["/bin/bash"] is replaced by compose-run when args are present.
+output=$(./run_docker.sh bash -c '
   set +e
   echo "PWD=$(pwd)"
   echo "USER=$USER"
-  echo "GATEWAY_PROC=$(pgrep -f mcp-gateway || echo none)"
+  # Use -x (exact match on comm/process name) to avoid matching this probe
+  # itself, which contains the literal "mcp-gateway" string in its argv.
+  echo "GATEWAY_PROC=$(pgrep -x mcp-gateway || echo none)"
   echo "GATEWAY_PORT_LISTENING=$( (echo > /dev/tcp/127.0.0.1/8080) >/dev/null 2>&1 && echo yes || echo no)"
   echo "CLAUDE_OK=$(claude --version >/dev/null 2>&1 && echo yes || echo no)"
   echo "CODEX_OK=$(codex --version >/dev/null 2>&1 && echo yes || echo no)"
@@ -50,14 +52,25 @@ assert_contains "$output" "CODEX_OK=yes" "D-12(b): codex CLI available"
 
 # D-12(a): no host port published. compose run --rm exits the container,
 # so compose ps usually returns empty (count = 0).
+# Counting under `set -euo pipefail` requires care: under pipefail, a
+# non-matching grep exits 1, the pipeline fails, and `|| echo 0` fires AFTER
+# wc -l already printed its 0 — yielding "0\n0". We disable pipefail/-e for
+# this single block to get a clean count.
+set +e +o pipefail
 if command -v jq >/dev/null 2>&1; then
+  # -s (slurp): tolerate NDJSON and array-form. Sum Publishers across all entries.
   pubs=$(docker compose -f compose.yaml ps --format json kali 2>/dev/null \
-    | jq -r '[.[]?.Publishers // [] | .[]] | length' 2>/dev/null || echo 0)
+    | jq -rs '[.[] | (if type=="array" then . else [.] end) | .[]?.Publishers // [] | length] | add // 0' 2>/dev/null)
 else
   pubs=$(docker compose -f compose.yaml ps --format json kali 2>/dev/null \
-    | grep -o '"PublishedPort"' | wc -l || echo 0)
+    | grep -o '"PublishedPort"' \
+    | wc -l)
 fi
+set -e
+set -o pipefail
 pubs="${pubs:-0}"
+pubs="${pubs//$'\n'/}"
+pubs="${pubs// /}"
 assert_eq "$pubs" "0" "D-12(a): no host ports published in local mode"
 
 echo
