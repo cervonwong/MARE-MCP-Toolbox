@@ -4,6 +4,29 @@ set -euo pipefail
 # build context = directory containing this script (Dockerfile + compose.yaml)
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 
+# Phase 3: dual-mode flag parsing (D-01, D-09).
+MODE="local"
+PASSTHROUGH=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --remote)        MODE="remote"; shift ;;
+    --token=*)       export MCP_GATEWAY_TOKEN="${1#--token=}"; shift ;;
+    --token)         export MCP_GATEWAY_TOKEN="${2:-}"; shift 2 ;;
+    --help|-h)
+      cat <<USAGE
+Usage: $0 [--remote] [--token=<value>] [-- <args for local-mode bash>]
+  (no flag)         local mode: docker compose run --rm kali (interactive bash, v1 default)
+  --remote          remote mode: docker compose up -d kali, gateway port published, token printed
+  --token=<value>   pin gateway bearer token (sets MCP_GATEWAY_TOKEN)
+  --                stop flag parsing; remaining args pass through to bash in local mode
+USAGE
+      exit 0 ;;
+    --)              shift; PASSTHROUGH=("$@"); break ;;
+    *)               PASSTHROUGH+=("$1"); shift ;;
+  esac
+done
+set -- "${PASSTHROUGH[@]+"${PASSTHROUGH[@]}"}"
+
 # runtime mount = workspace subdirectory (mounted at /agent in the container)
 HOST_PWD="$SCRIPT_DIR/workspace"
 
@@ -190,13 +213,133 @@ if [[ ! -f "$CLAUDE_USER_DIR/state.json" ]]; then
 fi
 
 # These must be in the environment of the docker compose process
+
+# Mode-driven env (D-11). User-set env wins via :- default.
+if [[ "$MODE" == "local" ]]; then
+  export MCP_GATEWAY_ENABLED="${MCP_GATEWAY_ENABLED:-0}"
+  # MCP_GATEWAY_HOST left to Phase 2 default (127.0.0.1) — D-06.
+
+  HOST_PWD="$HOST_PWD" \
+  BINARY_NINJA_USER_DIR="$BINARY_NINJA_USER_DIR" \
+  IDA_USER_DIR="$IDA_USER_DIR" \
+  CLAUDE_USER_DIR="$CLAUDE_USER_DIR" \
+  CODEX_USER_DIR="$CODEX_USER_DIR" \
+  IMAGE_TAG="$SHORT_SHA" \
+  MCP_GATEWAY_ENABLED="$MCP_GATEWAY_ENABLED" \
+  exec docker compose \
+    --project-directory "$SCRIPT_DIR" \
+    -f "$SCRIPT_DIR/compose.yaml" \
+    run --rm --pull never kali "$@"
+fi
+
+# === remote mode ===
+export MCP_GATEWAY_ENABLED="${MCP_GATEWAY_ENABLED:-1}"
+export MCP_GATEWAY_HOST="${MCP_GATEWAY_HOST:-0.0.0.0}"          # D-06: must be 0.0.0.0 in-container
+export MCP_GATEWAY_HOST_BIND="${MCP_GATEWAY_HOST_BIND:-0.0.0.0}" # D-04: host-side default
+export MCP_GATEWAY_HOST_PORT="${MCP_GATEWAY_HOST_PORT:-8080}"
+
+# Pre-up: clear any stale token file so we wait for a fresh one (RESEARCH "Idempotence").
+TOKEN_FILE="$HOST_PWD/.mcp-gateway-token"
+# Detect already-running container — if so, do NOT delete the token (it is current).
+REMOTE_RUNNING=$(HOST_PWD="$HOST_PWD" \
+  BINARY_NINJA_USER_DIR="$BINARY_NINJA_USER_DIR" \
+  IDA_USER_DIR="$IDA_USER_DIR" \
+  CLAUDE_USER_DIR="$CLAUDE_USER_DIR" \
+  CODEX_USER_DIR="$CODEX_USER_DIR" \
+  IMAGE_TAG="$SHORT_SHA" \
+  docker compose \
+  --project-directory "$SCRIPT_DIR" \
+  -f "$SCRIPT_DIR/compose.yaml" \
+  -f "$SCRIPT_DIR/compose.remote.yaml" \
+  ps --format json kali 2>/dev/null \
+  | grep -c '"State":"running"' || true)
+
+if [[ "${REMOTE_RUNNING:-0}" -lt 1 ]]; then
+  rm -f "$TOKEN_FILE"
+fi
+
+# Friendly host-port-collision warning (RESEARCH Pitfall 2).
+if [[ "${REMOTE_RUNNING:-0}" -lt 1 ]] \
+  && (echo > "/dev/tcp/127.0.0.1/${MCP_GATEWAY_HOST_PORT}") >/dev/null 2>&1; then
+  echo "[warn] something is already listening on host port ${MCP_GATEWAY_HOST_PORT}"
+  echo "[warn] override with: MCP_GATEWAY_HOST_PORT=8081 ./run_docker.sh --remote"
+fi
+
 HOST_PWD="$HOST_PWD" \
 BINARY_NINJA_USER_DIR="$BINARY_NINJA_USER_DIR" \
 IDA_USER_DIR="$IDA_USER_DIR" \
 CLAUDE_USER_DIR="$CLAUDE_USER_DIR" \
 CODEX_USER_DIR="$CODEX_USER_DIR" \
 IMAGE_TAG="$SHORT_SHA" \
-exec docker compose \
+MCP_GATEWAY_ENABLED="$MCP_GATEWAY_ENABLED" \
+MCP_GATEWAY_HOST="$MCP_GATEWAY_HOST" \
+MCP_GATEWAY_HOST_BIND="$MCP_GATEWAY_HOST_BIND" \
+MCP_GATEWAY_HOST_PORT="$MCP_GATEWAY_HOST_PORT" \
+MCP_GATEWAY_TOKEN="${MCP_GATEWAY_TOKEN:-}" \
+docker compose \
   --project-directory "$SCRIPT_DIR" \
   -f "$SCRIPT_DIR/compose.yaml" \
-  run --rm --pull never kali "$@"
+  -f "$SCRIPT_DIR/compose.remote.yaml" \
+  up -d --pull never kali
+
+# Poll for token file (15s budget, 200ms intervals — RESEARCH Token File Race).
+DEADLINE=$(($(date +%s) + 15))
+while [[ ! -s "$TOKEN_FILE" && $(date +%s) -lt $DEADLINE ]]; do
+  sleep 0.2
+done
+if [[ ! -s "$TOKEN_FILE" ]]; then
+  echo "[error] gateway token did not appear at $TOKEN_FILE within 15s" >&2
+  echo "[error] check logs: docker compose logs kali" >&2
+  exit 1
+fi
+TOKEN=$(< "$TOKEN_FILE"); TOKEN="${TOKEN%$'\n'}"
+
+# Print the ready-block (D-07).
+if [[ "${MCP_GATEWAY_HOST_BIND}" == "0.0.0.0" ]]; then
+  DISPLAY_HOST="localhost"
+else
+  DISPLAY_HOST="${MCP_GATEWAY_HOST_BIND}"
+fi
+cat <<READY
+
+═══════════════════════════════════════════════════════════════════
+  MARE-MCP-Toolbox Gateway is ready
+═══════════════════════════════════════════════════════════════════
+
+  URL:    http://${DISPLAY_HOST}:${MCP_GATEWAY_HOST_PORT}/mcp
+  Token:  ${TOKEN}
+
+  Claude Code .mcp.json snippet:
+  ──────────────────────────────────────────────────────────────────
+  {
+    "mcpServers": {
+      "mare-toolbox": {
+        "type": "http",
+        "url": "http://${DISPLAY_HOST}:${MCP_GATEWAY_HOST_PORT}/mcp",
+        "headers": {
+          "Authorization": "Bearer ${TOKEN}"
+        }
+      }
+    }
+  }
+  ──────────────────────────────────────────────────────────────────
+
+  Smoke test:
+    curl -s -H "Authorization: Bearer ${TOKEN}" \\
+      http://${DISPLAY_HOST}:${MCP_GATEWAY_HOST_PORT}/healthz
+
+  Logs:   docker compose logs -f kali
+  Stop:   docker compose down
+
+READY
+if [[ "${MCP_GATEWAY_HOST_BIND}" == "0.0.0.0" ]]; then
+  cat <<WARN
+  ⚠  Gateway is published on ALL host interfaces (0.0.0.0:${MCP_GATEWAY_HOST_PORT}).
+     On shared / untrusted networks, restrict with:
+       MCP_GATEWAY_HOST_BIND=127.0.0.1 ./run_docker.sh --remote
+     Tip: shell scrollback may retain the bearer token; clear it before
+          sharing your screen.
+
+WARN
+fi
+exit 0
