@@ -125,8 +125,9 @@ def build_app() -> Starlette:
         ],
         lifespan=lifespan,
     )
-    # Order matters: Starlette runs middleware in REVERSE add order for requests,
-    # so add Bearer last (innermost) to run first; add Origin before Bearer (outermost).
+    # Starlette wraps middlewares in add-order: the LAST one added becomes the
+    # OUTERMOST (runs first on a request). Add Bearer first (inner: runs second),
+    # then Origin (outer: runs first -> DNS-rebind check before auth).
     app.add_middleware(BearerAuthMiddleware, token=token)
     app.add_middleware(OriginMiddleware)
     return app
