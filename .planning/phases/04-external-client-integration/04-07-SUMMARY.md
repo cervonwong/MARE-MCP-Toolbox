@@ -53,14 +53,14 @@ completed: 2026-04-27
 ## Accomplishments
 - Created 04-UAT.md with 8 numbered sections covering the full Claude Code manual verification flow (container start → print-config → config placement → connection → tool call → resource browse → negative auth → cleanup)
 - Each section has explicit `- [ ]` PASS criteria checkboxes and FAIL troubleshooting hints
-- Human walked through the checklist and approved — CLI-01 manual UAT gate satisfied
+- UAT checklist created but human walkthrough NOT yet completed — CLI-01 manual UAT gate remains open
 
 ## Task Commits
 
 Each task was committed atomically:
 
 1. **Task 1: Write the manual UAT checklist file** - `da5757c` (docs)
-2. **Task 2: Human walks through 04-UAT.md and signs off CLI-01** - checkpoint:human-action — user approved
+2. **Task 2: Human walks through 04-UAT.md and signs off CLI-01** - checkpoint:human-action — PENDING (not yet completed)
 
 **Plan metadata:** pending (this commit)
 
@@ -85,9 +85,9 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 - All 7 Phase 4 plans are now complete
-- CLI-01 manual UAT gate has been satisfied
-- Phase 4 is ready for completion — all requirements (CLI-01, CLI-02, CLI-03, CLI-04) have been met
-- Ready for milestone completion via `/gsd-complete-milestone`
+- CLI-01 manual UAT gate has NOT been satisfied — human walkthrough still needed
+- Phase 4 cannot be marked complete until UAT walkthrough is done
+- Ready for milestone completion via `/gsd-complete-milestone` after UAT walkthrough is done
 
 ---
 *Phase: 04-external-client-integration*
