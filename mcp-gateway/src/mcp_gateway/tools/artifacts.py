@@ -3,15 +3,18 @@ scan_capa, rank_signals, build_hypothesis, update_state, resolve_case, get_artif
 
 D-08: all shell out to workspace/.claude/skills/malware-analysis-orchestrator/scripts/.
 T-02-SUBPROC: uses subprocess_runner.run_script (argv-only).
-T-02-PATHTRAVERSAL: get_artifact validates artifact_name has no `/` or `..`.
+T-02-PATHTRAVERSAL: get_artifact validates artifact_name has no `/`, `\\`, `..`,
+controls, or leading dot (shared predicate with uploads).
 """
 from __future__ import annotations
+import os
 from pathlib import Path
 from typing import Optional
 
 from mcp.server.fastmcp import FastMCP
 
 from ..subprocess_runner import SCRIPTS, run_script
+from ..uploads import _is_invalid_filename
 from .samples import resolve_sample
 
 CASE_TIMEOUT_S = 600.0  # 10 minutes — generous upper bound for yara/capa on large samples
@@ -97,14 +100,15 @@ def register(mcp: FastMCP) -> None:
 
         T-02-PATHTRAVERSAL: artifact_name must not contain '/' or '..'.
         """
-        if "/" in artifact_name or ".." in artifact_name or artifact_name.startswith("."):
-            raise ValueError("artifact_name must be a simple filename without separators")
+        if _is_invalid_filename(artifact_name):
+            raise ValueError(
+                "artifact_name must be a simple filename without separators or controls"
+            )
         full = Path(case_dir) / artifact_name
         # Canonicalize and verify the resolved path stays under case_dir.
-        import os as _os
-        real_case = _os.path.realpath(case_dir)
-        real_full = _os.path.realpath(str(full))
-        if not real_full.startswith(real_case + _os.sep) and real_full != real_case:
+        real_case = os.path.realpath(case_dir)
+        real_full = os.path.realpath(str(full))
+        if not real_full.startswith(real_case + os.sep) and real_full != real_case:
             raise ValueError("resolved path escapes case_dir")
         if not Path(real_full).is_file():
             raise FileNotFoundError(f"artifact not found: {full}")
