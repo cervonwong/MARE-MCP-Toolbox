@@ -49,11 +49,11 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [ ] 02-01-PLAN.md -- Package scaffold + bearer auth + backend detection (GW-04, GW-05)
-- [ ] 02-02-PLAN.md -- FastMCP Streamable HTTP server + 21 curated tools + orchestrator shell-outs (GW-01, GW-02)
-- [ ] 02-03-PLAN.md -- Backend-as-client (IDA http, BN/Ghidra stdio) + unified tool routing (GW-03)
-- [ ] 02-04-PLAN.md -- POST /upload streaming handler with sha256 dedup + size cap (GW-06)
-- [ ] 02-05-PLAN.md -- Dockerfile + compose.yaml + e2e smoke tests + doc corrections (all GW-*)
+- [x] 02-01-PLAN.md -- Package scaffold + bearer auth + backend detection (GW-04, GW-05)
+- [x] 02-02-PLAN.md -- FastMCP Streamable HTTP server + 21 curated tools + orchestrator shell-outs (GW-01, GW-02)
+- [x] 02-03-PLAN.md -- Backend-as-client (IDA http, BN/Ghidra stdio) + unified tool routing (GW-03)
+- [x] 02-04-PLAN.md -- POST /upload streaming handler with sha256 dedup + size cap (GW-06)
+- [x] 02-05-PLAN.md -- Dockerfile + compose.yaml + e2e smoke tests + doc corrections (all GW-*)
 
 ### Phase 3: Container Integration
 **Goal**: The container starts with both local agent mode and remote MCP gateway mode operational, with no changes to existing local workflows

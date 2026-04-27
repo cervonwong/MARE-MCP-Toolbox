@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 2 context gathered
-last_updated: "2026-04-23T05:33:07.509Z"
-last_activity: 2026-04-23 -- Phase 2 planning complete
+stopped_at: Completed 02-05-PLAN.md
+last_updated: "2026-04-27T02:07:04.951Z"
+last_activity: 2026-04-27
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 8
-  completed_plans: 3
-  percent: 38
+  completed_plans: 8
+  percent: 100
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** Automated malware triage and deep analysis via AI agents with full access to professional RE tooling -- accessible both from inside the container and from external MCP clients.
-**Current focus:** Phase 01 — ida-pro-backend
+**Current focus:** Phase 02 — mcp-gateway
 
 ## Current Position
 
-Phase: 01 (ida-pro-backend) — EXECUTING
-Plan: 1 of 2
+Phase: 02 (mcp-gateway) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-04-23 -- Phase 2 planning complete
+Last activity: 2026-04-27
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -52,6 +52,7 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: -
 
 *Updated after each plan completion*
+| Phase 02 P05 | 20min | 4 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,9 @@ Recent decisions affecting current work:
 - Roadmap: Use mrexodia/ida-pro-mcp for IDA Pro backend (headless idalib mode with built-in SSE server)
 - Roadmap: Use custom FastMCP gateway over mcp-proxy (curated tool surface, not raw proxying)
 - Roadmap: Streamable HTTP transport (SSE deprecated June 2025); ida-pro-mcp's idalib-mcp uses SSE natively
+- [Phase 02]: Custom FastMCP gateway promoted to primary in CLAUDE.md; mcp-proxy moved to Alternatives Considered
+- [Phase 02]: REQUIREMENTS.md GW-03 corrected from 'BN > IDA > Ghidra' to 'IDA > BN > Ghidra' priority + pass-through clarification (D-07)
+- [Phase 02]: get_active_backend MCP tool added (Rule 2 fix) — surfaces pinned backend name to clients per D-07 pass-through model; tool count 21 → 22, still in GW-02 [15,25] budget
 
 ### Pending Todos
 
@@ -84,6 +88,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-23T03:44:29.771Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-mcp-gateway/02-CONTEXT.md
+Last session: 2026-04-27T02:06:53.145Z
+Stopped at: Completed 02-05-PLAN.md
+Resume file: None

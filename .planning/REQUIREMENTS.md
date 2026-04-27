@@ -16,12 +16,12 @@
 
 ### MCP Gateway
 
-- [ ] **GW-01**: Python FastMCP server exposes curated tool surface over Streamable HTTP transport (spec 2025-03-26)
-- [ ] **GW-02**: Gateway exposes ~15-25 orchestrator-level tools mapping to the existing 13-artifact pipeline (triage, collect_strings, collect_imports, scan_yara, scan_capa, decompile_function, list_functions, get_xrefs, etc.)
-- [ ] **GW-03**: Disassembler tools route through the pinned backend (IDA > BN > Ghidra priority), exposed via a single authenticated endpoint. Backend tools are passed through with their native names and schemas (see .planning/phases/02-mcp-gateway/02-CONTEXT.md D-07); clients call `get_active_backend()` to learn which native surface is active.
-- [ ] **GW-04**: Bearer token authentication required on all remote MCP endpoints (token generated at container start, passed via environment variable)
-- [ ] **GW-05**: Gateway binds to localhost only by default; explicit opt-in for network exposure
-- [ ] **GW-06**: File upload mechanism allows remote clients to submit samples to the container for analysis
+- [x] **GW-01**: Python FastMCP server exposes curated tool surface over Streamable HTTP transport (spec 2025-03-26)
+- [x] **GW-02**: Gateway exposes ~15-25 orchestrator-level tools mapping to the existing 13-artifact pipeline (triage, collect_strings, collect_imports, scan_yara, scan_capa, decompile_function, list_functions, get_xrefs, etc.)
+- [x] **GW-03**: Disassembler tools route through the pinned backend (IDA > BN > Ghidra priority), exposed via a single authenticated endpoint. Backend tools are passed through with their native names and schemas (see .planning/phases/02-mcp-gateway/02-CONTEXT.md D-07); clients call `get_active_backend()` to learn which native surface is active.
+- [x] **GW-04**: Bearer token authentication required on all remote MCP endpoints (token generated at container start, passed via environment variable)
+- [x] **GW-05**: Gateway binds to localhost only by default; explicit opt-in for network exposure
+- [x] **GW-06**: File upload mechanism allows remote clients to submit samples to the container for analysis
 
 ### External Clients
 
@@ -74,12 +74,12 @@
 | IDA-04 | Phase 1 | Pending |
 | IDA-05 | Phase 1 | Pending |
 | IDA-06 | Phase 1 | Pending |
-| GW-01 | Phase 2 | Pending |
-| GW-02 | Phase 2 | Pending |
-| GW-03 | Phase 2 | Pending |
-| GW-04 | Phase 2 | Pending |
-| GW-05 | Phase 2 | Pending |
-| GW-06 | Phase 2 | Pending |
+| GW-01 | Phase 2 | Complete |
+| GW-02 | Phase 2 | Complete |
+| GW-03 | Phase 2 | Complete |
+| GW-04 | Phase 2 | Complete |
+| GW-05 | Phase 2 | Complete |
+| GW-06 | Phase 2 | Complete |
 | CLI-01 | Phase 4 | Pending |
 | CLI-02 | Phase 4 | Pending |
 | CLI-03 | Phase 4 | Pending |
