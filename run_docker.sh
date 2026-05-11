@@ -94,7 +94,7 @@ if [[ "$MODE" == "print-config" ]]; then
   fi
   TOKEN=$(< "$TOKEN_FILE"); TOKEN="${TOKEN%$'\n'}"
   print_ready_block "$TOKEN" \
-    "${MCP_GATEWAY_HOST_BIND:-0.0.0.0}" \
+    "${MCP_GATEWAY_HOST_BIND:-127.0.0.1}" \
     "${MCP_GATEWAY_HOST_PORT:-8080}"
   exit 0
 fi
@@ -205,11 +205,19 @@ fi
 
 IMAGE_REPO="kali-re-tools"
 
-# Build input checksum tag (short)
+# Build input checksum tag (short).
+# F-1 fix: mcp-gateway/ is COPYed into the image at /opt/mcp-gateway, so edits
+# to gateway sources must invalidate the cached tag. Cache dirs are pruned so
+# they don't make the hash flap on test runs.
 DOCKERFILE_SHA="$(
   {
     sha256sum "$SCRIPT_DIR/Dockerfile"
     find "$SCRIPT_DIR/docker-bin" -type f -print | sort | xargs sha256sum
+    find "$SCRIPT_DIR/mcp-gateway" \
+      -type d \( -name __pycache__ -o -name .pytest_cache -o -name .ruff_cache \
+                 -o -name .venv -o -name '*.egg-info' -o -name htmlcov \
+                 -o -name node_modules -o -name dist \) -prune \
+      -o -type f -print | sort | xargs sha256sum
     printf '%s\n' "INSTALL_BINARY_NINJA=$INSTALL_BINARY_NINJA"
     if [[ "$INSTALL_BINARY_NINJA" == "1" ]]; then
       sha256sum "$BINARY_NINJA_ZIP"
@@ -304,7 +312,7 @@ fi
 # === remote mode ===
 export MCP_GATEWAY_ENABLED="${MCP_GATEWAY_ENABLED:-1}"
 export MCP_GATEWAY_HOST="${MCP_GATEWAY_HOST:-0.0.0.0}"          # D-06: must be 0.0.0.0 in-container
-export MCP_GATEWAY_HOST_BIND="${MCP_GATEWAY_HOST_BIND:-0.0.0.0}" # D-04: host-side default
+export MCP_GATEWAY_HOST_BIND="${MCP_GATEWAY_HOST_BIND:-127.0.0.1}" # host-side default: localhost only
 export MCP_GATEWAY_HOST_PORT="${MCP_GATEWAY_HOST_PORT:-8080}"
 
 # Pre-up: clear any stale token file so we wait for a fresh one (RESEARCH "Idempotence").
