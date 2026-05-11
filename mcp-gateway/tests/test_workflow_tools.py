@@ -1,6 +1,8 @@
 """Tests for composite workflow tools (run_triage ordering, run_deep_analysis phase arg)."""
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from mcp.server.fastmcp import FastMCP
 
@@ -40,6 +42,7 @@ def mocked_run_triage(monkeypatch, tmp_path):
     (uploads / sha / "demo.bin").write_bytes(b"\x00")
     monkeypatch.setattr(samples_mod, "UPLOADS_ROOT", uploads)
     monkeypatch.setattr(samples_mod, "ALLOWED_PREFIXES", (uploads,))
+    monkeypatch.setattr(samples_mod, "STATUS_ROOT", Path("/agent/status"))
     return invocations, sha
 
 
@@ -83,13 +86,28 @@ async def test_run_deep_analysis_sets_phase(mocked_run_triage, mcp_instance):
 
 
 def test_generate_report_missing(mcp_instance, tmp_path):
+    status_root = tmp_path / "status"
+    case_dir = status_root / "001-demo.bin"
+    case_dir.mkdir(parents=True)
+    samples_mod.STATUS_ROOT = status_root
     gen = _get_tool(mcp_instance, "generate_report")
-    r = gen(case_dir=str(tmp_path))
+    r = gen(case_dir=str(case_dir))
     assert "error" in r
 
 
 def test_generate_report_returns_content(mcp_instance, tmp_path):
-    (tmp_path / "10_reporting_draft.md").write_text("# Report\nhello")
+    status_root = tmp_path / "status"
+    case_dir = status_root / "001-demo.bin"
+    case_dir.mkdir(parents=True)
+    samples_mod.STATUS_ROOT = status_root
+    (case_dir / "10_reporting_draft.md").write_text("# Report\nhello")
     gen = _get_tool(mcp_instance, "generate_report")
-    r = gen(case_dir=str(tmp_path))
+    r = gen(case_dir=str(case_dir))
     assert r["content"].startswith("# Report")
+
+
+def test_generate_report_rejects_case_dir_outside_status(mcp_instance, tmp_path):
+    gen = _get_tool(mcp_instance, "generate_report")
+    samples_mod.STATUS_ROOT = Path("/agent/status")
+    with pytest.raises(ValueError, match="case_dir must be under"):
+        gen(case_dir=str(tmp_path))

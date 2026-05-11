@@ -53,10 +53,10 @@ Lost the scrollback? Re-print the ready-block:
 ./run_docker.sh --print-config
 ```
 
-By default the gateway publishes on `0.0.0.0:8080`. To restrict to localhost:
+By default the gateway publishes on `127.0.0.1:8080`. To expose it on all host interfaces:
 
 ```bash
-MCP_GATEWAY_HOST_BIND=127.0.0.1 ./run_docker.sh --remote
+MCP_GATEWAY_HOST_BIND=0.0.0.0 ./run_docker.sh --remote
 ```
 
 ## Connect Claude Code (host)
@@ -175,7 +175,7 @@ Without either, Ghidra is installed by default.
 ## Security notes
 
 - The gateway requires a bearer token on every `/mcp` and `/upload` request.
-- Default bind is `0.0.0.0:8080` (any interface) — restrict via `MCP_GATEWAY_HOST_BIND=127.0.0.1` on shared/untrusted networks.
+- Default bind is `127.0.0.1:8080` (localhost only). Set `MCP_GATEWAY_HOST_BIND=0.0.0.0` only when you intentionally need LAN access.
 - The container runs with elevated capabilities (`SYS_PTRACE`, `seccomp=unconfined`) for analysis tools — do NOT expose it to the public internet without a reverse proxy you trust.
 - Disassembler licenses (IDA, Binary Ninja) live ONLY on the host bind mount; never baked into images.
 

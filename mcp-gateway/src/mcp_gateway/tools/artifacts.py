@@ -15,6 +15,7 @@ from mcp.server.fastmcp import FastMCP
 
 from ..subprocess_runner import SCRIPTS, run_script
 from ..uploads import _is_invalid_filename
+from .case_dirs import resolve_case_dir
 from .samples import resolve_sample
 
 CASE_TIMEOUT_S = 600.0  # 10 minutes — generous upper bound for yara/capa on large samples
@@ -37,7 +38,7 @@ def register(mcp: FastMCP) -> None:
         path = resolve_sample(sample)
         argv = ["bash", str(SCRIPTS / "collect_strings.sh"), path]
         if case_dir:
-            argv.append(case_dir)
+            argv.append(resolve_case_dir(case_dir))
         return await run_script(argv, cwd="/agent", timeout=CASE_TIMEOUT_S)
 
     @mcp.tool()
@@ -46,7 +47,7 @@ def register(mcp: FastMCP) -> None:
         path = resolve_sample(sample)
         argv = ["bash", str(SCRIPTS / "collect_imports.sh"), path]
         if case_dir:
-            argv.append(case_dir)
+            argv.append(resolve_case_dir(case_dir))
         return await run_script(argv, cwd="/agent", timeout=CASE_TIMEOUT_S)
 
     @mcp.tool()
@@ -55,7 +56,7 @@ def register(mcp: FastMCP) -> None:
         path = resolve_sample(sample)
         argv = ["bash", str(SCRIPTS / "scan_yara.sh"), path]
         if case_dir:
-            argv.append(case_dir)
+            argv.append(resolve_case_dir(case_dir))
         return await run_script(argv, cwd="/agent", timeout=CASE_TIMEOUT_S)
 
     @mcp.tool()
@@ -64,25 +65,42 @@ def register(mcp: FastMCP) -> None:
         path = resolve_sample(sample)
         argv = ["bash", str(SCRIPTS / "scan_capa.sh"), path]
         if case_dir:
-            argv.append(case_dir)
+            argv.append(resolve_case_dir(case_dir))
         return await run_script(argv, cwd="/agent", timeout=CASE_TIMEOUT_S)
 
     @mcp.tool()
     async def rank_signals(case_dir: str) -> dict:
         """Rank interesting signals. Writes 02_strings_interesting.md + 04_imports_interesting.md."""
-        argv = ["python3", str(SCRIPTS / "rank_signals.py"), "--status-dir", case_dir]
+        argv = [
+            "python3",
+            str(SCRIPTS / "rank_signals.py"),
+            "--status-dir",
+            resolve_case_dir(case_dir),
+        ]
         return await run_script(argv, cwd="/agent", timeout=CASE_TIMEOUT_S)
 
     @mcp.tool()
     async def build_hypothesis(case_dir: str) -> dict:
         """Assemble behavior hypotheses. Writes 05_behavior_hypotheses.md."""
-        argv = ["python3", str(SCRIPTS / "build_hypothesis.py"), "--status-dir", case_dir]
+        argv = [
+            "python3",
+            str(SCRIPTS / "build_hypothesis.py"),
+            "--status-dir",
+            resolve_case_dir(case_dir),
+        ]
         return await run_script(argv, cwd="/agent", timeout=FAST_TIMEOUT_S)
 
     @mcp.tool()
     async def update_state(case_dir: str, phase: str) -> dict:
         """Update INDEX.md + CURRENT_STATE.json to reflect a new phase."""
-        argv = ["python3", str(SCRIPTS / "update_state.py"), "--status-dir", case_dir, "--phase", phase]
+        argv = [
+            "python3",
+            str(SCRIPTS / "update_state.py"),
+            "--status-dir",
+            resolve_case_dir(case_dir),
+            "--phase",
+            phase,
+        ]
         return await run_script(argv, cwd="/agent", timeout=FAST_TIMEOUT_S)
 
     @mcp.tool()
@@ -104,9 +122,10 @@ def register(mcp: FastMCP) -> None:
             raise ValueError(
                 "artifact_name must be a simple filename without separators or controls"
             )
-        full = Path(case_dir) / artifact_name
+        resolved_case_dir = resolve_case_dir(case_dir)
+        full = Path(resolved_case_dir) / artifact_name
         # Canonicalize and verify the resolved path stays under case_dir.
-        real_case = os.path.realpath(case_dir)
+        real_case = os.path.realpath(resolved_case_dir)
         real_full = os.path.realpath(str(full))
         if not real_full.startswith(real_case + os.sep) and real_full != real_case:
             raise ValueError("resolved path escapes case_dir")

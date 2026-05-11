@@ -128,6 +128,18 @@ def test_origin_localhost_allowed():
         assert r.status_code == 200
 
 
+def test_origin_localhost_hostname_allowed():
+    with TestClient(_app_with_origin_only()) as client:
+        r = client.post("/mcp", json={}, headers={"Origin": "http://localhost:3000"})
+        assert r.status_code == 200
+
+
+def test_origin_ipv6_loopback_allowed():
+    with TestClient(_app_with_origin_only()) as client:
+        r = client.post("/mcp", json={}, headers={"Origin": "http://[::1]:3000"})
+        assert r.status_code == 200
+
+
 def test_origin_null_allowed():
     with TestClient(_app_with_origin_only()) as client:
         r = client.post("/mcp", json={}, headers={"Origin": "null"})
@@ -143,4 +155,16 @@ def test_origin_missing_allowed():
 def test_origin_evil_rejected():
     with TestClient(_app_with_origin_only()) as client:
         r = client.post("/mcp", json={}, headers={"Origin": "http://evil.com"})
+        assert r.status_code == 403
+
+
+def test_origin_prefix_bypass_rejected():
+    with TestClient(_app_with_origin_only()) as client:
+        r = client.post("/mcp", json={}, headers={"Origin": "http://localhost.evil.com"})
+        assert r.status_code == 403
+
+
+def test_origin_malformed_rejected():
+    with TestClient(_app_with_origin_only()) as client:
+        r = client.post("/mcp", json={}, headers={"Origin": "http://[::1"})
         assert r.status_code == 403
