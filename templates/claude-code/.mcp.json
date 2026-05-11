@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "mare-toolbox": {
+      "type": "http",
+      "url": "${MARE_GATEWAY_URL:-http://localhost:8080/mcp}",
+      "headers": {
+        "Authorization": "Bearer ${MARE_GATEWAY_TOKEN}"
+      }
+    }
+  }
+}

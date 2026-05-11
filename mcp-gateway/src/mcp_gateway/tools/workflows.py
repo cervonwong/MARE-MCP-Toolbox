@@ -11,6 +11,7 @@ from mcp.server.fastmcp import FastMCP
 
 from ..subprocess_runner import SCRIPTS, run_script
 from .artifacts import CASE_TIMEOUT_S, FAST_TIMEOUT_S
+from .case_dirs import resolve_case_dir
 from .samples import resolve_sample
 
 
@@ -75,13 +76,21 @@ def register(mcp: FastMCP) -> None:
 
         Full deep-analysis is v2 scope (references deep-analysis-checklist.md).
         """
-        argv = ["python3", str(SCRIPTS / "update_state.py"), "--status-dir", case_dir, "--phase", "planning_complete"]
+        argv = [
+            "python3",
+            str(SCRIPTS / "update_state.py"),
+            "--status-dir",
+            resolve_case_dir(case_dir),
+            "--phase",
+            "planning_complete",
+        ]
         return await run_script(argv, cwd="/agent", timeout=FAST_TIMEOUT_S)
 
     @mcp.tool()
     def generate_report(case_dir: str) -> dict:
         """Read 10_reporting_draft.md from case_dir and return its content."""
-        draft = Path(case_dir) / "10_reporting_draft.md"
+        resolved_case_dir = resolve_case_dir(case_dir)
+        draft = Path(resolved_case_dir) / "10_reporting_draft.md"
         if not draft.exists():
             return {"error": "reporting draft not found", "expected_path": str(draft)}
         return {"content": draft.read_text(encoding="utf-8", errors="replace"), "path": str(draft)}

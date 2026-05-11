@@ -4,6 +4,8 @@ We patch subprocess_runner.run_script to capture argv rather than actually execu
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from mcp.server.fastmcp import FastMCP
 
@@ -30,6 +32,7 @@ def captured_argv(monkeypatch, tmp_path):
     f.write_bytes(b"\x00")
     monkeypatch.setattr(samples_mod, "UPLOADS_ROOT", uploads)
     monkeypatch.setattr(samples_mod, "ALLOWED_PREFIXES", (uploads,))
+    monkeypatch.setattr(samples_mod, "STATUS_ROOT", Path("/agent/status"))
     return captured, sha, f
 
 
@@ -94,23 +97,47 @@ async def test_rank_signals_uses_python3(captured_argv, registered_mcp):
 async def test_update_state_phase_flag(captured_argv, registered_mcp):
     captured, _sha, _f = captured_argv
     update_state = _get_tool(registered_mcp, "update_state")
-    await update_state(case_dir="/x", phase="triage_complete")
+    await update_state(case_dir="/agent/status/001-demo.bin", phase="triage_complete")
     argv = captured[0][0]
-    assert argv == ["python3", argv[1], "--status-dir", "/x", "--phase", "triage_complete"]
+    assert argv == ["python3", argv[1], "--status-dir", "/agent/status/001-demo.bin", "--phase", "triage_complete"]
+
+
+@pytest.mark.asyncio
+async def test_update_state_rejects_case_dir_outside_status(captured_argv, registered_mcp):
+    _captured, _sha, _f = captured_argv
+    update_state = _get_tool(registered_mcp, "update_state")
+    with pytest.raises(ValueError, match="case_dir must be under"):
+        await update_state(case_dir="/tmp/001-demo.bin", phase="triage_complete")
 
 
 def test_get_artifact_rejects_traversal(tmp_path, registered_mcp):
     get_artifact = _get_tool(registered_mcp, "get_artifact")
-    (tmp_path / "00_sample_profile.md").write_text("hi")
+    status_root = tmp_path / "status"
+    case_dir = status_root / "001-demo.bin"
+    case_dir.mkdir(parents=True)
+    samples_mod.STATUS_ROOT = status_root
+    (case_dir / "00_sample_profile.md").write_text("hi")
     with pytest.raises(ValueError):
-        get_artifact(case_dir=str(tmp_path), artifact_name="../etc/passwd")
+        get_artifact(case_dir=str(case_dir), artifact_name="../etc/passwd")
     with pytest.raises(ValueError):
-        get_artifact(case_dir=str(tmp_path), artifact_name="foo/bar")
+        get_artifact(case_dir=str(case_dir), artifact_name="foo/bar")
 
 
 def test_get_artifact_reads_content(tmp_path, registered_mcp):
     get_artifact = _get_tool(registered_mcp, "get_artifact")
-    (tmp_path / "00_sample_profile.md").write_text("sample-content")
-    r = get_artifact(case_dir=str(tmp_path), artifact_name="00_sample_profile.md")
+    status_root = tmp_path / "status"
+    case_dir = status_root / "001-demo.bin"
+    case_dir.mkdir(parents=True)
+    samples_mod.STATUS_ROOT = status_root
+    (case_dir / "00_sample_profile.md").write_text("sample-content")
+    r = get_artifact(case_dir=str(case_dir), artifact_name="00_sample_profile.md")
     assert r["content"] == "sample-content"
     assert r["size"] == len("sample-content")
+
+
+def test_get_artifact_rejects_case_dir_outside_status(tmp_path, registered_mcp):
+    get_artifact = _get_tool(registered_mcp, "get_artifact")
+    (tmp_path / "00_sample_profile.md").write_text("sample-content")
+    samples_mod.STATUS_ROOT = Path("/agent/status")
+    with pytest.raises(ValueError, match="case_dir must be under"):
+        get_artifact(case_dir=str(tmp_path), artifact_name="00_sample_profile.md")

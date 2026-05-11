@@ -10,6 +10,7 @@ import logging
 import os
 import secrets
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -75,17 +76,21 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
 class OriginMiddleware(BaseHTTPMiddleware):
     """DNS-rebind protection per MCP spec 2025-03-26 § Security Warning.
 
-    Allow Origin starting with http://127.0.0.1 or http://localhost, or literal "null",
-    or missing Origin (non-browser client). Reject everything else with 403.
+    Allow exact loopback hosts, literal "null", or missing Origin (non-browser client).
+    Reject everything else with 403.
     T-02-NET mitigation.
     """
 
-    ALLOWED_PREFIXES = ("http://127.0.0.1", "http://localhost")
+    ALLOWED_HOSTS = {"localhost", "127.0.0.1", "::1"}
 
     async def dispatch(self, request: Request, call_next):
         origin = request.headers.get("origin")
         if origin is None or origin == "null":
             return await call_next(request)
-        if any(origin.startswith(p) for p in self.ALLOWED_PREFIXES):
+        try:
+            parsed = urlsplit(origin)
+        except ValueError:
+            return JSONResponse({"error": "forbidden origin"}, status_code=403)
+        if parsed.scheme in {"http", "https"} and parsed.hostname in self.ALLOWED_HOSTS:
             return await call_next(request)
         return JSONResponse({"error": "forbidden origin"}, status_code=403)

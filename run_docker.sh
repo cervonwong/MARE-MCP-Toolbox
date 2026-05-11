@@ -10,6 +10,7 @@ PASSTHROUGH=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --remote)        MODE="remote"; shift ;;
+    --print-config)  MODE="print-config"; shift ;;
     --token=*)       export MCP_GATEWAY_TOKEN="${1#--token=}"; shift ;;
     --token)         export MCP_GATEWAY_TOKEN="${2:-}"; shift 2 ;;
     --help|-h)
@@ -17,6 +18,7 @@ while [[ $# -gt 0 ]]; do
 Usage: $0 [--remote] [--token=<value>] [-- <args for local-mode bash>]
   (no flag)         local mode: docker compose run --rm kali (interactive bash, v1 default)
   --remote          remote mode: docker compose up -d kali, gateway port published, token printed
+  --print-config    re-print the ready-block from workspace/.mcp-gateway-token (no container action)
   --token=<value>   pin gateway bearer token (sets MCP_GATEWAY_TOKEN)
   --                stop flag parsing; remaining args pass through to bash in local mode
 USAGE
@@ -27,8 +29,75 @@ USAGE
 done
 set -- "${PASSTHROUGH[@]+"${PASSTHROUGH[@]}"}"
 
+# print_ready_block(token, host_bind, host_port): render the gateway ready-block.
+# Reused by --remote post-up (D-07) and --print-config (D-11).
+print_ready_block() {
+  local token="$1"
+  local host_bind="$2"
+  local host_port="$3"
+  local display_host="$host_bind"
+  if [[ "$host_bind" == "0.0.0.0" ]]; then display_host="localhost"; fi
+  cat <<READY
+
+═══════════════════════════════════════════════════════════════════
+  MARE-MCP-Toolbox Gateway is ready
+═══════════════════════════════════════════════════════════════════
+
+  URL:    http://${display_host}:${host_port}/mcp
+  Token:  ${token}
+
+  Claude Code .mcp.json snippet:
+  ──────────────────────────────────────────────────────────────────
+  {
+    "mcpServers": {
+      "mare-toolbox": {
+        "type": "http",
+        "url": "http://${display_host}:${host_port}/mcp",
+        "headers": {
+          "Authorization": "Bearer ${token}"
+        }
+      }
+    }
+  }
+  ──────────────────────────────────────────────────────────────────
+
+  Smoke test:
+    curl -s -H "Authorization: Bearer ${token}" \\
+      http://${display_host}:${host_port}/healthz
+
+  Logs:   docker compose logs -f kali
+  Stop:   docker compose down
+
+READY
+  if [[ "$host_bind" == "0.0.0.0" ]]; then
+    cat <<WARN
+  ⚠  Gateway is published on ALL host interfaces (0.0.0.0:${host_port}).
+     On shared / untrusted networks, restrict with:
+       MCP_GATEWAY_HOST_BIND=127.0.0.1 ./run_docker.sh --remote
+     Tip: shell scrollback may retain the bearer token; clear it before
+          sharing your screen.
+
+WARN
+  fi
+}
+
 # runtime mount = workspace subdirectory (mounted at /agent in the container)
 HOST_PWD="$SCRIPT_DIR/workspace"
+
+# === print-config mode (D-11): re-render ready-block from token file, no compose action. ===
+if [[ "$MODE" == "print-config" ]]; then
+  TOKEN_FILE="$HOST_PWD/.mcp-gateway-token"
+  if [[ ! -s "$TOKEN_FILE" ]]; then
+    echo "[error] no token file at $TOKEN_FILE" >&2
+    echo "[error] start the container first: ./run_docker.sh --remote" >&2
+    exit 1
+  fi
+  TOKEN=$(< "$TOKEN_FILE"); TOKEN="${TOKEN%$'\n'}"
+  print_ready_block "$TOKEN" \
+    "${MCP_GATEWAY_HOST_BIND:-127.0.0.1}" \
+    "${MCP_GATEWAY_HOST_PORT:-8080}"
+  exit 0
+fi
 
 # buildx builder (idempotent)
 docker buildx create --use --name training >/dev/null 2>&1 || docker buildx use training
@@ -136,11 +205,19 @@ fi
 
 IMAGE_REPO="kali-re-tools"
 
-# Build input checksum tag (short)
+# Build input checksum tag (short).
+# F-1 fix: mcp-gateway/ is COPYed into the image at /opt/mcp-gateway, so edits
+# to gateway sources must invalidate the cached tag. Cache dirs are pruned so
+# they don't make the hash flap on test runs.
 DOCKERFILE_SHA="$(
   {
     sha256sum "$SCRIPT_DIR/Dockerfile"
     find "$SCRIPT_DIR/docker-bin" -type f -print | sort | xargs sha256sum
+    find "$SCRIPT_DIR/mcp-gateway" \
+      -type d \( -name __pycache__ -o -name .pytest_cache -o -name .ruff_cache \
+                 -o -name .venv -o -name '*.egg-info' -o -name htmlcov \
+                 -o -name node_modules -o -name dist \) -prune \
+      -o -type f -print | sort | xargs sha256sum
     printf '%s\n' "INSTALL_BINARY_NINJA=$INSTALL_BINARY_NINJA"
     if [[ "$INSTALL_BINARY_NINJA" == "1" ]]; then
       sha256sum "$BINARY_NINJA_ZIP"
@@ -235,7 +312,7 @@ fi
 # === remote mode ===
 export MCP_GATEWAY_ENABLED="${MCP_GATEWAY_ENABLED:-1}"
 export MCP_GATEWAY_HOST="${MCP_GATEWAY_HOST:-0.0.0.0}"          # D-06: must be 0.0.0.0 in-container
-export MCP_GATEWAY_HOST_BIND="${MCP_GATEWAY_HOST_BIND:-0.0.0.0}" # D-04: host-side default
+export MCP_GATEWAY_HOST_BIND="${MCP_GATEWAY_HOST_BIND:-127.0.0.1}" # host-side default: localhost only
 export MCP_GATEWAY_HOST_PORT="${MCP_GATEWAY_HOST_PORT:-8080}"
 
 # Pre-up: clear any stale token file so we wait for a fresh one (RESEARCH "Idempotence").
@@ -295,51 +372,5 @@ fi
 TOKEN=$(< "$TOKEN_FILE"); TOKEN="${TOKEN%$'\n'}"
 
 # Print the ready-block (D-07).
-if [[ "${MCP_GATEWAY_HOST_BIND}" == "0.0.0.0" ]]; then
-  DISPLAY_HOST="localhost"
-else
-  DISPLAY_HOST="${MCP_GATEWAY_HOST_BIND}"
-fi
-cat <<READY
-
-═══════════════════════════════════════════════════════════════════
-  MARE-MCP-Toolbox Gateway is ready
-═══════════════════════════════════════════════════════════════════
-
-  URL:    http://${DISPLAY_HOST}:${MCP_GATEWAY_HOST_PORT}/mcp
-  Token:  ${TOKEN}
-
-  Claude Code .mcp.json snippet:
-  ──────────────────────────────────────────────────────────────────
-  {
-    "mcpServers": {
-      "mare-toolbox": {
-        "type": "http",
-        "url": "http://${DISPLAY_HOST}:${MCP_GATEWAY_HOST_PORT}/mcp",
-        "headers": {
-          "Authorization": "Bearer ${TOKEN}"
-        }
-      }
-    }
-  }
-  ──────────────────────────────────────────────────────────────────
-
-  Smoke test:
-    curl -s -H "Authorization: Bearer ${TOKEN}" \\
-      http://${DISPLAY_HOST}:${MCP_GATEWAY_HOST_PORT}/healthz
-
-  Logs:   docker compose logs -f kali
-  Stop:   docker compose down
-
-READY
-if [[ "${MCP_GATEWAY_HOST_BIND}" == "0.0.0.0" ]]; then
-  cat <<WARN
-  ⚠  Gateway is published on ALL host interfaces (0.0.0.0:${MCP_GATEWAY_HOST_PORT}).
-     On shared / untrusted networks, restrict with:
-       MCP_GATEWAY_HOST_BIND=127.0.0.1 ./run_docker.sh --remote
-     Tip: shell scrollback may retain the bearer token; clear it before
-          sharing your screen.
-
-WARN
-fi
+print_ready_block "$TOKEN" "$MCP_GATEWAY_HOST_BIND" "$MCP_GATEWAY_HOST_PORT"
 exit 0

@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: milestone
-status: executing
-stopped_at: Phase 3 context gathered
-last_updated: "2026-04-27T06:29:17.758Z"
-last_activity: 2026-04-27
+milestone_name: Remote MCP Foundation
+status: complete
+stopped_at: v1.0 shipped 2026-04-27, UAT signed 2026-05-11; carryover finding F-1 (image-hash misses mcp-gateway/) deferred to v1.1
+last_updated: "2026-05-11T00:00:00.000Z"
+last_activity: 2026-05-11
 progress:
   total_phases: 4
-  completed_phases: 3
-  total_plans: 9
-  completed_plans: 9
+  completed_phases: 4
+  total_plans: 16
+  completed_plans: 16
   percent: 100
 ---
 
@@ -18,19 +18,19 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-08)
+See: .planning/PROJECT.md (updated 2026-05-11 after v1.0 milestone completion)
 
 **Core value:** Automated malware triage and deep analysis via AI agents with full access to professional RE tooling -- accessible both from inside the container and from external MCP clients.
-**Current focus:** Phase 03 — container-integration
+**Current focus:** Planning next milestone (run `/gsd-new-milestone`)
 
 ## Current Position
 
-Phase: 4
-Plan: Not started
-Status: Executing Phase 03
-Last activity: 2026-04-27
+Milestone: v1.0 Remote MCP Foundation — ✅ SHIPPED 2026-04-27, UAT-signed 2026-05-11
+Status: All 4 phases complete, 16/16 plans complete, CLI-01 UAT PASSED (administrator@leongs-house.dev)
+Carryover: Finding F-1 — image content-hash misses `mcp-gateway/` changes (fix in v1.1)
+Last activity: 2026-05-11
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -54,6 +54,9 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 02 P05 | 20min | 4 tasks | 9 files |
+| Phase 04 P06 | 2min | 2 tasks | 2 files |
+| Phase 04 P05 | 3min | 3 tasks | 5 files |
+| Phase 04 P07 | 2min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -68,6 +71,10 @@ Recent decisions affecting current work:
 - [Phase 02]: Custom FastMCP gateway promoted to primary in CLAUDE.md; mcp-proxy moved to Alternatives Considered
 - [Phase 02]: REQUIREMENTS.md GW-03 corrected from 'BN > IDA > Ghidra' to 'IDA > BN > Ghidra' priority + pass-through clarification (D-07)
 - [Phase 02]: get_active_backend MCP tool added (Rule 2 fix) — surfaces pinned backend name to clients per D-07 pass-through model; tool count 21 → 22, still in GW-02 [15,25] budget
+- [Phase 04]: Full rewrite of README (not patch) to establish two-mode framing as the v2 headline — v2 two-mode framing is fundamentally different narrative from v1 local-only README
+- [Phase 04]: Grep-style pytest enforces README section structure — catches env-var drift or missing template references — Same pattern as test_claude_code_template.py for consistency
+- [Phase 04]: Session-scoped httpx.Client (not mcp SDK ClientSession) for raw JSON-RPC control over Streamable HTTP — mcp SDK ClientSession would obscure wire format and make auth-bypass testing harder
+- [Phase 04]: UAT checklist gates Phase 4 completion on human signoff (CLI-01) — Required to satisfy D-12 part b — human verification cannot be automated
 
 ### Pending Todos
 
@@ -86,9 +93,10 @@ None yet.
 | 260414-fsg | Replace docker-bin wrappers with native config files for Claude and Codex | 2026-04-14 | 3b3c981 | [260414-fsg-replace-docker-bin-wrappers-with-native-](./quick/260414-fsg-replace-docker-bin-wrappers-with-native-/) |
 | 260414-iee | Move Claude/Codex config from workspace project-level to user-level via configure-agent-mcp.sh | 2026-04-14 | a89af30 | [260414-iee-move-claude-codex-config-from-workspace-](./quick/260414-iee-move-claude-codex-config-from-workspace-/) |
 | 260423-f3k | Fix inner agent statusline paths (/workspace -> /agent) | 2026-04-23 | bdae5ea | [260423-f3k-fix-inner-agent-statusline-paths-workspa](./quick/260423-f3k-fix-inner-agent-statusline-paths-workspa/) |
+| 260511-cwf | Fix remote MCP security defaults: localhost host bind, exact Origin validation, and case_dir confinement | 2026-05-11 | f556fda | [260511-cwf-fix-remote-mcp-security-defaults-localho](./quick/260511-cwf-fix-remote-mcp-security-defaults-localho/) |
 
 ## Session Continuity
 
-Last session: 2026-04-27T03:03:06.272Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-container-integration/03-CONTEXT.md
+Last session: 2026-04-27T09:10:51.981Z
+Stopped at: Completed 04-07-PLAN.md
+Resume file: None
