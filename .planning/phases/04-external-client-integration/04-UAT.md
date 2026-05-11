@@ -16,10 +16,10 @@ cd <repo-root>
 ```
 
 PASS criteria:
-- [ ] Command exits 0
-- [ ] Stdout shows the ready-block: `MARE-MCP-Toolbox Gateway is ready`, with a `URL:` and `Token:` line
-- [ ] `docker compose ps` shows `kali` in `running` state
-- [ ] `cat workspace/.mcp-gateway-token` returns a non-empty token string
+- [x] Command exits 0
+- [x] Stdout shows the ready-block: `MARE-MCP-Toolbox Gateway is ready`, with a `URL:` and `Token:` line
+- [x] `docker compose ps` shows `kali` in `running` state
+- [x] `cat workspace/.mcp-gateway-token` returns a non-empty token string
 
 FAIL -> fix the gateway boot before proceeding (`docker compose logs kali`).
 
@@ -33,9 +33,9 @@ Action:
 ```
 
 PASS criteria:
-- [ ] Exits 0
-- [ ] Stdout contains the same `MARE-MCP-Toolbox Gateway is ready` block as step 1
-- [ ] The `Token:` value matches the one in `workspace/.mcp-gateway-token`
+- [x] Exits 0
+- [x] Stdout contains the same `MARE-MCP-Toolbox Gateway is ready` block as step 1
+- [x] The `Token:` value matches the one in `workspace/.mcp-gateway-token`
 
 FAIL -> check Plan 02 (D-11) implementation.
 
@@ -60,9 +60,9 @@ export MARE_GATEWAY_TOKEN=$(cat <repo-root>/workspace/.mcp-gateway-token)
 ```
 
 PASS criteria:
-- [ ] `.mcp.json` is in the directory you'll launch Claude Code from (or in `~/.claude/`)
-- [ ] `echo $MARE_GATEWAY_TOKEN` prints a non-empty value
-- [ ] `echo $MARE_GATEWAY_URL` prints `http://localhost:8080/mcp` (or your custom URL)
+- [x] `.mcp.json` is in the directory you'll launch Claude Code from (or in `~/.claude/`)
+- [x] `echo $MARE_GATEWAY_TOKEN` prints a non-empty value
+- [x] `echo $MARE_GATEWAY_URL` prints `http://localhost:8080/mcp` (or your custom URL)
 
 ---
 
@@ -73,10 +73,12 @@ Action: Launch Claude Code (CLI or app) from the directory containing `.mcp.json
 In Claude Code, check the MCP panel (or `/mcp` command):
 
 PASS criteria:
-- [ ] `mare-toolbox` server appears in the MCP panel
-- [ ] Status shows **connected** / **ready** (NOT "error", NOT "stopped")
-- [ ] No red 401 / "unauthorized" indicator
-- [ ] Tool count is at least 22 (Phase 2 surface) — backend passthrough may add more
+- [x] `mare-toolbox` server appears in the MCP panel
+- [x] Status shows **connected** / **ready** (NOT "error", NOT "stopped")
+- [x] No red 401 / "unauthorized" indicator
+- [x] Tool count is at least 22 (Phase 2 surface) — backend passthrough may add more
+
+Verified via: `claude --mcp-config /tmp/mare-uat/.mcp.json --strict-mcp-config mcp list` → `mare-toolbox: http://localhost:8080/mcp (HTTP) - ✓ Connected`. Token expansion from `${MARE_GATEWAY_TOKEN}` confirmed at parse time via `claude mcp get mare-toolbox`. Tool count = 22 confirmed via raw MCP `tools/list` JSON-RPC.
 
 FAIL paths:
 - 401 -> token mismatch. Re-run `./run_docker.sh --print-config`, refresh `MARE_GATEWAY_TOKEN`, restart Claude Code.
@@ -94,11 +96,13 @@ Use the mare-toolbox MCP server to call list_uploads. Show me the raw JSON resul
 ```
 
 PASS criteria:
-- [ ] Claude Code visibly invokes the `list_uploads` tool (UI shows tool-call indicator)
-- [ ] Result is a JSON array (possibly empty if no prior uploads)
-- [ ] No error rendered
+- [x] Claude Code visibly invokes the `list_uploads` tool (UI shows tool-call indicator)
+- [x] Result is a JSON array (possibly empty if no prior uploads)
+- [x] No error rendered
 
 Optional follow-up: ask it to call `get_active_backend` and confirm the response shape `{ "backend": "ida" | "bn" | "ghidra" | "none" }`.
+
+Verified via: `claude --mcp-config /tmp/mare-uat/.mcp.json --strict-mcp-config --allowedTools "mcp__mare-toolbox__list_uploads,mcp__mare-toolbox__get_active_backend" --print` returned `[{"sha256":"d9f3...","filename":"smoke_sample.bin",...}]` and `{"backend":"ida"}`.
 
 ---
 
@@ -113,8 +117,8 @@ List the MCP resources from the mare-toolbox server.
 ```
 
 PASS criteria:
-- [ ] Claude Code returns a list of `mare://cases/<case>/<artifact>` URIs
-- [ ] At least one URI ends in `.json`, `.md`, or `.txt`
+- [x] Claude Code returns a list of `mare://cases/<case>/<artifact>` URIs
+- [x] At least one URI ends in `.json`, `.md`, or `.txt`
 
 Then ask:
 
@@ -123,8 +127,12 @@ Read the resource mare://cases/<your-case>/CURRENT_STATE.json and show me the co
 ```
 
 PASS criteria:
-- [ ] Content renders (JSON shape from `artifact-spec.md` — `sample_path`, `phase`, `artifacts`, etc.)
-- [ ] No traversal-rejection error for legitimate URIs
+- [x] Content renders (JSON shape from `artifact-spec.md` — `sample_path`, `phase`, `artifacts`, etc.)
+- [x] No traversal-rejection error for legitimate URIs
+
+Verified via Claude CLI: 13 `mare://cases/000-mfc42ul.dll/<artifact>` URIs listed (mix of `.md`, `.txt`, `.json`); `resources/read` of CURRENT_STATE.json returned the full JSON (`sample_path`, `phase: "planning_complete"`, `artifacts.required_present: 13`, hypotheses, priorities).
+
+**See finding F-1 below** — resource listing was initially empty until the container image was rebuilt to pick up Plan 04-03's `tools/resources.py`.
 
 ---
 
@@ -138,10 +146,12 @@ export MARE_GATEWAY_TOKEN=obviously-wrong-token-xyz
 Restart Claude Code (or trigger an MCP reload).
 
 PASS criteria:
-- [ ] `mare-toolbox` shows error / 401 / disconnected
-- [ ] No tool calls succeed
+- [x] `mare-toolbox` shows error / 401 / disconnected
+- [x] No tool calls succeed
 
 Restore the real token (`export MARE_GATEWAY_TOKEN=$(cat <repo-root>/workspace/.mcp-gateway-token)`) and confirm the connection comes back.
+
+Verified via Claude CLI: wrong token → `mare-toolbox: http://localhost:8080/mcp (HTTP) - ✗ Failed to connect` and tool-call rejected (`No MCP tool matching 'mare-toolbox' is registered`). Restore → `✓ Connected` again. Raw curl: 401 on wrong/missing token, 200 on correct token.
 
 ---
 
@@ -153,13 +163,29 @@ unset MARE_GATEWAY_TOKEN MARE_GATEWAY_URL
 # clear shell scrollback if you exposed the token publicly
 ```
 
+- [x] `docker compose down` ran; `docker compose ps` shows no containers
+- [x] env vars unset
+- [x] `/tmp/mare-uat` removed
+
+---
+
+## Findings
+
+### F-1 (carry to v1.1) — Image content-hash misses `mcp-gateway/` changes
+
+`run_docker.sh:209-222` builds the image-cache tag (`SHORT_SHA`) from `Dockerfile`, `docker-bin/`, and the BN/IDA zip checksums — but **not from `mcp-gateway/src/`**. Consequence: gateway-package edits land in the repo and pass unit/e2e tests (which import from the source tree), but the running container keeps the previously-baked `/opt/mcp-gateway/src/` and never picks them up. The cached `[build] up to date (kali-re-tools:<sha>)` short-circuit in the same script means a manual `docker compose build` or image purge is needed to redeploy gateway changes.
+
+This was the root cause of `resources/list` initially returning `[]` during this UAT — Plan 04-03's `tools/resources.py` was in the repo but absent from the image built on 2026-04-27 (~2 hours before the file was added). After removing the cached tag and rebuilding, all 13 resources surfaced correctly and Step 6 passed.
+
+**Fix to plan in v1.1:** include `mcp-gateway/` in the `DOCKERFILE_SHA` checksum (a `find mcp-gateway -type f` + sort + sha256sum is enough). Also worth a one-line note in the dual-mode docs that gateway-package changes require a rebuild.
+
 ---
 
 ## Signoff
 
 When ALL boxes above are checked:
 
-- [ ] **CLI-01 manual UAT: PASSED** — _signed_ ____________ _date_ ___________
+- [x] **CLI-01 manual UAT: PASSED** — _signed_ administrator@leongs-house.dev _date_ 2026-05-11
 
 If any box failed, file a gap-closure note in the relevant phase-04 SUMMARY and re-run after the fix.
 

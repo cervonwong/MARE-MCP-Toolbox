@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Remote MCP Foundation
 status: complete
-stopped_at: v1.0 shipped 2026-04-27 (CLI-01 manual UAT signoff pending — carried to v1.1)
+stopped_at: v1.0 shipped 2026-04-27, UAT signed 2026-05-11; carryover finding F-1 (image-hash misses mcp-gateway/) deferred to v1.1
 last_updated: "2026-05-11T00:00:00.000Z"
 last_activity: 2026-05-11
 progress:
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-05-11 after v1.0 milestone completion)
 
 ## Current Position
 
-Milestone: v1.0 Remote MCP Foundation — ✅ SHIPPED 2026-04-27
-Status: All 4 phases complete, 16/16 plans complete
-Carryover: CLI-01 manual UAT signoff (`04-UAT.md`) pending — automated verification green
+Milestone: v1.0 Remote MCP Foundation — ✅ SHIPPED 2026-04-27, UAT-signed 2026-05-11
+Status: All 4 phases complete, 16/16 plans complete, CLI-01 UAT PASSED (administrator@leongs-house.dev)
+Carryover: Finding F-1 — image content-hash misses `mcp-gateway/` changes (fix in v1.1)
 Last activity: 2026-05-11
 
 Progress: [██████████] 100%

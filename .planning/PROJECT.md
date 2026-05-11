@@ -26,7 +26,7 @@ Automated malware triage and deep analysis via AI agents with full access to pro
 - ✓ Remote MCP server mode — Streamable HTTP exposed via `compose.yaml` ports block driven by `MCP_GATEWAY_HOST_BIND/HOST_PORT`, no rebuild needed — Validated in Phase 3: container-integration
 - ✓ Dual-mode operation — `./run_docker.sh` (v1-identical local) vs `./run_docker.sh --remote` (detached gateway) selected from one image; `MCP_GATEWAY_ENABLED` guard ensures local mode has zero gateway leak — Validated in Phase 3: container-integration
 
-- ✓ Claude Code host-side MCP client compatibility — automated e2e in Phase 4 (CLI-01); manual UAT signoff pending (see Known Gaps)
+- ✓ Claude Code host-side MCP client compatibility — automated e2e + manual UAT signoff 2026-05-11 — Validated in Phase 4: external-client-integration (CLI-01)
 - ✓ Mastra.ai client compatibility — `templates/mastra/` runnable starter, full triage happy path — Validated in Phase 4: external-client-integration (CLI-02)
 
 ### Active
@@ -51,13 +51,13 @@ Automated malware triage and deep analysis via AI agents with full access to pro
 - Dual-mode container: `./run_docker.sh` (v1-identical local) vs `./run_docker.sh --remote` (gateway) from one image; `MCP_GATEWAY_ENABLED` Dockerfile guard ensures byte-identical local mode
 - External client templates: Claude Code `.mcp.json` with env-var token expansion, mastra.ai starter (`@mastra/mcp ~1.3.1`), MCP Resources at `mare://cases/<case>/<artifact>` covering all 13 artifact types
 
-**Known Gap:** Manual UAT signoff for CLI-01 (`.planning/phases/04-external-client-integration/04-UAT.md`) — 8-step walkthrough against real Claude Code binary not yet completed. Automated verification is green (4/4 truths); carried into v1.1.
+**Carryover Finding (F-1, v1.1):** `run_docker.sh` content-hash for the image cache covers `Dockerfile`, `docker-bin/`, and the disassembler zips, but **not `mcp-gateway/src/`**. Edits to the gateway package land in repo and pass unit/e2e tests (which import from the source tree) but the running container keeps the previously-baked code. Surfaced during 2026-05-11 UAT — Plan 04-03's `tools/resources.py` had to be rebuilt into the image before `resources/list` returned non-empty. Fix in v1.1: extend `DOCKERFILE_SHA` to include `mcp-gateway/`.
 
 ## Next Milestone Goals
 
-To be scoped via `/gsd-new-milestone`. Candidate themes from v2 backlog and v1.0 deferrals:
+To be scoped via `/gsd-new-milestone`. Candidate themes from v2 backlog and v1.0 carryovers:
 
-- **Manual UAT completion** — close out CLI-01 with a recorded `04-UAT.md` walkthrough
+- **F-1 fix** — extend `run_docker.sh` content-hash to include `mcp-gateway/` so gateway-package edits trigger an image rebuild
 - **GW-V2-01..04** — MCP Prompts as orchestrator templates; progress notifications; multi-session support; session lifecycle management
 - **DIS-V2-01/02** — Unified disassembler abstraction layer; backend comparison mode (diff IDA/BN/Ghidra outputs on the same sample)
 

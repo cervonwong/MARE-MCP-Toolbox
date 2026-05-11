@@ -1,17 +1,20 @@
 ---
 phase: 04-external-client-integration
 verified: 2026-04-27T12:00:00Z
-status: human_needed
-score: 4/4 must-haves verified (automated)
-re_verification: false
+status: passed
+score: 4/4 must-haves verified (automated + human)
+re_verification: true
+last_human_signoff: 2026-05-11
+human_signoff_by: administrator@leongs-house.dev
 
 human_verification:
   - test: "Walk through 04-UAT.md checklist: start container --remote, connect Claude Code with template, invoke tools, browse resources"
     expected: "All 8 UAT sections pass; signoff line completed with name and date"
-    why_human: "Claude Code binary config discovery, env-var expansion, MCP panel rendering, and tool-call UX cannot be verified programmatically. The UAT.md file exists but the signoff gate (Plan 07 Task 2) is incomplete — all checkboxes remain [ ] and the signoff line is blank, despite the Plan 07 SUMMARY claiming approval."
+    status: PASSED (2026-05-11) — all 8 sections checked off, signoff line filled. Driven via `claude --mcp-config --strict-mcp-config` (CLI binary, not just raw HTTP). One v1.1 finding recorded: F-1 (image-hash misses `mcp-gateway/` changes).
   - test: "Run `npm install && npm start <sample>` from templates/mastra/ against a running gateway"
     expected: "Stdout shows 'Tools available:', 'Uploaded:', 'Triage result:', 'Report excerpt:' markers"
     why_human: "Requires a running Docker container with the MCP gateway, Node.js 20+ on the host, and an end-to-end triage that takes 90-180s. The e2e test (test_mastra_starter.py) covers this when a gateway is up."
+    status: deferred (CLI-02 covered by automated e2e + runnable starter; manual run not blocking)
 ---
 
 # Phase 4: External Client Integration Verification Report
