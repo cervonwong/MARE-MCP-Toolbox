@@ -1,36 +1,36 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: milestone
-status: executing
-stopped_at: 04-07 UAT walkthrough pending (human-action checkpoint)
-last_updated: "2026-04-27T12:30:00.000Z"
-last_activity: 2026-04-27
+milestone_name: Remote MCP Foundation
+status: complete
+stopped_at: v1.0 shipped 2026-04-27 (CLI-01 manual UAT signoff pending — carried to v1.1)
+last_updated: "2026-05-11T00:00:00.000Z"
+last_activity: 2026-05-11
 progress:
   total_phases: 4
   completed_phases: 4
   total_plans: 16
   completed_plans: 16
-  percent: 94
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-08)
+See: .planning/PROJECT.md (updated 2026-05-11 after v1.0 milestone completion)
 
 **Core value:** Automated malware triage and deep analysis via AI agents with full access to professional RE tooling -- accessible both from inside the container and from external MCP clients.
-**Current focus:** Phase 04 — external-client-integration
+**Current focus:** Planning next milestone (run `/gsd-new-milestone`)
 
 ## Current Position
 
-Phase: 4
-Plan: 6 of 7 complete (04-07 UAT walkthrough pending)
-Status: Phase 04 execution paused — human-action checkpoint (UAT walkthrough)
-Last activity: 2026-04-27
+Milestone: v1.0 Remote MCP Foundation — ✅ SHIPPED 2026-04-27
+Status: All 4 phases complete, 16/16 plans complete
+Carryover: CLI-01 manual UAT signoff (`04-UAT.md`) pending — automated verification green
+Last activity: 2026-05-11
 
-Progress: [█████████░] 94%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 

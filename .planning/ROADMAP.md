@@ -1,101 +1,29 @@
 # Roadmap: MARE-MCP-Toolbox v2
 
-## Overview
+## Milestones
 
-This roadmap delivers two major capabilities to the MARE-MCP-Toolbox: IDA Pro as a third disassembler backend (alongside Binary Ninja and Ghidra), and a remote MCP gateway that exposes the container's analysis tools over Streamable HTTP for external clients like Claude Code and mastra.ai. The work progresses from backend integration (IDA Pro working locally inside the container) through gateway construction (curated tool surface with auth) to container wiring (dual-mode entrypoint, compose config) and finally external client integration (config templates, end-to-end workflows). Each phase delivers independently testable capability.
+- ✅ **v1.0 Remote MCP Foundation** — Phases 1-4 (shipped 2026-04-27) — see [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
+- 📋 **v1.1** — not yet planned (run `/gsd-new-milestone` to scope)
 
 ## Phases
 
-**Phase Numbering:**
-- Integer phases (1, 2, 3): Planned milestone work
-- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+<details>
+<summary>✅ v1.0 Remote MCP Foundation (Phases 1-4) — SHIPPED 2026-04-27</summary>
 
-Decimal phases appear between their surrounding integers in numeric order.
+- [x] Phase 1: IDA Pro Backend (3/3 plans)
+- [x] Phase 2: MCP Gateway (5/5 plans)
+- [x] Phase 3: Container Integration (1/1 plan)
+- [x] Phase 4: External Client Integration (7/7 plans) — automated complete; CLI-01 manual UAT signoff pending
 
-- [ ] **Phase 1: IDA Pro Backend** - Headless IDA Pro as third disassembler option for local agents inside the container
-- [ ] **Phase 2: MCP Gateway** - FastMCP server exposing curated tool surface over Streamable HTTP with authentication
-- [ ] **Phase 3: Container Integration** - Dual-mode entrypoint, Docker Compose wiring, and file transfer for remote analysis
-- [ ] **Phase 4: External Client Integration** - Claude Code and mastra.ai connect to the container and run end-to-end analysis workflows
+Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 
-## Phase Details
-
-### Phase 1: IDA Pro Backend
-**Goal**: Local agents inside the container can use IDA Pro for disassembly and decompilation, with automatic fallback across all three backends
-**Depends on**: Nothing (first phase)
-**Requirements**: IDA-01, IDA-02, IDA-03, IDA-04, IDA-05, IDA-06, INF-03, INF-04
-**Success Criteria** (what must be TRUE):
-  1. Building the container with `INSTALL_IDA_PRO=1` and a valid IDA zip produces a working IDA Pro installation with no license artifacts in intermediate Docker layers
-  2. An agent inside the container can invoke IDA Pro MCP tools (disassemble, decompile, list functions) via SSE transport on a test binary
-  3. The fallback chain (IDA > BN > Ghidra) activates the correct backend based on what is installed, verified by `configure-agent-mcp.sh` output
-  4. All three disassembler APIs (Binary Ninja, IDA Pro, Ghidra) coexist without Python import errors or version conflicts
-  5. IDA Pro license persists across container restarts via host bind mount to `~/.idapro/`
-**Plans**: 3 plans
-
-Plans:
-- [x] 01-01-PLAN.md -- Dockerfile IDA Pro multi-stage build, run_docker.sh zip detection and license seeding, compose.yaml volume mount
-- [x] 01-02-PLAN.md -- configure-agent-mcp.sh three-way backend detection (IDA > BN > Ghidra)
-- [ ] 01-03-PLAN.md -- Fix IDA detection command (idalib-mcp) and SSE transport config (gap closure)
-
-### Phase 2: MCP Gateway
-**Goal**: A curated set of orchestrator-level analysis tools is accessible over Streamable HTTP with bearer token authentication
-**Depends on**: Phase 1
-**Requirements**: GW-01, GW-02, GW-03, GW-04, GW-05, GW-06
-**Success Criteria** (what must be TRUE):
-  1. A Streamable HTTP endpoint on port 8080 responds to MCP tool discovery requests and returns the curated tool list (15-25 tools)
-  2. Requests without a valid bearer token are rejected with 401; requests with a valid token succeed
-  3. Disassembler tools (decompile, list_functions, get_xrefs) route to the installed backend transparently -- the client sees a unified interface regardless of whether BN, IDA, or Ghidra is active
-  4. A remote client can upload a binary sample via the file transfer mechanism and then run analysis tools against it
-  5. The gateway binds to localhost only by default and requires explicit configuration to listen on all interfaces
-**Plans**: 5 plans
-
-Plans:
-- [x] 02-01-PLAN.md -- Package scaffold + bearer auth + backend detection (GW-04, GW-05)
-- [x] 02-02-PLAN.md -- FastMCP Streamable HTTP server + 21 curated tools + orchestrator shell-outs (GW-01, GW-02)
-- [x] 02-03-PLAN.md -- Backend-as-client (IDA http, BN/Ghidra stdio) + unified tool routing (GW-03)
-- [x] 02-04-PLAN.md -- POST /upload streaming handler with sha256 dedup + size cap (GW-06)
-- [x] 02-05-PLAN.md -- Dockerfile + compose.yaml + e2e smoke tests + doc corrections (all GW-*)
-
-### Phase 3: Container Integration
-**Goal**: The container starts with both local agent mode and remote MCP gateway mode operational, with no changes to existing local workflows
-**Depends on**: Phase 2
-**Requirements**: INF-01, INF-02, INF-05
-**Success Criteria** (what must be TRUE):
-  1. `docker compose up` starts the container with the MCP gateway listening on the configured port (default 8080) alongside the existing local agent environment
-  2. An agent running inside the container (existing Claude Code/Codex workflow) continues working identically to v1 -- no regressions
-  3. The gateway port is configurable via Docker Compose environment variables without rebuilding the image
-**Plans**: 1 plan
-
-Plans:
-- [x] 03-01-PLAN.md -- Container integration: dual-mode launcher (--remote flag), compose ports block + remote-mode overlay, Dockerfile MCP_GATEWAY_ENABLED guard, smoke tests
-
-### Phase 4: External Client Integration
-**Goal**: Claude Code on the host and mastra.ai agents can connect to the containerized tools and run complete analysis workflows
-**Depends on**: Phase 3
-**Requirements**: CLI-01, CLI-02, CLI-03, CLI-04
-**Success Criteria** (what must be TRUE):
-  1. Claude Code on the host connects to the container using a provided `.mcp.json` snippet and can invoke analysis tools (triage, strings, decompile) against a submitted sample
-  2. A mastra.ai agent connects to the container via MCPClient and can run an analysis workflow using the same Streamable HTTP endpoint
-  3. Pre-built config templates for both Claude Code and mastra.ai are provided and work without modification beyond inserting the bearer token
-  4. Case artifacts (sample profile, strings output, YARA results, reports) are browsable as MCP Resources by connected clients
-**Plans**: 7 plans
-
-Plans:
-- [x] 04-01-PLAN.md -- Claude Code .mcp.json template + JSON-shape unit test (CLI-01, CLI-03)
-- [x] 04-02-PLAN.md -- run_docker.sh --print-config flag + print_ready_block() refactor + subprocess test (CLI-01)
-- [x] 04-03-PLAN.md -- MCP Resources (mare://cases/...) module + tools/__init__.py wiring + MIME and unit tests (CLI-04)
-- [x] 04-04-PLAN.md -- templates/mastra/ runnable starter project + static template unit test (CLI-02, CLI-03)
-- [ ] 04-05-PLAN.md -- mcp-gateway/tests/e2e/ suite: conftest + Claude Code smoke + resources + mastra starter subprocess (CLI-01, CLI-02, CLI-04)
-- [ ] 04-06-PLAN.md -- Top-level README.md rewrite (D-16 two-mode framing) + grep-based structure test (CLI-03)
-- [ ] 04-07-PLAN.md -- 04-UAT.md manual UAT checklist + checkpoint:human-action signoff gate (CLI-01)
+</details>
 
 ## Progress
 
-**Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4
-
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. IDA Pro Backend | 0/3 | Planned | - |
-| 2. MCP Gateway | 0/5 | Planned | - |
-| 3. Container Integration | 0/1 | Planned | - |
-| 4. External Client Integration | 0/7 | Planned | - |
+| Phase                          | Milestone | Plans | Status   | Completed  |
+|--------------------------------|-----------|-------|----------|------------|
+| 1. IDA Pro Backend             | v1.0      | 3/3   | Complete | 2026-04-27 |
+| 2. MCP Gateway                 | v1.0      | 5/5   | Complete | 2026-04-27 |
+| 3. Container Integration       | v1.0      | 1/1   | Complete | 2026-04-27 |
+| 4. External Client Integration | v1.0      | 7/7   | Complete | 2026-04-27 |

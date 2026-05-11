@@ -26,10 +26,12 @@ Automated malware triage and deep analysis via AI agents with full access to pro
 - ✓ Remote MCP server mode — Streamable HTTP exposed via `compose.yaml` ports block driven by `MCP_GATEWAY_HOST_BIND/HOST_PORT`, no rebuild needed — Validated in Phase 3: container-integration
 - ✓ Dual-mode operation — `./run_docker.sh` (v1-identical local) vs `./run_docker.sh --remote` (detached gateway) selected from one image; `MCP_GATEWAY_ENABLED` guard ensures local mode has zero gateway leak — Validated in Phase 3: container-integration
 
+- ✓ Claude Code host-side MCP client compatibility — automated e2e in Phase 4 (CLI-01); manual UAT signoff pending (see Known Gaps)
+- ✓ Mastra.ai client compatibility — `templates/mastra/` runnable starter, full triage happy path — Validated in Phase 4: external-client-integration (CLI-02)
+
 ### Active
 
-- [ ] Claude Code host-side MCP client compatibility — connect via `.mcp.json` to container's remote MCP server
-- [ ] Mastra.ai client compatibility — container as MCP server consumable by mastra.ai agent workflows
+(None — v1.0 shipped. Run `/gsd-new-milestone` to scope v1.1.)
 
 ### Out of Scope
 
@@ -38,14 +40,34 @@ Automated malware triage and deep analysis via AI agents with full access to pro
 - Dynamic analysis orchestration — static analysis focus maintained
 - Replacing Binary Ninja or Ghidra — IDA Pro is an addition, not a replacement
 
+## Current State
+
+**Shipped:** v1.0 Remote MCP Foundation (2026-04-27) — see [.planning/MILESTONES.md](MILESTONES.md)
+
+- Three disassembler backends (IDA Pro, Binary Ninja, Ghidra) with IDA > BN > Ghidra fallback chain
+- Custom FastMCP gateway exposing 22 curated tools over Streamable HTTP at `/mcp` with bearer-token auth and Origin DNS-rebind middleware
+- `PinnedBackend` async ClientSession routes disassembler tools to IDA (HTTP) or BN/Ghidra (stdio); native-name pass-through, `get_active_backend()` for discovery
+- Streaming `POST /upload` with sha256 content-addressing, 1 GB cap, path-traversal/multipart rejection
+- Dual-mode container: `./run_docker.sh` (v1-identical local) vs `./run_docker.sh --remote` (gateway) from one image; `MCP_GATEWAY_ENABLED` Dockerfile guard ensures byte-identical local mode
+- External client templates: Claude Code `.mcp.json` with env-var token expansion, mastra.ai starter (`@mastra/mcp ~1.3.1`), MCP Resources at `mare://cases/<case>/<artifact>` covering all 13 artifact types
+
+**Known Gap:** Manual UAT signoff for CLI-01 (`.planning/phases/04-external-client-integration/04-UAT.md`) — 8-step walkthrough against real Claude Code binary not yet completed. Automated verification is green (4/4 truths); carried into v1.1.
+
+## Next Milestone Goals
+
+To be scoped via `/gsd-new-milestone`. Candidate themes from v2 backlog and v1.0 deferrals:
+
+- **Manual UAT completion** — close out CLI-01 with a recorded `04-UAT.md` walkthrough
+- **GW-V2-01..04** — MCP Prompts as orchestrator templates; progress notifications; multi-session support; session lifecycle management
+- **DIS-V2-01/02** — Unified disassembler abstraction layer; backend comparison mode (diff IDA/BN/Ghidra outputs on the same sample)
+
 ## Context
 
-- Current architecture: agents (Claude Code/Codex) run inside Docker container, call MCP tools locally via stdio transport
-- Binary Ninja integration pattern: provide zip at build time, conditional Dockerfile install, MCP repo cloned at runtime, `configure-agent-mcp.sh` detects and registers
-- MCP ecosystem is evolving — remote MCP servers use SSE or streamable HTTP transport instead of stdio
-- IDA Pro has headless mode (`idat`/`idat64`) and IDAPython — need to research existing MCP wrappers
-- Mastra.ai is a TypeScript AI agent framework that can consume MCP servers as tool providers
-- Claude Code supports remote MCP servers in `.mcp.json` via `url` transport type
+- Current architecture: agents (Claude Code/Codex) run inside Docker container; remote clients connect to the same container via Streamable HTTP at `/mcp` (port 8080 by default, localhost-only unless `MCP_GATEWAY_HOST_BIND` set)
+- Binary Ninja and IDA Pro use the same provisioning pattern: zip at build time, conditional Dockerfile install, MCP server registered by `configure-agent-mcp.sh`
+- MCP ecosystem standardized on Streamable HTTP (spec 2025-03-26) — SSE deprecated June 2025; clients fall back automatically
+- Mastra.ai is a TypeScript AI agent framework that consumes MCP servers via `@mastra/mcp ~1.3.1`; full triage workflow demonstrated in `templates/mastra/`
+- Claude Code supports remote MCP servers in `.mcp.json` via `type: "http"` with `${ENV_VAR}` expansion at parse time
 
 ## Constraints
 
@@ -87,4 +109,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-27 after Phase 3 (container-integration) completion*
+*Last updated: 2026-04-27 after v1.0 milestone (Remote MCP Foundation) completion*
