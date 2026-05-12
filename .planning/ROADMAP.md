@@ -42,7 +42,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   3. Edits to ignored paths (`__pycache__`, `.venv`, `*.egg-info`, `.pytest_cache`) do NOT trigger spurious rebuilds
   4. A regression test asserts `DOCKERFILE_SHA` changes when `mcp-gateway/src/x.py` is touched
 **Plans**: 3 plans
-  - [ ] 05-01-PLAN.md — Add LC_ALL=C to both sort invocations in run_docker.sh image-hash subshell (D-02)
+  - [x] 05-01-PLAN.md — Add LC_ALL=C to both sort invocations in run_docker.sh image-hash subshell (D-02)
   - [ ] 05-02-PLAN.md — Extract hash to scripts/compute_image_hash.sh + patch run_docker.sh call site (D-05, D-06)
   - [ ] 05-03-PLAN.md — Add hermetic pytest regression test mcp-gateway/tests/test_image_hash.py (D-07..D-11)
 

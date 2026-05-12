@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
-status: planning
-stopped_at: Phase 5 context gathered
-last_updated: "2026-05-12T04:51:54.235Z"
-last_activity: 2026-05-12 — Roadmap drafted; 52 v1.1 requirements mapped across 8 phases (5-12); coverage 100%
+status: executing
+stopped_at: Completed 05-01-PLAN.md (locale-stable sort in image-hash subshell)
+last_updated: "2026-05-12T05:54:18.493Z"
+last_activity: 2026-05-12
 progress:
   total_phases: 8
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 3
+  completed_plans: 1
+  percent: 33
 ---
 
 # Project State
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion scoped)
 
 **Core value:** Automated malware triage and deep analysis via AI agents with full access to professional RE tooling — accessible both from inside the container and from external MCP clients.
-**Current focus:** v1.1 roadmap complete (Phases 5-12). Next step: `/gsd-plan-phase 5` to plan the F-1 image-hash fix (gates all subsequent v1.1 work).
+**Current focus:** Phase 05 — f-1-image-hash-fix
 
 ## Current Position
 
 Milestone: v1.1 Remote RE Tool Expansion
-Phase: 5 (F-1 Image-Hash Fix) — not yet planned
-Plan: —
-Status: Roadmap complete, awaiting phase planning
-Last activity: 2026-05-12 — Roadmap drafted; 52 v1.1 requirements mapped across 8 phases (5-12); coverage 100%
+Phase: 05 (f-1-image-hash-fix) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-05-12
 
 Progress: [          ] 0% (0/8 phases complete)
 
@@ -69,6 +69,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 **Carryover from v1.0:**
 
 - F-1: `run_docker.sh:209-222` `DOCKERFILE_SHA` does not include `mcp-gateway/src/` — gateway-package edits never trigger image rebuild. Now scoped as Phase 5 (FOUND-01).
+- [Phase 05-f-1-image-hash-fix]: Inline LC_ALL=C prefix per sort invocation in run_docker.sh image-hash subshell (vs. global export) — keeps locale intent visible at call site
 
 ### Pending Todos
 
@@ -98,9 +99,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | 260511-cwf | Fix remote MCP security defaults: localhost host bind, exact Origin validation, and case_dir confinement | 2026-05-11 | f556fda | [260511-cwf-fix-remote-mcp-security-defaults-localho](./quick/260511-cwf-fix-remote-mcp-security-defaults-localho/) |
 | 260511-evu | Make the Mastra starter provide a browser GUI in addition to the existing CLI, and verify by opening the GUI | 2026-05-11 | uncommitted | [260511-evu-make-the-mastra-starter-provide-a-browse](./quick/260511-evu-make-the-mastra-starter-provide-a-browse/) |
 | 260511-fam | Switch the Mastra starter GUI to the default Mastra Studio dashboard with a registered MARE agent and tools | 2026-05-11 | uncommitted | [260511-fam-switch-the-mastra-starter-gui-to-the-def](./quick/260511-fam-switch-the-mastra-starter-gui-to-the-def/) |
+| Phase 05-f-1-image-hash-fix P01 | 2min | 1 tasks | 1 files |
 
 ## Session Continuity
 
-Last session: 2026-05-12T04:51:54.232Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-f-1-image-hash-fix/05-CONTEXT.md
+Last session: 2026-05-12T05:54:18.486Z
+Stopped at: Completed 05-01-PLAN.md (locale-stable sort in image-hash subshell)
+Resume file: None
