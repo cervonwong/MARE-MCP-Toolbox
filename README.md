@@ -150,6 +150,7 @@ Without either, Ghidra is installed by default.
 | `401 Unauthorized` from Claude Code or mastra | Token rotates per `--remote` start. Refresh: `./run_docker.sh --print-config` and update your env var. |
 | `[error] no token file at workspace/.mcp-gateway-token` from `--print-config` | Container isn't running. Start it: `./run_docker.sh --remote`. |
 | Port 8080 already in use | `MCP_GATEWAY_HOST_PORT=8081 ./run_docker.sh --remote` |
+| Build fails at `[internal] booting buildkit` with `invalid mount config ... docker-desktop-bind-mounts` | Stale Buildx builder state, usually after Docker Desktop/WSL restarts or updates. Recreate it: `docker buildx rm training && docker buildx create --use --name training`, then rerun `./run_docker.sh --remote`. If removal fails, first run `docker rm -f buildx_buildkit_training0`. |
 | Mastra `npm install` peer-dep warning on `@mastra/core` | The project pins `@mastra/mcp@~1.3.x`; `@mastra/core` is open to `^1.x`. Warnings are tolerated; if `npm start` fails, downgrade core. |
 | Resource list returns no `mare://` URIs | No cases yet. Run a triage first (e.g. via the mastra starter or `tools/call mare_run_triage`). |
 
