@@ -28,6 +28,7 @@ Automated malware triage and deep analysis via AI agents with full access to pro
 
 - ✓ Claude Code host-side MCP client compatibility — automated e2e + manual UAT signoff 2026-05-11 — Validated in Phase 4: external-client-integration (CLI-01)
 - ✓ Mastra.ai client compatibility — `templates/mastra/` runnable starter, full triage happy path — Validated in Phase 4: external-client-integration (CLI-02)
+- ✓ Image-hash covers `mcp-gateway/` so gateway-package edits trigger image rebuild; hash made locale-stable via `LC_ALL=C sort`; logic extracted to `scripts/compute_image_hash.sh` with hermetic pytest regression — Validated in Phase 5: f-1-image-hash-fix (FOUND-01)
 
 ### Active
 
@@ -52,7 +53,7 @@ Active requirements are scoped per milestone in `.planning/REQUIREMENTS.md` (cur
 - Dual-mode container: `./run_docker.sh` (v1-identical local) vs `./run_docker.sh --remote` (gateway) from one image; `MCP_GATEWAY_ENABLED` Dockerfile guard ensures byte-identical local mode
 - External client templates: Claude Code `.mcp.json` with env-var token expansion, mastra.ai starter (`@mastra/mcp ~1.3.1`), MCP Resources at `mare://cases/<case>/<artifact>` covering all 13 artifact types
 
-**Carryover Finding (F-1, v1.1):** `run_docker.sh` content-hash for the image cache covers `Dockerfile`, `docker-bin/`, and the disassembler zips, but **not `mcp-gateway/src/`**. Edits to the gateway package land in repo and pass unit/e2e tests (which import from the source tree) but the running container keeps the previously-baked code. Surfaced during 2026-05-11 UAT — Plan 04-03's `tools/resources.py` had to be rebuilt into the image before `resources/list` returned non-empty. Fix in v1.1: extend `DOCKERFILE_SHA` to include `mcp-gateway/`.
+**Carryover Finding (F-1) — Resolved in Phase 5 (2026-05-12):** `run_docker.sh` content-hash for the image cache previously covered `Dockerfile`, `docker-bin/`, and the disassembler zips, but **not `mcp-gateway/src/`**, so edits to the gateway package landed in the repo and passed unit/e2e tests but the running container kept the previously-baked code (surfaced during 2026-05-11 UAT — Plan 04-03's `tools/resources.py` had to be rebuilt before `resources/list` returned non-empty). Phase 5 extended `DOCKERFILE_SHA` to include `mcp-gateway/`, made the hash locale-stable via `LC_ALL=C sort`, extracted the logic into `scripts/compute_image_hash.sh`, and added a hermetic 11-node pytest regression at `mcp-gateway/tests/test_image_hash.py`.
 
 ## Current Milestone: v1.1 Remote RE Tool Expansion
 
@@ -70,7 +71,7 @@ Active requirements are scoped per milestone in `.planning/REQUIREMENTS.md` (cur
 - **Background job system** — `start_tool_job` / `get_tool_job` / `cancel_tool_job` for long-running tools (capa, unblob, Ghidra/IDA analysis, strace, qemu); log streaming via artifacts
 - **Artifact / control helpers** — `write_artifact`, `append_artifact`, `list_artifacts`, `get_artifact_tree`, `get_tool_log`
 - **Orchestrator skill update** — fix stale assumptions in malware-analysis-orchestrator: backend priority `IDA > BN > Ghidra`, remote agents use gateway tools (not local `scripts/`), deep RE checklist mapping findings → tools, mark dynamic mode in `CURRENT_STATE.json`
-- **F-1 carryover fix** — extend `run_docker.sh` content-hash to include `mcp-gateway/` so gateway-package edits trigger image rebuild (lands first, unblocks the rest)
+- **F-1 carryover fix** — extend `run_docker.sh` content-hash to include `mcp-gateway/` so gateway-package edits trigger image rebuild (lands first, unblocks the rest) — ✓ Shipped in Phase 5 (2026-05-12)
 
 **Key context:**
 
@@ -131,4 +132,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-12 — v1.1 (Remote RE Tool Expansion) scoped and started*
+*Last updated: 2026-05-12 — v1.1 Phase 5 (F-1 image-hash fix) complete; FOUND-01 validated*
