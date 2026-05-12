@@ -210,23 +210,11 @@ IMAGE_REPO="kali-re-tools"
 # to gateway sources must invalidate the cached tag. Cache dirs are pruned so
 # they don't make the hash flap on test runs.
 DOCKERFILE_SHA="$(
-  {
-    sha256sum "$SCRIPT_DIR/Dockerfile"
-    find "$SCRIPT_DIR/docker-bin" -type f -print | LC_ALL=C sort | xargs sha256sum
-    find "$SCRIPT_DIR/mcp-gateway" \
-      -type d \( -name __pycache__ -o -name .pytest_cache -o -name .ruff_cache \
-                 -o -name .venv -o -name '*.egg-info' -o -name htmlcov \
-                 -o -name node_modules -o -name dist \) -prune \
-      -o -type f -print | LC_ALL=C sort | xargs sha256sum
-    printf '%s\n' "INSTALL_BINARY_NINJA=$INSTALL_BINARY_NINJA"
-    if [[ "$INSTALL_BINARY_NINJA" == "1" ]]; then
-      sha256sum "$BINARY_NINJA_ZIP"
-    fi
-    printf '%s\n' "INSTALL_IDA_PRO=$INSTALL_IDA_PRO"
-    if [[ "$INSTALL_IDA_PRO" == "1" ]]; then
-      sha256sum "$IDA_PRO_ZIP"
-    fi
-  } | sha256sum | awk '{print $1}'
+  INSTALL_BINARY_NINJA="$INSTALL_BINARY_NINJA" \
+  BINARY_NINJA_ZIP="$BINARY_NINJA_ZIP" \
+  INSTALL_IDA_PRO="$INSTALL_IDA_PRO" \
+  IDA_PRO_ZIP="$IDA_PRO_ZIP" \
+  bash "$SCRIPT_DIR/scripts/compute_image_hash.sh" "$SCRIPT_DIR"
 )"
 SHORT_SHA="${DOCKERFILE_SHA:0:12}"
 HASH_IMAGE="${IMAGE_REPO}:${SHORT_SHA}"
