@@ -44,7 +44,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 **Plans**: 3 plans
   - [x] 05-01-PLAN.md — Add LC_ALL=C to both sort invocations in run_docker.sh image-hash subshell (D-02)
   - [x] 05-02-PLAN.md — Extract hash to scripts/compute_image_hash.sh + patch run_docker.sh call site (D-05, D-06)
-  - [ ] 05-03-PLAN.md — Add hermetic pytest regression test mcp-gateway/tests/test_image_hash.py (D-07..D-11)
+  - [x] 05-03-PLAN.md — Add hermetic pytest regression test mcp-gateway/tests/test_image_hash.py (D-07..D-11)
 
 ### Phase 6: ReToolRunner + artifacts_io Foundation
 **Goal**: One auditable, OOM-safe execution path exists for every v1.1 subprocess invocation, and every path-accepting tool can reject traversal uniformly

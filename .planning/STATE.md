@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
-status: executing
-stopped_at: Completed 05-02-PLAN.md (extracted image-hash subshell to scripts/compute_image_hash.sh)
-last_updated: "2026-05-12T05:57:42.037Z"
+status: verifying
+stopped_at: Completed 05-03-PLAN.md (Phase 5 regression test for image-hash invariant; phase ready for verification)
+last_updated: "2026-05-12T06:01:20.000Z"
 last_activity: 2026-05-12
 progress:
   total_phases: 8
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
-  percent: 67
+  completed_plans: 3
+  percent: 100
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 05 (f-1-image-hash-fix) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-12
 
 Progress: [          ] 0% (0/8 phases complete)
@@ -71,6 +71,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - F-1: `run_docker.sh:209-222` `DOCKERFILE_SHA` does not include `mcp-gateway/src/` — gateway-package edits never trigger image rebuild. Now scoped as Phase 5 (FOUND-01).
 - [Phase 05-f-1-image-hash-fix]: Inline LC_ALL=C prefix per sort invocation in run_docker.sh image-hash subshell (vs. global export) — keeps locale intent visible at call site
 - [Phase 05-f-1-image-hash-fix]: Extracted run_docker.sh:212-229 inline image-hash subshell to scripts/compute_image_hash.sh; refactor preserves byte-identical output and keeps DOCKERFILE_SHA/SHORT_SHA/HASH_IMAGE in run_docker.sh scope (D-01/D-06).
+- [Phase 05-f-1-image-hash-fix]: Locked FOUND-01 invariant with hermetic 11-node pytest at mcp-gateway/tests/test_image_hash.py — single-fixture-per-test pattern; explicit env={PATH,HOME} dict to subprocess (no env=os.environ); test skeleton copied verbatim from 05-RESEARCH.md to preserve VALIDATION.md's row-by-row contract.
 
 ### Pending Todos
 
@@ -102,9 +103,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | 260511-fam | Switch the Mastra starter GUI to the default Mastra Studio dashboard with a registered MARE agent and tools | 2026-05-11 | uncommitted | [260511-fam-switch-the-mastra-starter-gui-to-the-def](./quick/260511-fam-switch-the-mastra-starter-gui-to-the-def/) |
 | Phase 05-f-1-image-hash-fix P01 | 2min | 1 tasks | 1 files |
 | Phase 05-f-1-image-hash-fix P02 | 100s | 2 tasks | 2 files |
+| Phase 05-f-1-image-hash-fix P03 | 87s | 1 tasks | 1 files |
 
 ## Session Continuity
 
-Last session: 2026-05-12T05:57:42.034Z
-Stopped at: Completed 05-02-PLAN.md (extracted image-hash subshell to scripts/compute_image_hash.sh)
+Last session: 2026-05-12T06:01:19.996Z
+Stopped at: Completed 05-03-PLAN.md (Phase 5 regression test for image-hash invariant; phase ready for verification)
 Resume file: None
