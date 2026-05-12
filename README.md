@@ -129,6 +129,39 @@ mare://cases/000-mfc42ul.dll/CURRENT_STATE.json
 
 Uploads are NOT exposed as resources — use `list_uploads()` and `get_sample_info()` tool calls instead.
 
+## Recommended analysis workflow
+
+The author-recommended way to approach malware work in this project is the
+[`malware-analysis-orchestrator`](workspace/.claude/skills/malware-analysis-orchestrator/)
+skill, mirrored for Codex at
+[`workspace/.codex/skills/malware-analysis-orchestrator/`](workspace/.codex/skills/malware-analysis-orchestrator/).
+It teaches the phased analysis discipline: create a case directory, preserve raw
+strings/imports, rank interesting signals, build evidence-backed hypotheses,
+plan deeper reverse engineering, and keep `INDEX.md` / `CURRENT_STATE.json`
+fresh.
+
+Local Claude Code or Codex inside the container can discover those skills from
+`/agent/.claude/skills/` or `/agent/.codex/skills/`. Remote Claude Code,
+mastra.ai, and other MCP clients do not automatically receive local skills over
+MCP; they see tool names, schemas, descriptions, and resources. If you want a
+remote agent to follow the same discipline, give it this skill or equivalent
+prompt guidance in the host project or agent definition.
+
+The initial triage pass is intentionally script-driven. `run_triage` composes
+`init_case`, `collect_strings`, `collect_imports`, `scan_yara`, `scan_capa`,
+`rank_signals`, `build_hypothesis`, and `update_state`. These gateway-native
+tools do not call an LLM; they run fixed Python/Bash helpers and are
+deterministic or mostly deterministic for the same sample, case state, tool
+versions, and rule sets. The AI-controlled part is deciding what to run next,
+how to interpret the artifacts, and which deeper questions to pursue.
+
+After triage, use `get_active_backend()` and the active IDA, Binary Ninja, or
+Ghidra MCP tools for deeper analysis: inspect prioritized functions, decompile
+or disassemble them, pull xrefs and call graphs, recover types/structures,
+annotate findings, and write the resulting component inventory, interaction
+model, deep-analysis plan, priority queue, and reporting draft back into the
+case artifacts.
+
 ## Disassembler backends
 
 The gateway routes `decompile`, `list_functions`, `get_xrefs`, etc. to the **pinned** backend (priority: IDA > Binary Ninja > Ghidra). Clients call `get_active_backend()` to discover which surface is active. See [`mcp-gateway/`](mcp-gateway/) for the full tool list (~22 gateway-native tools + the active backend's native passthrough).
