@@ -41,7 +41,10 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   2. An analyst editing `mcp-gateway/pyproject.toml` triggers an image rebuild on the next `./run_docker.sh` invocation
   3. Edits to ignored paths (`__pycache__`, `.venv`, `*.egg-info`, `.pytest_cache`) do NOT trigger spurious rebuilds
   4. A regression test asserts `DOCKERFILE_SHA` changes when `mcp-gateway/src/x.py` is touched
-**Plans**: TBD
+**Plans**: 3 plans
+  - [ ] 05-01-PLAN.md — Add LC_ALL=C to both sort invocations in run_docker.sh image-hash subshell (D-02)
+  - [ ] 05-02-PLAN.md — Extract hash to scripts/compute_image_hash.sh + patch run_docker.sh call site (D-05, D-06)
+  - [ ] 05-03-PLAN.md — Add hermetic pytest regression test mcp-gateway/tests/test_image_hash.py (D-07..D-11)
 
 ### Phase 6: ReToolRunner + artifacts_io Foundation
 **Goal**: One auditable, OOM-safe execution path exists for every v1.1 subprocess invocation, and every path-accepting tool can reject traversal uniformly
@@ -139,7 +142,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 2. MCP Gateway                 | v1.0      | 5/5   | Complete    | 2026-04-27 |
 | 3. Container Integration       | v1.0      | 1/1   | Complete    | 2026-04-27 |
 | 4. External Client Integration | v1.0      | 7/7   | Complete    | 2026-04-27 |
-| 5. F-1 Image-Hash Fix          | v1.1      | 0/?   | Not started | -          |
+| 5. F-1 Image-Hash Fix          | v1.1      | 0/3   | Not started | -          |
 | 6. ReToolRunner Foundation     | v1.1      | 0/?   | Not started | -          |
 | 7. run_shell + Static Wrappers | v1.1      | 0/?   | Not started | -          |
 | 8. Session-Scoped r2           | v1.1      | 0/?   | Not started | -          |
