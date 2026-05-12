@@ -11,6 +11,7 @@ import asyncio
 
 import pytest
 from mcp.server.fastmcp import FastMCP
+import mcp.types as mcp_types
 
 from mcp_gateway.backend import client as client_mod
 from mcp_gateway.backend import tool_map
@@ -172,6 +173,145 @@ async def test_call_unified_unknown_raises(ida_like_backend_mcp):
     async with _FakePinnedBackend("ida", ida_like_backend_mcp) as pinned:
         with pytest.raises(KeyError):
             await pinned.call_unified("not_a_tool")
+
+
+# ---------- Backend-native pass-through handlers ----------
+
+@pytest.mark.asyncio
+async def test_backend_native_tools_are_merged_into_tools_list(monkeypatch):
+    """Backend-native pass-through tools must appear in gateway tools/list."""
+    from mcp.shared.memory import create_connected_server_and_client_session
+    from mcp_gateway import session_state
+    from mcp_gateway.tools import register_all_tools
+
+    class _NativeBackend:
+        backend = "ida"
+
+        async def list_tools(self):
+            return [
+                mcp_types.Tool(
+                    name="lookup_funcs",
+                    description="IDA native lookup",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {"queries": {"type": "string"}},
+                        "required": ["queries"],
+                    },
+                ),
+                mcp_types.Tool(
+                    name="decompile",
+                    description="IDA native decompile",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {"addr": {"type": "string"}},
+                        "required": ["addr"],
+                    },
+                ),
+            ]
+
+        async def call(self, name, args):
+            return mcp_types.CallToolResult(
+                content=[mcp_types.TextContent(type="text", text=f"{name}:{args}")],
+                isError=False,
+            )
+
+    monkeypatch.setattr(session_state, "PINNED_BACKEND", _NativeBackend())
+    m = FastMCP("t", stateless_http=True)
+    register_all_tools(m)
+
+    async with create_connected_server_and_client_session(m._mcp_server) as session:
+        resp = await session.list_tools()
+        by_name = {tool.name: tool for tool in resp.tools}
+
+    assert "lookup_funcs" in by_name
+    assert by_name["decompile"].description == "IDA native decompile"
+    assert by_name["decompile"].inputSchema["required"] == ["addr"]
+
+
+@pytest.mark.asyncio
+async def test_backend_native_tool_calls_are_forwarded(monkeypatch):
+    """tools/call must forward backend-native names directly to the pinned backend."""
+    from mcp.shared.memory import create_connected_server_and_client_session
+    from mcp_gateway import session_state
+    from mcp_gateway.tools import register_all_tools
+
+    calls = []
+
+    class _NativeBackend:
+        backend = "ida"
+
+        async def list_tools(self):
+            return [
+                mcp_types.Tool(
+                    name="lookup_funcs",
+                    description="IDA native lookup",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {"queries": {"type": "string"}},
+                        "required": ["queries"],
+                    },
+                )
+            ]
+
+        async def call(self, name, args):
+            calls.append((name, args))
+            return mcp_types.CallToolResult(
+                content=[mcp_types.TextContent(type="text", text="forwarded")],
+                isError=False,
+            )
+
+    monkeypatch.setattr(session_state, "PINNED_BACKEND", _NativeBackend())
+    m = FastMCP("t", stateless_http=True)
+    register_all_tools(m)
+
+    async with create_connected_server_and_client_session(m._mcp_server) as session:
+        result = await session.call_tool("lookup_funcs", {"queries": "main"})
+
+    assert calls == [("lookup_funcs", {"queries": "main"})]
+    assert result.content[0].text == "forwarded"
+
+
+@pytest.mark.asyncio
+async def test_backend_native_tool_wins_name_conflict_on_call(monkeypatch):
+    """IDA-native decompile(addr) must override the gateway wrapper schema."""
+    from mcp.shared.memory import create_connected_server_and_client_session
+    from mcp_gateway import session_state
+    from mcp_gateway.tools import register_all_tools
+
+    calls = []
+
+    class _NativeBackend:
+        backend = "ida"
+
+        async def list_tools(self):
+            return [
+                mcp_types.Tool(
+                    name="decompile",
+                    description="IDA native decompile",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {"addr": {"type": "string"}},
+                        "required": ["addr"],
+                    },
+                )
+            ]
+
+        async def call(self, name, args):
+            calls.append((name, args))
+            return mcp_types.CallToolResult(
+                content=[mcp_types.TextContent(type="text", text="ida-decompile")],
+                isError=False,
+            )
+
+    monkeypatch.setattr(session_state, "PINNED_BACKEND", _NativeBackend())
+    m = FastMCP("t", stateless_http=True)
+    register_all_tools(m)
+
+    async with create_connected_server_and_client_session(m._mcp_server) as session:
+        result = await session.call_tool("decompile", {"addr": "main"})
+
+    assert calls == [("decompile", {"addr": "main"})]
+    assert result.content[0].text == "ida-decompile"
 
 
 # ---------- End-to-end: disasm tool handler -> PINNED_BACKEND.call_unified ----------

@@ -87,6 +87,14 @@ class PinnedBackend:
         async with self._call_lock:
             return await self.session.call_tool(backend_tool, args)
 
+    async def list_tools(self):
+        """Return native MCP tool definitions exposed by the pinned backend."""
+        if self.session is None:
+            raise RuntimeError("PinnedBackend not initialized -- use as async context manager")
+        async with self._call_lock:
+            response = await self.session.list_tools()
+        return list(response.tools)
+
     async def call_unified(self, unified_name: str, args: dict | None = None) -> dict:
         """Resolve unified -> backend tool name via tool_map, then call().
 

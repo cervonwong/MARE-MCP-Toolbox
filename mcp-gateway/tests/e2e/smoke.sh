@@ -117,11 +117,23 @@ if [ "${BACKEND_COUNT}" -lt 0 ]; then BACKEND_COUNT=0; fi
 echo "[smoke] /mcp tools/list OK — ${TOOL_COUNT} tools (native=${NATIVE_FLOOR}, backend=${BACKEND_COUNT}, active=${ACTIVE_BACKEND})"
 
 case "${ACTIVE_BACKEND}" in
-  ghidra|ida|bn)
-    # The gateway exposes unified disassembler tools (decompile/list_functions/get_xrefs)
-    # that delegate to the pinned backend per Plan 03. Verify at least one is registered.
-    # Native pass-through registration of every backend tool is deferred to a future plan
-    # (Plan 03 wired the unified surface only).
+  ghidra)
+    echo "${TOOL_NAMES}" | grep -qx "program.open" || {
+      echo "[smoke] FAIL: ghidra backend active but native tool 'program.open' missing from tools/list" >&2
+      exit 1
+    }
+    echo "[smoke] backend-native pass-through OK (ghidra: program.open)"
+    ;;
+  ida)
+    echo "${TOOL_NAMES}" | grep -qx "lookup_funcs" || {
+      echo "[smoke] FAIL: ida backend active but native tool 'lookup_funcs' missing from tools/list" >&2
+      exit 1
+    }
+    echo "[smoke] backend-native pass-through OK (ida: lookup_funcs)"
+    ;;
+  bn)
+    # BN tool names vary with the vendored backend; verify at least one stable
+    # disassembly wrapper remains visible.
     DISASM_FOUND=0
     for t in decompile list_functions get_xrefs; do
       if echo "${TOOL_NAMES}" | grep -qx "${t}"; then
