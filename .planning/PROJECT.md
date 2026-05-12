@@ -31,14 +31,15 @@ Automated malware triage and deep analysis via AI agents with full access to pro
 
 ### Active
 
-(None — v1.0 shipped. Run `/gsd-new-milestone` to scope v1.1.)
+Active requirements are scoped per milestone in `.planning/REQUIREMENTS.md` (current milestone: v1.1 — Remote RE Tool Expansion).
 
 ### Out of Scope
 
-- Rewriting existing orchestrator skill — existing workflow stays intact
+- Rewriting existing orchestrator skill from scratch — v1.1 *updates* the malware-analysis-orchestrator skill in-place rather than replacing it
 - Building a custom UI or web frontend — clients are Claude Code, Codex, mastra.ai
-- Dynamic analysis orchestration — static analysis focus maintained
 - Replacing Binary Ninja or Ghidra — IDA Pro is an addition, not a replacement
+- Full-VM / kernel-mode dynamic analysis — v1.1 dynamic mode is user-mode only (strace/ltrace/qemu-user/gdb), no sandboxed VMs
+- Composite "investigate_*" MCP tools (e.g., `investigate_packer`, `generate_detection_leads`) — orchestrator skill composes primitives, the gateway exposes primitives
 
 ## Current State
 
@@ -53,13 +54,29 @@ Automated malware triage and deep analysis via AI agents with full access to pro
 
 **Carryover Finding (F-1, v1.1):** `run_docker.sh` content-hash for the image cache covers `Dockerfile`, `docker-bin/`, and the disassembler zips, but **not `mcp-gateway/src/`**. Edits to the gateway package land in repo and pass unit/e2e tests (which import from the source tree) but the running container keeps the previously-baked code. Surfaced during 2026-05-11 UAT — Plan 04-03's `tools/resources.py` had to be rebuilt into the image before `resources/list` returned non-empty. Fix in v1.1: extend `DOCKERFILE_SHA` to include `mcp-gateway/`.
 
-## Next Milestone Goals
+## Current Milestone: v1.1 Remote RE Tool Expansion
 
-To be scoped via `/gsd-new-milestone`. Candidate themes from v2 backlog and v1.0 carryovers:
+**Goal:** Give remote agents (Claude Code on host, mastra.ai) feature parity with what a human analyst does at a Kali prompt — through MCP, with logging, timeouts, output caps, artifact capture, and case-dir confinement.
 
-- **F-1 fix** — extend `run_docker.sh` content-hash to include `mcp-gateway/` so gateway-package edits trigger an image rebuild
-- **GW-V2-01..04** — MCP Prompts as orchestrator templates; progress notifications; multi-session support; session lifecycle management
-- **DIS-V2-01/02** — Unified disassembler abstraction layer; backend comparison mode (diff IDA/BN/Ghidra outputs on the same sample)
+**Target features:**
+
+- **Internal `ReToolRunner`** — argv-only subprocess execution with process-group cleanup, output truncation, JSON result shape, automatic artifact capture under the active case dir
+- **`run_shell(cmd=str)` as a first-class tool** — full bash one-liner per call, cwd-confined to `case_dir`, with timeout, output cap, and auto-capture to `tool-logs/<timestamp>-<slug>.txt`
+- **Expanded case-dir artifact tree** — `tool-logs/`, `extracted/`, `hex/`, `rop/`, `dynamic/`, `qemu/`, `disassembly/`, `decompilation/`, `xrefs/`
+- **Typed static wrappers (discoverability + structured output)** — `run_binwalk`, `run_xxd`, `run_readelf`, `run_objdump`, `run_nm`, `run_rabin2`, `run_capstone_disasm`, `run_ropper`, `run_jq`, `run_yq`, `run_file`, `run_die` (wrap only where parsing/validation pays off; the long tail is `run_shell`)
+- **Session-scoped r2** — `open_r2_session` / `r2_cmd` / `close_r2_session` so analysis state persists across calls (iterative analyst workflow)
+- **Extraction tier** — `run_unblob`, `binwalk -e`, `run_upx_test` / `run_upx_unpack`, `extract_embedded_files`, `list_extracted_files`, `promote_extracted_sample` (turn a child file into a new case)
+- **Dynamic Lab Mode** — first-class but env-gated default-off (`MCP_GATEWAY_DYNAMIC_TOOLS=1`, surfaced as `./run_docker.sh --dynamic`); tools: `run_strace`, `run_ltrace`, `run_qemu_user`, and session-scoped `gdb` (`open_gdb_session` / `gdb_exec` / `close_gdb_session`); argv profiles, no-net by default, output to `dynamic/`
+- **Background job system** — `start_tool_job` / `get_tool_job` / `cancel_tool_job` for long-running tools (capa, unblob, Ghidra/IDA analysis, strace, qemu); log streaming via artifacts
+- **Artifact / control helpers** — `write_artifact`, `append_artifact`, `list_artifacts`, `get_artifact_tree`, `get_tool_log`
+- **Orchestrator skill update** — fix stale assumptions in malware-analysis-orchestrator: backend priority `IDA > BN > Ghidra`, remote agents use gateway tools (not local `scripts/`), deep RE checklist mapping findings → tools, mark dynamic mode in `CURRENT_STATE.json`
+- **F-1 carryover fix** — extend `run_docker.sh` content-hash to include `mcp-gateway/` so gateway-package edits trigger image rebuild (lands first, unblocks the rest)
+
+**Key context:**
+
+- Security boundary shifts from "no shell" to "shell + case-dir confinement + timeout + capture + dynamic env-gate" — a *constrained* shell with typed wrappers for repeatable workflows, not a remote terminal
+- Composite "investigate_*" MCP tools are explicitly out of scope — orchestrator skill composes primitives, gateway exposes primitives
+- "Dynamic analysis orchestration" exclusion is being **removed** from Out of Scope (was a v1.0 constraint; v1.1 makes dynamic first-class)
 
 ## Context
 
@@ -90,6 +107,11 @@ To be scoped via `/gsd-new-milestone`. Candidate themes from v2 backlog and v1.0
 | Dual-mode architecture (local + remote) | Preserve existing workflow while adding new capability | ✓ Done — Phase 3 |
 | `MCP_GATEWAY_ENABLED` Dockerfile guard for no-leak local mode | Structural guarantee that local mode = v1 byte-identical, gateway daemon never starts | ✓ Done — Phase 3 |
 | Single launcher (`run_docker.sh --remote`) vs separate compose files | One UX entry point; mode selected by flag → env exports → compose overlay | ✓ Done — Phase 3 |
+| Expose a constrained `run_shell` over MCP (vs. typed-only surface) | Analyst-parity goal needs the long tail of Kali tools without writing a wrapper for each; safety from cwd-confinement + timeout + output cap + auto-capture, not argv allowlisting | v1.1 — Planned |
+| Typed wrappers only where parsing/validation pays off | With `run_shell` available, wrappers exist for discoverability and structured output (capstone JSON, ropper bounds, r2/gdb sessions), not as the exclusive surface | v1.1 — Planned |
+| Session-scoped r2 and gdb (vs. batched-only) | Iterative analyst workflow needs shared analysis state across calls; one-shot allowlist would force re-analysis on every call | v1.1 — Planned |
+| Dynamic mode env-gated default-off, surfaced via `./run_docker.sh --dynamic` | "First-class" = good UX and design, not always-on; opt-in keeps default container shape unchanged | v1.1 — Planned |
+| Drop composite "investigate_*" MCP tools | Composites are agent prompts dressed as tools; malware-analysis-orchestrator skill is the composer | v1.1 — Planned |
 
 ## Evolution
 
@@ -109,4 +131,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-27 after v1.0 milestone (Remote MCP Foundation) completion*
+*Last updated: 2026-05-12 — v1.1 (Remote RE Tool Expansion) scoped and started*

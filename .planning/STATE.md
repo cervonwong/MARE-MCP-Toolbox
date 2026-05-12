@@ -1,80 +1,64 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: Remote MCP Foundation
-status: complete
-stopped_at: v1.0 shipped 2026-04-27, UAT signed 2026-05-11; carryover finding F-1 (image-hash misses mcp-gateway/) deferred to v1.1
-last_updated: "2026-05-11T00:00:00.000Z"
-last_activity: 2026-05-11
+milestone: v1.1
+milestone_name: Remote RE Tool Expansion
+status: defining_requirements
+stopped_at: "Milestone scoped 2026-05-12 — proceeding to research/requirements/roadmap"
+last_updated: "2026-05-12T00:00:00.000Z"
+last_activity: 2026-05-12
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 16
-  completed_plans: 16
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-11 after v1.0 milestone completion)
+See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion scoped)
 
-**Core value:** Automated malware triage and deep analysis via AI agents with full access to professional RE tooling -- accessible both from inside the container and from external MCP clients.
-**Current focus:** Planning next milestone (run `/gsd-new-milestone`)
+**Core value:** Automated malware triage and deep analysis via AI agents with full access to professional RE tooling — accessible both from inside the container and from external MCP clients.
+**Current focus:** Defining requirements for v1.1 (Remote RE Tool Expansion). Goal is analyst-parity through MCP: constrained `run_shell` + typed wrappers + session-scoped r2/gdb + env-gated dynamic mode.
 
 ## Current Position
 
-Milestone: v1.0 Remote MCP Foundation — ✅ SHIPPED 2026-04-27, UAT-signed 2026-05-11
-Status: All 4 phases complete, 16/16 plans complete, CLI-01 UAT PASSED (administrator@leongs-house.dev)
-Carryover: Finding F-1 — image content-hash misses `mcp-gateway/` changes (fix in v1.1)
-Last activity: 2026-05-11
+Milestone: v1.1 Remote RE Tool Expansion
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-12 — Milestone v1.1 started, PROJECT.md updated with goal + target features
 
-Progress: [██████████] 100%
+Progress: [          ] 0%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 6
-- Average duration: -
-- Total execution time: 0 hours
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 02 | 5 | - | - |
-| 03 | 1 | - | - |
-
-**Recent Trend:**
-
-- Last 5 plans: -
-- Trend: -
+- Total plans completed (v1.0): 16
+- v1.1 plans completed: 0
 
 *Updated after each plan completion*
-| Phase 02 P05 | 20min | 4 tasks | 9 files |
-| Phase 04 P06 | 2min | 2 tasks | 2 files |
-| Phase 04 P05 | 3min | 3 tasks | 5 files |
-| Phase 04 P07 | 2min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
 
-- Roadmap: Use mrexodia/ida-pro-mcp for IDA Pro backend (headless idalib mode with built-in SSE server)
-- Roadmap: Use custom FastMCP gateway over mcp-proxy (curated tool surface, not raw proxying)
-- Roadmap: Streamable HTTP transport (SSE deprecated June 2025); ida-pro-mcp's idalib-mcp uses SSE natively
-- [Phase 02]: Custom FastMCP gateway promoted to primary in CLAUDE.md; mcp-proxy moved to Alternatives Considered
-- [Phase 02]: REQUIREMENTS.md GW-03 corrected from 'BN > IDA > Ghidra' to 'IDA > BN > Ghidra' priority + pass-through clarification (D-07)
-- [Phase 02]: get_active_backend MCP tool added (Rule 2 fix) — surfaces pinned backend name to clients per D-07 pass-through model; tool count 21 → 22, still in GW-02 [15,25] budget
-- [Phase 04]: Full rewrite of README (not patch) to establish two-mode framing as the v2 headline — v2 two-mode framing is fundamentally different narrative from v1 local-only README
-- [Phase 04]: Grep-style pytest enforces README section structure — catches env-var drift or missing template references — Same pattern as test_claude_code_template.py for consistency
-- [Phase 04]: Session-scoped httpx.Client (not mcp SDK ClientSession) for raw JSON-RPC control over Streamable HTTP — mcp SDK ClientSession would obscure wire format and make auth-bypass testing harder
-- [Phase 04]: UAT checklist gates Phase 4 completion on human signoff (CLI-01) — Required to satisfy D-12 part b — human verification cannot be automated
+**v1.1 design decisions (newly added):**
+
+- Expose a constrained `run_shell` over MCP — safety from cwd-confinement + timeout + output cap + auto-capture, not argv allowlisting
+- Typed wrappers exist for discoverability and structured output (capstone JSON, ropper bounds, r2/gdb sessions), not as the exclusive surface
+- Session-scoped r2 and gdb — iterative analyst workflow needs shared analysis state
+- Dynamic mode env-gated default-off (`MCP_GATEWAY_DYNAMIC_TOOLS=1`, surfaced via `./run_docker.sh --dynamic`)
+- Composite `investigate_*` MCP tools dropped — orchestrator skill is the composer
+
+**Carryover from v1.0:**
+
+- F-1: `run_docker.sh:209-222` `DOCKERFILE_SHA` does not include `mcp-gateway/src/` — gateway-package edits never trigger image rebuild. To be fixed first in v1.1.
 
 ### Pending Todos
 
@@ -82,10 +66,11 @@ None yet.
 
 ### Blockers/Concerns
 
-- Python 3.12+ compatibility matrix across Kali rolling, IDA 9.x, Binary Ninja, and pyghidra needs validation in Phase 1
-- Tool surface curation (exact list of 15-25 gateway tools) needs design work during Phase 2 planning
+- F-1 must land before substantive gateway edits, otherwise every subsequent phase hits the "edited gateway, container still has old code" trap that burned 2026-05-11 UAT
+- Security boundary needs explicit documentation in v1.1 README: shell is real but cwd-confined to case_dir, no network unless dynamic mode + opt-in, every invocation captured
+- Dynamic mode UX surface (`./run_docker.sh --dynamic` ergonomics, env var documentation, mode visibility in `CURRENT_STATE.json`) needs design during planning, not just implementation
 
-### Quick Tasks Completed
+### Quick Tasks Completed (v1.0 era)
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
@@ -94,9 +79,11 @@ None yet.
 | 260414-iee | Move Claude/Codex config from workspace project-level to user-level via configure-agent-mcp.sh | 2026-04-14 | a89af30 | [260414-iee-move-claude-codex-config-from-workspace-](./quick/260414-iee-move-claude-codex-config-from-workspace-/) |
 | 260423-f3k | Fix inner agent statusline paths (/workspace -> /agent) | 2026-04-23 | bdae5ea | [260423-f3k-fix-inner-agent-statusline-paths-workspa](./quick/260423-f3k-fix-inner-agent-statusline-paths-workspa/) |
 | 260511-cwf | Fix remote MCP security defaults: localhost host bind, exact Origin validation, and case_dir confinement | 2026-05-11 | f556fda | [260511-cwf-fix-remote-mcp-security-defaults-localho](./quick/260511-cwf-fix-remote-mcp-security-defaults-localho/) |
+| 260511-evu | Make the Mastra starter provide a browser GUI in addition to the existing CLI, and verify by opening the GUI | 2026-05-11 | uncommitted | [260511-evu-make-the-mastra-starter-provide-a-browse](./quick/260511-evu-make-the-mastra-starter-provide-a-browse/) |
+| 260511-fam | Switch the Mastra starter GUI to the default Mastra Studio dashboard with a registered MARE agent and tools | 2026-05-11 | uncommitted | [260511-fam-switch-the-mastra-starter-gui-to-the-def](./quick/260511-fam-switch-the-mastra-starter-gui-to-the-def/) |
 
 ## Session Continuity
 
-Last session: 2026-04-27T09:10:51.981Z
-Stopped at: Completed 04-07-PLAN.md
+Last session: 2026-05-12T00:00:00.000Z
+Stopped at: v1.1 milestone scoping in /gsd-new-milestone — moving to research decision then requirements
 Resume file: None
