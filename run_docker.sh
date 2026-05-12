@@ -212,12 +212,12 @@ IMAGE_REPO="kali-re-tools"
 DOCKERFILE_SHA="$(
   {
     sha256sum "$SCRIPT_DIR/Dockerfile"
-    find "$SCRIPT_DIR/docker-bin" -type f -print | sort | xargs sha256sum
+    find "$SCRIPT_DIR/docker-bin" -type f -print | LC_ALL=C sort | xargs sha256sum
     find "$SCRIPT_DIR/mcp-gateway" \
       -type d \( -name __pycache__ -o -name .pytest_cache -o -name .ruff_cache \
                  -o -name .venv -o -name '*.egg-info' -o -name htmlcov \
                  -o -name node_modules -o -name dist \) -prune \
-      -o -type f -print | sort | xargs sha256sum
+      -o -type f -print | LC_ALL=C sort | xargs sha256sum
     printf '%s\n' "INSTALL_BINARY_NINJA=$INSTALL_BINARY_NINJA"
     if [[ "$INSTALL_BINARY_NINJA" == "1" ]]; then
       sha256sum "$BINARY_NINJA_ZIP"
