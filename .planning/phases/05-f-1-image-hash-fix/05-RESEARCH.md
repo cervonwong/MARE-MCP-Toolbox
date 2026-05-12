@@ -502,21 +502,21 @@ def test_missing_dockerfile_exits_nonzero(tmp_path):
 | A3 | The phase will produce one rebuild on first post-fix run because the inline-subshell → helper-call refactor will yield the same output bytes only if the implementation is exact. A single rebuild after the patch is acceptable. | Runtime State Inventory | If unacceptable, the planner could add a "byte-equivalence" verification step that diffs the old and new hash outputs *before* shipping. |
 | A4 | Helper script default `BUILD_ROOT` should be `$(dirname $0)/..` because `scripts/` lives at repo root and `run_docker.sh` always invokes with explicit `$SCRIPT_DIR`. Default is only used when the test invokes the helper without an arg. | Common Pitfalls §Pitfall 5 | If wrong, the helper defaults to `$PWD` and hashes whatever the caller's cwd is. Risk is bounded — `run_docker.sh` passes the arg explicitly. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should the helper be executable (`chmod +x`) or always invoked via `bash <path>`?**
    - What we know: `run_docker.sh` is `chmod +x` (mode 0755 verified by `test_print_config.py:31` which re-applies it). Helper scripts in `docker-bin/configure-agent-mcp.sh` are also `0755`.
    - What's unclear: Discretion.
-   - Recommendation: Make `scripts/compute_image_hash.sh` executable (`chmod +x`) for symmetry with the rest of the repo. `run_docker.sh` should still invoke it via `bash "$SCRIPT_DIR/scripts/compute_image_hash.sh"` rather than relying on the +x bit — this is more portable and matches how the test invokes it.
+   - RESOLVED: Make `scripts/compute_image_hash.sh` executable (`chmod +x`) for symmetry with the rest of the repo. `run_docker.sh` should still invoke it via `bash "$SCRIPT_DIR/scripts/compute_image_hash.sh"` rather than relying on the +x bit — this is more portable and matches how the test invokes it.
 
 2. **Should the test be marked as part of the existing pytest collection or as a separate marker?**
    - What we know: `pyproject.toml` has `testpaths = ["tests"]` and `addopts = "-ra"`, no markers configured.
    - What's unclear: Whether to add a `@pytest.mark.slow` or similar — the spec D-11 says <2s, so no.
-   - Recommendation: No special marker. Test lives at `mcp-gateway/tests/test_image_hash.py` and is collected by default.
+   - RESOLVED: No special marker. Test lives at `mcp-gateway/tests/test_image_hash.py` and is collected by default.
 
 3. **Does `Dockerfile` ever differ between dev machines (line endings on Windows checkouts)?**
    - What we know: This is a Linux-targeting repo (Kali container). Windows hosts via Docker Desktop / WSL would normalize line endings. Not a Phase 5 concern.
-   - Recommendation: Out of scope. Document in a future "dev environment" doc only if a real flap is reported.
+   - RESOLVED: Out of scope. Document in a future "dev environment" doc only if a real flap is reported.
 
 ## Environment Availability
 
