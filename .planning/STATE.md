@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
-status: defining_requirements
-stopped_at: "Milestone scoped 2026-05-12 — proceeding to research/requirements/roadmap"
+status: roadmap_complete
+stopped_at: "Roadmap complete 2026-05-12 — 8 phases scoped (Phases 5-12), ready for phase planning"
 last_updated: "2026-05-12T00:00:00.000Z"
 last_activity: 2026-05-12
 progress:
-  total_phases: 0
+  total_phases: 8
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion scoped)
 
 **Core value:** Automated malware triage and deep analysis via AI agents with full access to professional RE tooling — accessible both from inside the container and from external MCP clients.
-**Current focus:** Defining requirements for v1.1 (Remote RE Tool Expansion). Goal is analyst-parity through MCP: constrained `run_shell` + typed wrappers + session-scoped r2/gdb + env-gated dynamic mode.
+**Current focus:** v1.1 roadmap complete (Phases 5-12). Next step: `/gsd-plan-phase 5` to plan the F-1 image-hash fix (gates all subsequent v1.1 work).
 
 ## Current Position
 
 Milestone: v1.1 Remote RE Tool Expansion
-Phase: Not started (defining requirements)
+Phase: 5 (F-1 Image-Hash Fix) — not yet planned
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-12 — Milestone v1.1 started, PROJECT.md updated with goal + target features
+Status: Roadmap complete, awaiting phase planning
+Last activity: 2026-05-12 — Roadmap drafted; 52 v1.1 requirements mapped across 8 phases (5-12); coverage 100%
 
-Progress: [          ] 0%
+Progress: [          ] 0% (0/8 phases complete)
 
 ## Performance Metrics
 
@@ -56,19 +56,36 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Dynamic mode env-gated default-off (`MCP_GATEWAY_DYNAMIC_TOOLS=1`, surfaced via `./run_docker.sh --dynamic`)
 - Composite `investigate_*` MCP tools dropped — orchestrator skill is the composer
 
+**v1.1 roadmap decisions (2026-05-12):**
+
+- Adopted research-consensus 8-phase structure (Phases 5-12) verbatim — all 4 research streams converged on this ordering
+- Phase 5 (F-1) lands first to unblock every subsequent gateway edit (UAT failure mode 2026-05-11)
+- `ReToolRunner` (Phase 6) precedes all consumers; chokepoint primitive validated under wrappers (Phase 7) before sessions/jobs build on it
+- Sessions (Phase 8) before Jobs (Phase 9) — same lifespan-registry pattern, r2 validates plumbing at lower complexity than gdb
+- Extraction (Phase 10) depends on Jobs (unblob on multi-GB firmware exceeds 60 s MCP cap)
+- Dynamic Mode (Phase 11) last among code phases — reuses session plumbing for gdb and job system for long traces
+- Orchestrator Skill Update (Phase 12) very last — references all primitives
+
 **Carryover from v1.0:**
 
-- F-1: `run_docker.sh:209-222` `DOCKERFILE_SHA` does not include `mcp-gateway/src/` — gateway-package edits never trigger image rebuild. To be fixed first in v1.1.
+- F-1: `run_docker.sh:209-222` `DOCKERFILE_SHA` does not include `mcp-gateway/src/` — gateway-package edits never trigger image rebuild. Now scoped as Phase 5 (FOUND-01).
 
 ### Pending Todos
 
-None yet.
+- Plan Phase 5 (F-1 Image-Hash Fix) via `/gsd-plan-phase 5`
+- Resolve open decisions flagged in research/SUMMARY.md during phase planning:
+  - Phase 7: `run_shell` env whitelist contents, `mare-shell` UID primary group ACL on existing case-dirs
+  - Phase 8: session resource caps (default 30 min idle, cap 8 sessions per consensus)
+  - Phase 9: job log retention/rotation policy
+  - Phase 11: per-call netns mechanism, ptrace probe error UX, gdb MI3 command allowlist, binfmt detection helper
+- Research flag: `/gsd-research-phase 11` recommended before planning Dynamic Lab Mode (6 distinct pitfalls cluster in that phase)
 
 ### Blockers/Concerns
 
-- F-1 must land before substantive gateway edits, otherwise every subsequent phase hits the "edited gateway, container still has old code" trap that burned 2026-05-11 UAT
+- F-1 (Phase 5) must land before substantive gateway edits, otherwise every subsequent phase hits the "edited gateway, container still has old code" trap that burned 2026-05-11 UAT
 - Security boundary needs explicit documentation in v1.1 README: shell is real but cwd-confined to case_dir, no network unless dynamic mode + opt-in, every invocation captured
-- Dynamic mode UX surface (`./run_docker.sh --dynamic` ergonomics, env var documentation, mode visibility in `CURRENT_STATE.json`) needs design during planning, not just implementation
+- Dynamic mode UX surface (`./run_docker.sh --dynamic` ergonomics, env var documentation, mode visibility in `CURRENT_STATE.json`) needs design during Phase 11 planning, not just implementation
+- Mount-namespace isolation for `run_shell` deferred to v1.2 (would require CAP_SYS_ADMIN); v1.1 posture-only confinement documented as known limitation
 
 ### Quick Tasks Completed (v1.0 era)
 
@@ -85,5 +102,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-05-12T00:00:00.000Z
-Stopped at: v1.1 milestone scoping in /gsd-new-milestone — moving to research decision then requirements
-Resume file: None
+Stopped at: v1.1 ROADMAP.md complete — 8 phases (5-12), 52 requirements mapped, coverage 100%
+Resume file: None — proceed to `/gsd-plan-phase 5`

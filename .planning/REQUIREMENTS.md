@@ -126,12 +126,66 @@ Captured here so they don't get lost; tracked outside this milestone.
 
 ## Traceability
 
-This section is filled in by the roadmapper after phase mapping.
+Mapping from each v1.1 REQ-ID to its assigned phase. Plan column populated during `/gsd-plan-phase`. Verified column populated at phase verification.
 
-| REQ-ID | Phase | Plan | Verified |
-|--------|-------|------|----------|
-| (populated after roadmap) | | | |
+| REQ-ID    | Phase    | Plan | Verified |
+|-----------|----------|------|----------|
+| FOUND-01  | Phase 5  | TBD  | Pending  |
+| FOUND-02  | Phase 6  | TBD  | Pending  |
+| FOUND-03  | Phase 6  | TBD  | Pending  |
+| FOUND-04  | Phase 6  | TBD  | Pending  |
+| SHELL-01  | Phase 7  | TBD  | Pending  |
+| SHELL-02  | Phase 7  | TBD  | Pending  |
+| SHELL-03  | Phase 7  | TBD  | Pending  |
+| STATIC-01 | Phase 7  | TBD  | Pending  |
+| STATIC-02 | Phase 7  | TBD  | Pending  |
+| STATIC-03 | Phase 7  | TBD  | Pending  |
+| STATIC-04 | Phase 7  | TBD  | Pending  |
+| STATIC-05 | Phase 7  | TBD  | Pending  |
+| STATIC-06 | Phase 7  | TBD  | Pending  |
+| STATIC-07 | Phase 7  | TBD  | Pending  |
+| STATIC-08 | Phase 7  | TBD  | Pending  |
+| STATIC-09 | Phase 7  | TBD  | Pending  |
+| STATIC-10 | Phase 7  | TBD  | Pending  |
+| ARTIF-01  | Phase 7  | TBD  | Pending  |
+| ARTIF-02  | Phase 7  | TBD  | Pending  |
+| ARTIF-03  | Phase 7  | TBD  | Pending  |
+| ARTIF-04  | Phase 7  | TBD  | Pending  |
+| ARTIF-05  | Phase 7  | TBD  | Pending  |
+| SESS-01   | Phase 8  | TBD  | Pending  |
+| SESS-02   | Phase 8  | TBD  | Pending  |
+| SESS-03   | Phase 8  | TBD  | Pending  |
+| SESS-04   | Phase 8  | TBD  | Pending  |
+| SESS-05   | Phase 8  | TBD  | Pending  |
+| SESS-06   | Phase 8  | TBD  | Pending  |
+| JOBS-01   | Phase 9  | TBD  | Pending  |
+| JOBS-02   | Phase 9  | TBD  | Pending  |
+| JOBS-03   | Phase 9  | TBD  | Pending  |
+| JOBS-04   | Phase 9  | TBD  | Pending  |
+| JOBS-05   | Phase 9  | TBD  | Pending  |
+| JOBS-06   | Phase 9  | TBD  | Pending  |
+| JOBS-07   | Phase 9  | TBD  | Pending  |
+| EXTR-01   | Phase 10 | TBD  | Pending  |
+| EXTR-02   | Phase 10 | TBD  | Pending  |
+| EXTR-03   | Phase 10 | TBD  | Pending  |
+| EXTR-04   | Phase 10 | TBD  | Pending  |
+| EXTR-05   | Phase 10 | TBD  | Pending  |
+| EXTR-06   | Phase 10 | TBD  | Pending  |
+| DYN-01    | Phase 11 | TBD  | Pending  |
+| DYN-02    | Phase 11 | TBD  | Pending  |
+| DYN-03    | Phase 11 | TBD  | Pending  |
+| DYN-04    | Phase 11 | TBD  | Pending  |
+| DYN-05    | Phase 11 | TBD  | Pending  |
+| DYN-06    | Phase 11 | TBD  | Pending  |
+| DYN-07    | Phase 11 | TBD  | Pending  |
+| SKILL-01  | Phase 12 | TBD  | Pending  |
+| SKILL-02  | Phase 12 | TBD  | Pending  |
+| SKILL-03  | Phase 12 | TBD  | Pending  |
+| SKILL-04  | Phase 12 | TBD  | Pending  |
+
+**Coverage:** 52/52 v1.1 requirements mapped (100%).
 
 ---
 
 *Created 2026-05-12 by `/gsd-new-milestone` for v1.1 Remote RE Tool Expansion.*
+*Roadmap mapped 2026-05-12 — Phases 5-12 (continued from v1.0's Phase 4).*
