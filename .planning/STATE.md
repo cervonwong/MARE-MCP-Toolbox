@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: Completed 05-01-PLAN.md (locale-stable sort in image-hash subshell)
-last_updated: "2026-05-12T05:54:18.493Z"
+stopped_at: Completed 05-02-PLAN.md (extracted image-hash subshell to scripts/compute_image_hash.sh)
+last_updated: "2026-05-12T05:57:42.037Z"
 last_activity: 2026-05-12
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 33
+  completed_plans: 2
+  percent: 67
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 05 (f-1-image-hash-fix) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-05-12
 
@@ -70,6 +70,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 - F-1: `run_docker.sh:209-222` `DOCKERFILE_SHA` does not include `mcp-gateway/src/` — gateway-package edits never trigger image rebuild. Now scoped as Phase 5 (FOUND-01).
 - [Phase 05-f-1-image-hash-fix]: Inline LC_ALL=C prefix per sort invocation in run_docker.sh image-hash subshell (vs. global export) — keeps locale intent visible at call site
+- [Phase 05-f-1-image-hash-fix]: Extracted run_docker.sh:212-229 inline image-hash subshell to scripts/compute_image_hash.sh; refactor preserves byte-identical output and keeps DOCKERFILE_SHA/SHORT_SHA/HASH_IMAGE in run_docker.sh scope (D-01/D-06).
 
 ### Pending Todos
 
@@ -100,9 +101,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | 260511-evu | Make the Mastra starter provide a browser GUI in addition to the existing CLI, and verify by opening the GUI | 2026-05-11 | uncommitted | [260511-evu-make-the-mastra-starter-provide-a-browse](./quick/260511-evu-make-the-mastra-starter-provide-a-browse/) |
 | 260511-fam | Switch the Mastra starter GUI to the default Mastra Studio dashboard with a registered MARE agent and tools | 2026-05-11 | uncommitted | [260511-fam-switch-the-mastra-starter-gui-to-the-def](./quick/260511-fam-switch-the-mastra-starter-gui-to-the-def/) |
 | Phase 05-f-1-image-hash-fix P01 | 2min | 1 tasks | 1 files |
+| Phase 05-f-1-image-hash-fix P02 | 100s | 2 tasks | 2 files |
 
 ## Session Continuity
 
-Last session: 2026-05-12T05:54:18.486Z
-Stopped at: Completed 05-01-PLAN.md (locale-stable sort in image-hash subshell)
+Last session: 2026-05-12T05:57:42.034Z
+Stopped at: Completed 05-02-PLAN.md (extracted image-hash subshell to scripts/compute_image_hash.sh)
 Resume file: None
