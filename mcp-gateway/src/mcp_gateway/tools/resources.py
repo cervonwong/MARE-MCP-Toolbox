@@ -17,6 +17,7 @@ from pydantic import AnyUrl
 
 from .cases import CASE_NAME_RE
 from .samples import STATUS_ROOT
+from ..artifacts_io import EXPANDED_CASE_SUBDIRS
 
 log = logging.getLogger("mcp_gateway.resources")
 
@@ -48,9 +49,35 @@ _MIME_MAP = {
 }
 
 
+def _env_int(name: str, default: int) -> int:
+    """Read non-negative int env var; raise RuntimeError on invalid value (matches Phase 6 D-08 pattern)."""
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        v = int(raw)
+    except ValueError as e:
+        raise RuntimeError(f"{name} must be an integer, got {raw!r}") from e
+    if v < 0:
+        raise RuntimeError(f"{name} must be >= 0, got {v}")
+    return v
+
+
 def _mime_for(path: Path) -> str:
     """Return the MIME type for a path based on its (case-insensitive) suffix."""
     return _MIME_MAP.get(path.suffix.lower(), "application/octet-stream")
+
+
+def _status_root() -> Path:
+    """Resolve STATUS_ROOT dynamically per call so monkeypatch / env var changes
+    are honored at runtime (matches the module docstring's "dynamic — re-enumerates
+    STATUS_ROOT on every resources/list call" promise). Falls back to the
+    module-level STATUS_ROOT for backward compatibility when env var is unset.
+    """
+    raw = os.environ.get("MCP_GATEWAY_STATUS_DIR")
+    if raw is None:
+        return STATUS_ROOT
+    return Path(raw)
 
 
 def _list_cases() -> list[str]:
@@ -59,27 +86,75 @@ def _list_cases() -> list[str]:
     Returns sorted list of case dir names matching CASE_NAME_RE. Empty if
     STATUS_ROOT does not exist.
     """
-    if not STATUS_ROOT.exists():
+    root = _status_root()
+    if not root.exists():
         return []
     return sorted(
-        p.name for p in STATUS_ROOT.iterdir()
+        p.name for p in root.iterdir()
         if p.is_dir() and CASE_NAME_RE.match(p.name)
     )
 
 
 def _build_resource_list() -> list[mcp_types.Resource]:
-    """D-02: enumerate (all cases) × (13 artifacts). Filesystem-fresh per call."""
+    """D-02 (v1.0): enumerate (all cases) × (13 artifacts) at depth 1.
+    D-26 (Phase 7): additionally walk EXPANDED_CASE_SUBDIRS at depth <= 2 per case.
+
+    Caps (Phase 7 D-26 + D-27):
+      - MCP_GATEWAY_ARTIFACT_TREE_MAX_FILES (default 1024): hard cap on total resources
+        returned across all cases (prevents resources/list from blowing the MCP wire).
+      - MCP_GATEWAY_RESOURCE_TREE_MAX_DEPTH (default 2): caps the case subdir walk
+        depth; default 2 means `<subdir>/<file>` is exposed but `<subdir>/<sub>/<file>`
+        (depth 3) is NOT (extracted/<sub>/* deferred to Phase 10).
+
+    Hidden files (dot-prefixed) are skipped consistent with the v1.0
+    `tools/artifacts.py:_is_invalid_filename` convention.
+    """
+    cap = _env_int("MCP_GATEWAY_ARTIFACT_TREE_MAX_FILES", 1024)
+    max_depth = _env_int("MCP_GATEWAY_RESOURCE_TREE_MAX_DEPTH", 2)
+    status_root = _status_root()
     out: list[mcp_types.Resource] = []
     for case in _list_cases():
+        case_root = status_root / case
+        # --- v1.0 depth-1 flat ARTIFACTS enumeration (unchanged) ---
         for artifact in ARTIFACTS:
+            if len(out) >= cap:
+                return out
             uri = f"mare://cases/{case}/{artifact}"
-            artifact_path = STATUS_ROOT / case / artifact
+            artifact_path = case_root / artifact
             out.append(mcp_types.Resource(
                 uri=AnyUrl(uri),
                 name=f"{case}/{artifact}",
                 description=f"Pipeline artifact for case {case}",
                 mimeType=_mime_for(artifact_path),
             ))
+        # --- Phase 7 D-26: depth-2 walk over EXPANDED_CASE_SUBDIRS ---
+        # max_depth=2 -> expose <subdir>/<file>; max_depth<2 -> skip the walk entirely.
+        if max_depth < 2:
+            continue
+        for sub in EXPANDED_CASE_SUBDIRS:
+            sub_root = case_root / sub
+            if not sub_root.is_dir():
+                continue
+            try:
+                children = sorted(sub_root.iterdir())
+            except OSError:
+                continue
+            for child in children:
+                if len(out) >= cap:
+                    return out
+                # Skip non-files (directories at depth 2 imply depth 3+ -- NOT exposed in Phase 7).
+                if not child.is_file():
+                    continue
+                # Skip hidden files (consistent with uploads._is_invalid_filename).
+                if child.name.startswith("."):
+                    continue
+                uri = f"mare://cases/{case}/{sub}/{child.name}"
+                out.append(mcp_types.Resource(
+                    uri=AnyUrl(uri),
+                    name=f"{case}/{sub}/{child.name}",
+                    description=f"Captured {sub} artifact for case {case}",
+                    mimeType=_mime_for(child),
+                ))
     return out
 
 
@@ -132,6 +207,11 @@ def register(mcp: FastMCP) -> None:
 
     log.info(
         "[resources] registered mare://cases/<case>/<artifact> "
-        "(%d artifact slots × dynamic case set)",
+        "(%d depth-1 artifact slots × dynamic case set; "
+        "Phase 7 D-26: + depth-2 walk over %d EXPANDED_CASE_SUBDIRS, "
+        "capped at MCP_GATEWAY_ARTIFACT_TREE_MAX_FILES=%d, depth=%d)",
         len(ARTIFACTS),
+        len(EXPANDED_CASE_SUBDIRS),
+        _env_int("MCP_GATEWAY_ARTIFACT_TREE_MAX_FILES", 1024),
+        _env_int("MCP_GATEWAY_RESOURCE_TREE_MAX_DEPTH", 2),
     )
