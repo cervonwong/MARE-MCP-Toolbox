@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: Completed 07-01-PLAN.md (Wave 0 RED-stub scaffolding)
-last_updated: "2026-05-13T04:15:51.547Z"
+stopped_at: "Completed 07-02-PLAN.md (Wave 1 Plan A: ensure_mare_shell_access LEAF extension)"
+last_updated: "2026-05-13T04:19:13.265Z"
 last_activity: 2026-05-13
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 14
-  completed_plans: 7
-  percent: 50
+  completed_plans: 8
+  percent: 57
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 07 (run-shell-typed-static-wrappers-re-artifacts) — EXECUTING
-Plan: 2 of 8
+Plan: 3 of 8
 Status: Ready to execute
 Last activity: 2026-05-13
 
@@ -83,6 +83,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 07-run-shell-typed-static-wrappers-re-artifacts]: Wave 0 fixture binaries built via documented fallback paths (gcc inline asm for ELF; hand-crafted 408-byte PE stub; gcc -c for stripped.o) because executor host lacked nasm/mingw-w64/setfacl; all pass magic-byte + size acceptance; README documents both canonical and fallback build paths.
 - [Phase 07-run-shell-typed-static-wrappers-re-artifacts]: Wave 0 RED-stub discipline locked in for Phase 7: 52 tests collected cleanly, each imports the not-yet-existing Phase 7 module at function top so collection passes but execution ImportErrors -- pytest.skip is forbidden; failure-to-import IS the RED state Wave 1/2 will flip to GREEN.
 - [Phase 07-run-shell-typed-static-wrappers-re-artifacts]: Dockerfile permission/ACL revocations split into build-time best-effort + entrypoint re-apply (overlayfs xattr-drop mitigation per Pitfall 3 / moby#40553); token-file chmod 0400 placed AFTER the MCP_GATEWAY_ENABLED block with a 0.2s x 5 retry loop since the bearer token is generated only when the gateway starts.
+- [Phase 07-run-shell-typed-static-wrappers-re-artifacts]: Plan 07-02: ensure_mare_shell_access LEAF extension landed via zero-deviation TDD (RED commit + GREEN commit, 80s total); shutil+subprocess added to artifacts_io.py stdlib-only import block (LEAF discipline preserved, grep 'from mcp_gateway' = 0); fail-loud RuntimeError on missing setfacl OR nonzero exit; mock-based unit tests cover contract on hosts without setfacl (executor host case).
 
 ### Pending Todos
 
@@ -119,9 +120,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 06-retoolrunner-artifacts-io-foundation P02 | 4min | 1 tasks | 1 files |
 | Phase 06-retoolrunner-artifacts-io-foundation P03 | 3min | 1 tasks | 1 files |
 | Phase 07-run-shell-typed-static-wrappers-re-artifacts P01 | 5min | 3 tasks | 15 files |
+| Phase 07-run-shell-typed-static-wrappers-re-artifacts P02 | 80s | 1 tasks | 2 files |
 
 ## Session Continuity
 
-Last session: 2026-05-13T04:15:41.393Z
-Stopped at: Completed 07-01-PLAN.md (Wave 0 RED-stub scaffolding)
+Last session: 2026-05-13T04:19:13.261Z
+Stopped at: Completed 07-02-PLAN.md (Wave 1 Plan A: ensure_mare_shell_access LEAF extension)
 Resume file: None
