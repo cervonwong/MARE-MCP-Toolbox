@@ -7,11 +7,48 @@ Fixtures under mcp-gateway/tests/fixtures/ are committed by Wave-0 Task 2.
 """
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
 
 FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def _require_tool_or_skip(tool: str) -> None:
+    """Wave 2 (Plan 07-06) deviation: external RE tools (`die`, `rabin2`, `jq`,
+    `yq`) are not always installed on the executor host. The container image
+    (Kali Linux) provides them; this helper skips the test cleanly on dev hosts
+    that lack the tool. Allowlist-violation tests do NOT use this guard (they
+    must always run because they assert pre-spawn ValueError -- no subprocess
+    needed).
+    """
+    if shutil.which(tool) is None:
+        pytest.skip(f"{tool!r} unavailable on host; container image installs it")
+
+
+@pytest.fixture(autouse=True)
+def _sync_samples_roots(tmp_status_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Wave 2 (Plan 07-06) deviation: `samples.STATUS_ROOT` and `samples.EXAMPLES_ROOT`
+    are bound at import-time and do NOT pick up per-test env mutations on subsequent
+    tests. `tools.case_dirs.resolve_case_dir` and `samples.resolve_sample` both read
+    these module attributes directly, so we monkeypatch them per test:
+
+    - `samples.STATUS_ROOT` -> the per-test tmp_status_dir so `resolve_case_dir` allows
+      `tmp_status_dir/<case>` paths.
+    - `samples.EXAMPLES_ROOT` -> `tests/fixtures/` so `resolve_sample(str(FIXTURES/x))`
+      passes the allowlist (the fixture binaries are not under uploads/status).
+
+    Mirrors the pattern used in `test_re_artifacts.py` (Plan 07-05 deviation).
+    """
+    from mcp_gateway.tools import samples as samples_mod
+    monkeypatch.setattr(samples_mod, "STATUS_ROOT", tmp_status_dir)
+    monkeypatch.setattr(samples_mod, "EXAMPLES_ROOT", FIXTURES)
+    monkeypatch.setattr(
+        samples_mod,
+        "ALLOWED_PREFIXES",
+        (samples_mod.UPLOADS_ROOT, FIXTURES, tmp_status_dir),
+    )
 
 
 def _ensure_status_case(tmp_status_dir, name: str) -> Path:
@@ -31,6 +68,7 @@ async def test_run_file_elf(tmp_status_dir) -> None:
 
 # ---- STATIC-02: run_die returns detections list ----
 async def test_run_die_pe(tmp_status_dir) -> None:
+    _require_tool_or_skip("die")
     from mcp_gateway.tools.re_static import run_die
     case = _ensure_status_case(tmp_status_dir, "101-rundie")
     result = await run_die(str(case), str(FIXTURES / "hello_pe.exe"))
@@ -106,6 +144,7 @@ async def test_run_rabin2_rejects_invalid_command(tmp_status_dir) -> None:
 
 # ---- STATIC-06 (rabin2 info happy) ----
 async def test_run_rabin2_info(tmp_status_dir) -> None:
+    _require_tool_or_skip("rabin2")
     from mcp_gateway.tools.re_static import run_rabin2
     case = _ensure_status_case(tmp_status_dir, "109-rabin2-info")
     result = await run_rabin2(str(case), str(FIXTURES / "hello_elf"), command="i")
@@ -147,6 +186,7 @@ async def test_run_ropper_x86_64(tmp_status_dir) -> None:
 
 # ---- STATIC-09 (jq) ----
 async def test_run_jq_artifact(tmp_status_dir) -> None:
+    _require_tool_or_skip("jq")
     from mcp_gateway.tools.re_static import run_jq
     case = _ensure_status_case(tmp_status_dir, "111-runjq")
     # Drop a JSON file in the case dir
@@ -158,6 +198,7 @@ async def test_run_jq_artifact(tmp_status_dir) -> None:
 
 # ---- STATIC-09 (yq) ----
 async def test_run_yq_artifact(tmp_status_dir) -> None:
+    _require_tool_or_skip("yq")
     from mcp_gateway.tools.re_static import run_yq
     case = _ensure_status_case(tmp_status_dir, "112-runyq")
     (case / "test.yaml").write_text("hello: mare\n", encoding="utf-8")
