@@ -58,7 +58,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   5. A canonical `confine_to(case_dir, path)` helper rejects path traversal and is importable from every v1.1 tool module
 **Plans**: 3 plans
   - [x] 06-01-PLAN.md — Wave-0 test scaffolding: register `slow` pytest marker + create RED test stubs (`test_runner.py`, `test_artifacts_io.py`) covering SC-1..SC-5, D-08, D-09, D-15, D-16
-  - [ ] 06-02-PLAN.md — Wave-1 leaf module `artifacts_io.py`: `confine_to`, `ensure_subdir`, `tool_log_path`, `EXPANDED_CASE_SUBDIRS` (D-06, D-09, D-11..D-16) — turns 16 artifacts_io tests GREEN
+  - [x] 06-02-PLAN.md — Wave-1 leaf module `artifacts_io.py`: `confine_to`, `ensure_subdir`, `tool_log_path`, `EXPANDED_CASE_SUBDIRS` (D-06, D-09, D-11..D-16) — turns 16 artifacts_io tests GREEN
   - [ ] 06-03-PLAN.md — Wave-2 chokepoint `runner.py`: `ReToolRunner` class + `run_tool` convenience + 4 env-var module constants (D-01..D-04, D-07, D-08, D-10, D-17, D-18) — turns 10 runner tests GREEN
 
 ### Phase 7: run_shell + Typed Static Wrappers + re_artifacts
