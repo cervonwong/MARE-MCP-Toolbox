@@ -23,15 +23,15 @@
 
 ### Typed Static Wrappers (STATIC)
 
-- [ ] **STATIC-01**: Agent can identify a sample with `run_file(case_dir, sample)` returning libmagic output
-- [ ] **STATIC-02**: Agent can detect packers/protectors with `run_die(case_dir, sample)` returning DIE JSON
-- [ ] **STATIC-03**: Agent can read a bounded hex window with `run_xxd(case_dir, sample, offset, length)` returning the slice (capped) and full output saved to `case_dir/hex/`
-- [ ] **STATIC-04**: Agent can inspect ELF metadata with `run_readelf(case_dir, sample, sections)` (allowlisted section flags)
-- [ ] **STATIC-05**: Agent can disassemble or list symbols with `run_objdump(case_dir, sample, mode)` and `run_nm(case_dir, sample, mode)` returning structured output
-- [ ] **STATIC-06**: Agent can run bounded rabin2 queries with `run_rabin2(case_dir, sample, command)` (JSON-first via `-j`)
-- [ ] **STATIC-07**: Agent can disassemble byte ranges with `run_capstone_disasm(arch, mode, bytes_hex, base_addr)` returning typed `CsInsn`-shaped JSON
-- [ ] **STATIC-08**: Agent can search for ROP gadgets with `run_ropper(case_dir, sample, arch, filter, badbytes)` returning typed `Gadget` JSON; full gadget list written to `case_dir/rop/`
-- [ ] **STATIC-09**: Agent can run jq/yq over case artifacts via `run_jq(case_dir, artifact_path, expr)` and `run_yq(case_dir, artifact_path, expr)`
+- [x] **STATIC-01**: Agent can identify a sample with `run_file(case_dir, sample)` returning libmagic output
+- [x] **STATIC-02**: Agent can detect packers/protectors with `run_die(case_dir, sample)` returning DIE JSON
+- [x] **STATIC-03**: Agent can read a bounded hex window with `run_xxd(case_dir, sample, offset, length)` returning the slice (capped) and full output saved to `case_dir/hex/`
+- [x] **STATIC-04**: Agent can inspect ELF metadata with `run_readelf(case_dir, sample, sections)` (allowlisted section flags)
+- [x] **STATIC-05**: Agent can disassemble or list symbols with `run_objdump(case_dir, sample, mode)` and `run_nm(case_dir, sample, mode)` returning structured output
+- [x] **STATIC-06**: Agent can run bounded rabin2 queries with `run_rabin2(case_dir, sample, command)` (JSON-first via `-j`)
+- [x] **STATIC-07**: Agent can disassemble byte ranges with `run_capstone_disasm(arch, mode, bytes_hex, base_addr)` returning typed `CsInsn`-shaped JSON
+- [x] **STATIC-08**: Agent can search for ROP gadgets with `run_ropper(case_dir, sample, arch, filter, badbytes)` returning typed `Gadget` JSON; full gadget list written to `case_dir/rop/`
+- [x] **STATIC-09**: Agent can run jq/yq over case artifacts via `run_jq(case_dir, artifact_path, expr)` and `run_yq(case_dir, artifact_path, expr)`
 - [ ] **STATIC-10**: All STATIC wrappers reject tool-name collisions with backend-pass-through tools at startup (hard-fail rather than silent override)
 
 ### Artifact Tree & Control Helpers (ARTIF)
