@@ -75,7 +75,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 **Plans**: 8 plans
   - [x] 07-01-PLAN.md — Wave 0: Dockerfile + pyproject foundation, 7 fixtures, 6 RED-stub test files (D-01, D-04, D-07, D-20, D-34)
   - [x] 07-02-PLAN.md — Wave 1A: artifacts_io.ensure_mare_shell_access (D-05, D-06)
-  - [ ] 07-03-PLAN.md — Wave 1B: tools/collision_check.py + SystemExit(78) on overlap (D-11..D-15)
+  - [x] 07-03-PLAN.md — Wave 1B: tools/collision_check.py + SystemExit(78) on overlap (D-11..D-15)
   - [ ] 07-04-PLAN.md — Wave 1C: tools/resources.py depth-2 walk over EXPANDED_CASE_SUBDIRS (D-26, D-27)
   - [ ] 07-05-PLAN.md — Wave 2A: tools/re_artifacts.py — write/append/list/tree/get_tool_log (D-21..D-25)
   - [ ] 07-06-PLAN.md — Wave 2B: tools/re_static.py — 11 typed wrappers (D-18, D-19, D-30..D-32)
