@@ -29,6 +29,8 @@ Automated malware triage and deep analysis via AI agents with full access to pro
 - ✓ Claude Code host-side MCP client compatibility — automated e2e + manual UAT signoff 2026-05-11 — Validated in Phase 4: external-client-integration (CLI-01)
 - ✓ Mastra.ai client compatibility — `templates/mastra/` runnable starter, full triage happy path — Validated in Phase 4: external-client-integration (CLI-02)
 - ✓ Image-hash covers `mcp-gateway/` so gateway-package edits trigger image rebuild; hash made locale-stable via `LC_ALL=C sort`; logic extracted to `scripts/compute_image_hash.sh` with hermetic pytest regression — Validated in Phase 5: f-1-image-hash-fix (FOUND-01)
+- ✓ `ReToolRunner` chokepoint subprocess primitive — argv-only spawn, `start_new_session=True`, hard timeout with process-group SIGKILL, CancelledError propagation, head-truncated stdout/stderr with full auto-capture to `case_dir/tool-logs/<timestamp>-<slug>.txt`, 100 MB urandom OOM-bounded — Validated in Phase 6: retoolrunner-artifacts-io-foundation (FOUND-02, FOUND-03)
+- ✓ `artifacts_io` leaf helpers — `confine_to` (NUL-byte + traversal + symlink-escape rejection), `ensure_subdir`, `tool_log_path` (`<UTC>-<slug>-<rand4>.txt`), `EXPANDED_CASE_SUBDIRS` 9-name catalog — Validated in Phase 6: retoolrunner-artifacts-io-foundation (FOUND-04)
 
 ### Active
 
@@ -132,4 +134,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-12 — v1.1 Phase 5 (F-1 image-hash fix) complete; FOUND-01 validated*
+*Last updated: 2026-05-13 — v1.1 Phase 6 (ReToolRunner + artifacts_io foundation) complete; FOUND-02, FOUND-03, FOUND-04 validated*
