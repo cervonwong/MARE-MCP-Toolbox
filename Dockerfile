@@ -50,7 +50,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     git vim wget coreutils moreutils ripgrep \
     zip unzip xz-utils p7zip-full lz4 zstd \
     binwalk \
-    yara upx-ucl qemu-user yq \
+    yara upx-ucl qemu-user yq acl \
     bison flex libffi-dev libncurses-dev libsqlite3-dev mcpp sqlite3 zlib1g-dev \
  && rm -rf /var/lib/apt/lists/* \
  && node -v && npm -v
@@ -169,11 +169,26 @@ RUN useradd -m -s /bin/bash agent \
  && chmod 0440 /etc/sudoers.d/agent \
  && mkdir -p /agent && chown agent:agent /agent
 
+# Phase 7 D-01 + Claude's-Discretion: dedicated low-privilege shell UID for run_shell.
+# Pinned to UID 700 for deterministic image-diff. /usr/sbin/nologin and /nonexistent
+# home prevent any login shell or home-dir-based config leak. mare-shell is NOT
+# added to the agent group; case-dir writability is granted via POSIX ACL at runtime
+# (artifacts_io.ensure_mare_shell_access).
+RUN useradd -r -u 700 -s /usr/sbin/nologin -d /nonexistent mare-shell
+
 # Install default Codex and Claude settings for the agent user
 RUN mkdir -p /home/agent/.binaryninja /home/agent/.idapro /home/agent/.codex /home/agent/.claude \
  && printf '%s\n' "export PS1='\\w\\\\$ '" > /home/agent/.bashrc \
  && chown -R agent:agent /home/agent/.binaryninja /home/agent/.idapro /home/agent/.codex /home/agent/.claude \
  && chown agent:agent /home/agent/.bashrc
+
+# Phase 7 D-07: revoke mare-shell visibility on secret-bearing host paths.
+# These are best-effort at build time; the entrypoint re-applies on every container
+# start (overlay-fs can drop ACL xattrs across image layers per moby/moby#40553).
+RUN chmod 0700 /home/agent/.idapro /home/agent/.binaryninja /home/agent/.codex /home/agent/.claude \
+ && chmod 0700 /root \
+ && (chmod 0755 /agent/scripts 2>/dev/null || true) \
+ && (setfacl -m u:mare-shell:r-x,d:u:mare-shell:r-x /agent/uploads 2>/dev/null || true)
 
 # Install Codex CLI
 RUN npm i -g @openai/codex
@@ -271,6 +286,17 @@ export LOGNAME="${AGENT_USER}"
 
 gosu "${AGENT_USER}" /usr/local/bin/configure-agent-mcp.sh
 
+# Phase 7 D-07: re-apply mare-shell visibility revocations at every container start.
+# These are entrypoint-time (not Dockerfile) because overlayfs can drop ACL xattrs
+# across image layers (Pitfall 3 / moby/moby#40553).
+chmod 0700 "${AGENT_HOME}/.idapro" "${AGENT_HOME}/.binaryninja" "${AGENT_HOME}/.codex" "${AGENT_HOME}/.claude" 2>/dev/null || true
+chmod 0700 /root 2>/dev/null || true
+if command -v setfacl >/dev/null 2>&1 && [ -d /agent/uploads ]; then
+  # Base ACL on uploads dir + default-ACL for new uploads; -R recursively for pre-existing children (Pitfall 4).
+  setfacl -m u:mare-shell:r-x,d:u:mare-shell:r-x /agent/uploads 2>/dev/null || true
+  find /agent/uploads -mindepth 1 -exec setfacl -m u:mare-shell:r-x {} \; 2>/dev/null || true
+fi
+
 # Start idalib-mcp as a background Streamable-HTTP server when IDA Pro is
 # installed. The server exposes both /mcp and /sse on :8745 and is bound to
 # 127.0.0.1. Claude Code and Codex connect to it per the generated .mcp.json
@@ -332,6 +358,17 @@ if [ "${MCP_GATEWAY_ENABLED:-0}" = "1" ]; then
   fi
 else
   echo "[gateway] MCP_GATEWAY_ENABLED!=1 -- skipping (local mode)"
+fi
+
+# Phase 7 D-07: lock down the bearer token file once the gateway has written it.
+TOKEN_FILE="${MCP_GATEWAY_TOKEN_FILE:-/agent/.mcp-gateway-token}"
+for _ in 1 2 3 4 5; do
+  [ -f "${TOKEN_FILE}" ] && break
+  sleep 0.2
+done
+if [ -f "${TOKEN_FILE}" ]; then
+  chown root:root "${TOKEN_FILE}" 2>/dev/null || true
+  chmod 0400 "${TOKEN_FILE}" 2>/dev/null || true
 fi
 
 # Persist Claude state inside the mounted ~/.claude/ directory instead of a
