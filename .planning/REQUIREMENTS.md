@@ -17,8 +17,8 @@
 
 ### Constrained Shell (SHELL)
 
-- [ ] **SHELL-01**: Agent can execute a bash one-liner via `run_shell(case_dir, cmd)` with cwd pinned to the case directory, output auto-captured, output cap enforced, hard timeout enforced
-- [ ] **SHELL-02**: `run_shell` executes as a dedicated non-root `mare-shell` UID with an env-var whitelist that excludes `MCP_GATEWAY_TOKEN`, API keys, and AWS-style credentials
+- [x] **SHELL-01**: Agent can execute a bash one-liner via `run_shell(case_dir, cmd)` with cwd pinned to the case directory, output auto-captured, output cap enforced, hard timeout enforced
+- [x] **SHELL-02**: `run_shell` executes as a dedicated non-root `mare-shell` UID with an env-var whitelist that excludes `MCP_GATEWAY_TOKEN`, API keys, and AWS-style credentials
 - [ ] **SHELL-03**: `run_shell` docstring explicitly documents that confinement is structural posture (cwd + UID + timeout + capture), not OS-level isolation, so agents and operators know what `run_shell` is and is not
 
 ### Typed Static Wrappers (STATIC)
@@ -32,7 +32,7 @@
 - [x] **STATIC-07**: Agent can disassemble byte ranges with `run_capstone_disasm(arch, mode, bytes_hex, base_addr)` returning typed `CsInsn`-shaped JSON
 - [x] **STATIC-08**: Agent can search for ROP gadgets with `run_ropper(case_dir, sample, arch, filter, badbytes)` returning typed `Gadget` JSON; full gadget list written to `case_dir/rop/`
 - [x] **STATIC-09**: Agent can run jq/yq over case artifacts via `run_jq(case_dir, artifact_path, expr)` and `run_yq(case_dir, artifact_path, expr)`
-- [ ] **STATIC-10**: All STATIC wrappers reject tool-name collisions with backend-pass-through tools at startup (hard-fail rather than silent override)
+- [x] **STATIC-10**: All STATIC wrappers reject tool-name collisions with backend-pass-through tools at startup (hard-fail rather than silent override)
 
 ### Artifact Tree & Control Helpers (ARTIF)
 

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
-status: executing
-stopped_at: "Completed 07-07-PLAN.md (Wave 2 Plan C: tools/shell.py run_shell MCP tool)"
-last_updated: "2026-05-13T04:49:10.474Z"
+status: verifying
+stopped_at: "Completed 07-08-PLAN.md (Wave 3: tools/__init__ wiring + lifespan collision check + backend_passthrough docstring update)"
+last_updated: "2026-05-13T04:55:52.209Z"
 last_activity: 2026-05-13
 progress:
   total_phases: 8
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 14
-  completed_plans: 13
-  percent: 93
+  completed_plans: 14
+  percent: 100
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 07 (run-shell-typed-static-wrappers-re-artifacts) — EXECUTING
 Plan: 8 of 8
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-13
 
 Progress: [          ] 0% (0/8 phases complete)
@@ -89,6 +89,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 07-run-shell-typed-static-wrappers-re-artifacts]: Plan 07-05: re_artifacts.py (335 LoC) delivered with 3 Rule-3 deviations: (a) module-level coroutines over nested-in-register so tests can import directly; (b) skip-on-no-setfacl helper for 6 ACL-exercising tests (host lacks setfacl); (c) autouse samples.STATUS_ROOT monkeypatch fixture (binding-at-import issue). 9 pass + 6 skip on host; container will flip all 6 to PASS.
 - [Phase 07-run-shell-typed-static-wrappers-re-artifacts]: Plan 07-06: tools/re_static.py (491 LoC) delivered with 3 Rule-3 deviations: (a) module-level coroutines + register-wrapper pattern (matches Plan 07-05) so tests import wrappers directly; (b) autouse _sync_samples_roots fixture monkeypatches samples.STATUS_ROOT + EXAMPLES_ROOT + ALLOWED_PREFIXES per test; (c) _require_tool_or_skip guards for die/rabin2/jq/yq (host-missing). 10 pass + 4 skip on host; container will flip all 4 to PASS.
 - [Phase 07-run-shell-typed-static-wrappers-re-artifacts]: Plan 07-07: tools/shell.py (211 LoC) delivered with 6 Rule-3 deviations: (a) module-level run_shell + register-wraps pattern (matches 07-05/07-06); (b) autouse samples.STATUS_ROOT monkeypatch fixture; (c) 8 spawning tests gated by _require_setfacl_or_skip; (d) test_mare_shell_user_exists fail->skip (host lacks user, Dockerfile creates it); (e) @mcp.tool() decorator -> mcp.tool()(run_shell) call; (f) assert -> RuntimeError in _build_shell_env drift check. 5 pass + 9 skip + 1 slow-deselect on host.
+- [Phase 07-run-shell-typed-static-wrappers-re-artifacts]: Plan 07-08: Wave 3 integration — register_all_tools learns shell/re_static/re_artifacts (D-16); collision_check imported but not registered; assert_no_collisions called on BOTH lifespan paths AFTER backend connect AND BEFORE serving (D-11 ordering, Pitfall 7); backend_passthrough docstring rewritten to reflect D-14 (hard-fail REVERSES v1.0 backend-wins); GW-02 tool-count invariant bumped 15-25 -> 35-50 in test_tool_list.py with explicit D-16 rationale (Rule 1 deviation); final surface = 39 tools (22 v1.0 + 17 Phase 7).
 
 ### Pending Todos
 
@@ -131,9 +132,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 07-run-shell-typed-static-wrappers-re-artifacts P05 | 4min | 1 tasks | 2 files |
 | Phase 07-run-shell-typed-static-wrappers-re-artifacts P06 | 4min | 1 tasks | 2 files |
 | Phase 07-run-shell-typed-static-wrappers-re-artifacts P07 | 3min | 1 tasks | 2 files |
+| Phase 07-run-shell-typed-static-wrappers-re-artifacts P08 | 4min | 2 tasks | 6 files |
 
 ## Session Continuity
 
-Last session: 2026-05-13T04:49:10.470Z
-Stopped at: Completed 07-07-PLAN.md (Wave 2 Plan C: tools/shell.py run_shell MCP tool)
+Last session: 2026-05-13T04:55:45.336Z
+Stopped at: Completed 07-08-PLAN.md (Wave 3: tools/__init__ wiring + lifespan collision check + backend_passthrough docstring update)
 Resume file: None

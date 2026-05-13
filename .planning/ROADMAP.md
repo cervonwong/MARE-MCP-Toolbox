@@ -80,7 +80,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   - [x] 07-05-PLAN.md — Wave 2A: tools/re_artifacts.py — write/append/list/tree/get_tool_log (D-21..D-25)
   - [x] 07-06-PLAN.md — Wave 2B: tools/re_static.py — 11 typed wrappers (D-18, D-19, D-30..D-32)
   - [x] 07-07-PLAN.md — Wave 2C: tools/shell.py — run_shell with setpriv + env whitelist (D-01, D-02, D-09, D-28, D-29)
-  - [ ] 07-08-PLAN.md — Wave 3: integrate tools/__init__.py + app.py lifespan + backend_passthrough comment + D-35 slow rerun (D-11, D-14, D-16)
+  - [x] 07-08-PLAN.md — Wave 3: integrate tools/__init__.py + app.py lifespan + backend_passthrough comment + D-35 slow rerun (D-11, D-14, D-16)
 **UI hint**: no
 
 ### Phase 8: Session-Scoped r2
