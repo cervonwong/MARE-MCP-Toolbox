@@ -7,13 +7,39 @@ from __future__ import annotations
 
 import base64
 import os
+import shutil
 from pathlib import Path
 
 import pytest
 
 
+def _require_setfacl_or_skip() -> None:
+    """Wave 2 (Plan 07-05) deviation: write_artifact / append_artifact call
+    artifacts_io.ensure_mare_shell_access(case_dir) which fails LOUDLY (RuntimeError)
+    when `setfacl` is not on PATH (D-04 + Phase 7-02 fail-loud contract). On hosts
+    without `acl` package (typical dev/CI), the tests skip cleanly. Inside the
+    container image (Phase 7 Dockerfile installs `acl`), the tests run for real.
+    """
+    if shutil.which("setfacl") is None:
+        pytest.skip("setfacl unavailable on host; container build installs acl package")
+
+
+@pytest.fixture(autouse=True)
+def _sync_samples_status_root(tmp_status_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Wave 2 (Plan 07-05) deviation: `samples.STATUS_ROOT` is bound at import-time
+    from `MCP_GATEWAY_STATUS_DIR` and does NOT pick up the per-test fixture's env
+    update on subsequent tests. `tools.case_dirs.resolve_case_dir` reads
+    `samples.STATUS_ROOT` directly, so we monkeypatch the module attribute per test
+    to point at the live `tmp_status_dir`. Mirrors the pattern used in
+    `test_resources_unit.py:35-83` and `test_artifact_tools.py:33-35`.
+    """
+    from mcp_gateway.tools import samples as samples_mod
+    monkeypatch.setattr(samples_mod, "STATUS_ROOT", tmp_status_dir)
+
+
 # ---- ARTIF-02 (write text) ----
 async def test_write_artifact_text(tmp_status_dir) -> None:
+    _require_setfacl_or_skip()
     from mcp_gateway.tools.re_artifacts import write_artifact
     case = tmp_status_dir / "200-write-text"
     case.mkdir()
@@ -24,6 +50,7 @@ async def test_write_artifact_text(tmp_status_dir) -> None:
 
 # ---- ARTIF-02 (write binary base64) ----
 async def test_write_artifact_binary(tmp_status_dir) -> None:
+    _require_setfacl_or_skip()
     from mcp_gateway.tools.re_artifacts import write_artifact
     case = tmp_status_dir / "201-write-bin"
     case.mkdir()
@@ -35,6 +62,7 @@ async def test_write_artifact_binary(tmp_status_dir) -> None:
 
 # ---- ARTIF-02 (overwrite=False raises) ----
 async def test_write_artifact_overwrite_false(tmp_status_dir) -> None:
+    _require_setfacl_or_skip()
     from mcp_gateway.tools.re_artifacts import write_artifact
     case = tmp_status_dir / "202-overwrite"
     case.mkdir()
@@ -45,6 +73,7 @@ async def test_write_artifact_overwrite_false(tmp_status_dir) -> None:
 
 # ---- ARTIF-02 (overwrite=True replaces) ----
 async def test_write_artifact_overwrite_true(tmp_status_dir) -> None:
+    _require_setfacl_or_skip()
     from mcp_gateway.tools.re_artifacts import write_artifact
     case = tmp_status_dir / "203-overwrite-yes"
     case.mkdir()
@@ -65,6 +94,7 @@ async def test_write_artifact_rejects_traversal(tmp_status_dir) -> None:
 
 # ---- ARTIF-02 (append) ----
 async def test_append_artifact(tmp_status_dir) -> None:
+    _require_setfacl_or_skip()
     from mcp_gateway.tools.re_artifacts import append_artifact
     case = tmp_status_dir / "205-append"
     case.mkdir()
@@ -76,6 +106,7 @@ async def test_append_artifact(tmp_status_dir) -> None:
 # ---- ARTIF-02 (ACL backfill via write) ----
 async def test_write_artifact_grants_mare_shell(tmp_status_dir) -> None:
     """D-21 mandates write_artifact -> ensure_mare_shell_access. Verify ACL applied."""
+    _require_setfacl_or_skip()
     from mcp_gateway.tools.re_artifacts import write_artifact
     case = tmp_status_dir / "206-acl-backfill"
     case.mkdir()
