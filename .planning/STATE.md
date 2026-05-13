@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
-status: verifying
-stopped_at: Phase 6 context gathered
-last_updated: "2026-05-13T00:47:06.295Z"
-last_activity: 2026-05-12
+status: executing
+stopped_at: Completed 06-01-PLAN.md (Wave-0 test scaffolding)
+last_updated: "2026-05-13T01:20:38.569Z"
+last_activity: 2026-05-13
 progress:
   total_phases: 8
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
-  percent: 100
+  total_plans: 6
+  completed_plans: 4
+  percent: 67
 ---
 
 # Project State
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion scoped)
 
 **Core value:** Automated malware triage and deep analysis via AI agents with full access to professional RE tooling — accessible both from inside the container and from external MCP clients.
-**Current focus:** Phase 05 — f-1-image-hash-fix
+**Current focus:** Phase 06 — retoolrunner-artifacts-io-foundation
 
 ## Current Position
 
 Milestone: v1.1 Remote RE Tool Expansion
-Phase: 6
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-05-12
+Phase: 06 (retoolrunner-artifacts-io-foundation) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-05-13
 
 Progress: [          ] 0% (0/8 phases complete)
 
@@ -72,6 +72,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 05-f-1-image-hash-fix]: Inline LC_ALL=C prefix per sort invocation in run_docker.sh image-hash subshell (vs. global export) — keeps locale intent visible at call site
 - [Phase 05-f-1-image-hash-fix]: Extracted run_docker.sh:212-229 inline image-hash subshell to scripts/compute_image_hash.sh; refactor preserves byte-identical output and keeps DOCKERFILE_SHA/SHORT_SHA/HASH_IMAGE in run_docker.sh scope (D-01/D-06).
 - [Phase 05-f-1-image-hash-fix]: Locked FOUND-01 invariant with hermetic 11-node pytest at mcp-gateway/tests/test_image_hash.py — single-fixture-per-test pattern; explicit env={PATH,HOME} dict to subprocess (no env=os.environ); test skeleton copied verbatim from 05-RESEARCH.md to preserve VALIDATION.md's row-by-row contract.
+- [Phase 06-retoolrunner-artifacts-io-foundation]: Wave-0 RED-state test scaffolding pattern -- name failing test functions referencing not-yet-existing modules; Wave 1/2 turn them GREEN. Enforces Nyquist: every <verify> in downstream plans references an existing test.
+- [Phase 06-retoolrunner-artifacts-io-foundation]: Threat-register-as-tests -- every <threat_model> row with disposition=mitigate (T-6-01/02/03/06/07) has at least one named test function rather than being prose-only mitigations.
 
 ### Pending Todos
 
@@ -104,9 +106,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 05-f-1-image-hash-fix P01 | 2min | 1 tasks | 1 files |
 | Phase 05-f-1-image-hash-fix P02 | 100s | 2 tasks | 2 files |
 | Phase 05-f-1-image-hash-fix P03 | 87s | 1 tasks | 1 files |
+| Phase 06-retoolrunner-artifacts-io-foundation P01 | 3min | 3 tasks | 3 files |
 
 ## Session Continuity
 
-Last session: 2026-05-13T00:47:06.283Z
-Stopped at: Phase 6 context gathered
-Resume file: .planning/phases/06-retoolrunner-artifacts-io-foundation/06-CONTEXT.md
+Last session: 2026-05-13T01:20:29.249Z
+Stopped at: Completed 06-01-PLAN.md (Wave-0 test scaffolding)
+Resume file: None

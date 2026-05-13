@@ -11,9 +11,9 @@
 ### Foundation (FOUND)
 
 - [x] **FOUND-01**: Agent edits to `mcp-gateway/src/` trigger a Docker image rebuild on the next `./run_docker.sh` invocation (F-1 carryover fix — content-hash includes gateway source)
-- [ ] **FOUND-02**: Every new v1.1 subprocess invocation goes through a single `ReToolRunner` that enforces argv-only execution, cwd-confinement to `case_dir`, hard timeout, process-group SIGKILL on timeout/cancel, and a structured JSON result shape with `exit_code`, `stdout_head`, `stderr_head`, `log_path`, `timed_out`, and byte/truncation counts
-- [ ] **FOUND-03**: Runner-driven tools auto-capture full stdout/stderr to `case_dir/tool-logs/<timestamp>-<slug>.txt` while returning only a head-truncated preview in the MCP response (mitigates 25k-token MCP response cap)
-- [ ] **FOUND-04**: A canonical `confine_to(case_dir, path)` helper exists and is used by every path-accepting tool in v1.1 to reject path traversal
+- [x] **FOUND-02**: Every new v1.1 subprocess invocation goes through a single `ReToolRunner` that enforces argv-only execution, cwd-confinement to `case_dir`, hard timeout, process-group SIGKILL on timeout/cancel, and a structured JSON result shape with `exit_code`, `stdout_head`, `stderr_head`, `log_path`, `timed_out`, and byte/truncation counts
+- [x] **FOUND-03**: Runner-driven tools auto-capture full stdout/stderr to `case_dir/tool-logs/<timestamp>-<slug>.txt` while returning only a head-truncated preview in the MCP response (mitigates 25k-token MCP response cap)
+- [x] **FOUND-04**: A canonical `confine_to(case_dir, path)` helper exists and is used by every path-accepting tool in v1.1 to reject path traversal
 
 ### Constrained Shell (SHELL)
 
