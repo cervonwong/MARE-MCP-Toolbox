@@ -763,27 +763,27 @@ async def test_assert_no_collisions_one_overlap(monkeypatch):
 
 **This table is non-empty by design** — these are the OS-mechanism details Phase 7 inherits from the runtime environment. None block the plan; each has a fail-loud mitigation via D-06 / smoke tests / Pitfall 1 test.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should the entrypoint re-apply the `/agent/uploads/` ACL recursively on every container start (Pitfall 4)?**
    - What we know: D-07 sets the ACL on `/agent/uploads/` itself; default-ACL covers new uploads.
    - What's unclear: Existing uploads (from previous container runs) don't have the inherited ACL.
-   - Recommendation: Add `find /agent/uploads -mindepth 1 -exec setfacl -m u:mare-shell:r-x {} \;` to entrypoint. Cost is small; one-time per container start.
+   - **RESOLVED:** plan 07-01 Task 1 (Dockerfile entrypoint heredoc) applies `find /agent/uploads -mindepth 1 -exec setfacl -m u:mare-shell:r-x {} \;` plus the matching default-ACL line on every container start. Formalised in CONTEXT.md D-07a addendum. Recommendation adopted: yes.
 
 2. **Should `assert_no_collisions` use `sys.exit(78)` or `raise RuntimeError`?**
    - What we know: D-13 specifies exit code 78; `sys.exit` guarantees it; `raise` from lifespan goes through Starlette and may translate.
    - What's unclear: Whether Starlette propagates `SystemExit` cleanly (vs catching and exiting non-zero generically).
-   - Recommendation: Use `sys.exit(78)` directly after `log.error(...)` (Pattern 6 code). Test `test_collision_check.py` asserts `SystemExit.code == 78`.
+   - **RESOLVED:** plan 07-03 implements `assert_no_collisions` via `sys.exit(_EX_CONFIG)` (where `_EX_CONFIG = 78`) after `log.error(...)`. Formalised in CONTEXT.md D-13a addendum (D-13's exit-code-78 contract preserved; only the Python-level raise mechanism is pinned to `sys.exit`). Wave 0 RED test in plan 07-01 asserts `pytest.raises(SystemExit); exc.value.code == 78`. Recommendation adopted: `sys.exit(78)`.
 
 3. **Should `run_capstone_disasm` validate `arch` / `mode` against an explicit allowlist or accept whatever capstone supports?**
    - What we know: D-18 row 8 doesn't pin an allowlist; capstone supports ~12 architectures.
    - What's unclear: Whether opening to all caps is a discoverability win or a footgun (typo `arm6` instead of `arm64`).
-   - Recommendation: Accept all capstone-supported arches; raise `ValueError` with the actual list on unknown input (capstone gives clear errors itself).
+   - **RESOLVED:** plan 07-06 `run_capstone_disasm` accepts any capstone-supported arch/mode and raises `ValueError` with the actual capstone-supported list on unknown input. Capstone's own `CsError` is wrapped into the same `ValueError` surface for a uniform error contract. Recommendation adopted.
 
 4. **What should `_inproc_result.argv` look like for in-process tools (D-19)?**
    - What we know: D-19 example shows `[slug, "(in-process)"]`.
    - What's unclear: Whether MCP clients use `argv` for anything other than audit display.
-   - Recommendation: Keep `[slug, "(in-process)"]` as documented; matches the audit-trail semantic.
+   - **RESOLVED:** plan 07-06 keeps `argv = [slug, "(in-process)"]` for every in-process tool (`run_capstone_disasm`, future `run_yara_inproc`, etc.) per D-19. Audit-trail semantic matches the documented pattern; no client currently consumes `argv` for routing. Recommendation adopted.
 
 ## Environment Availability
 

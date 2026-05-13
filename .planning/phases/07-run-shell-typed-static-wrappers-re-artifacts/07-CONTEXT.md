@@ -188,6 +188,25 @@ Explicitly NOT in this phase (deferred to other phases):
   These revocations are baked into the image (Dockerfile + entrypoint)
   so they survive container restart without runtime fixup.
 
+- **D-07a:** *(Revision addendum to D-07 — formalises the
+  recursive-uploads-ACL step that was already required by Pitfall 4.)*
+  The Dockerfile entrypoint snippet re-applies the `/agent/uploads/` ACL
+  recursively on every container start, because volume re-mounts at
+  container start can re-introduce files without the `mare-shell` ACL:
+
+  ```sh
+  # Default ACL: every NEW file/dir under /agent/uploads inherits r-x for mare-shell
+  setfacl -d -m u:mare-shell:r-x /agent/uploads
+  # Backfill: every EXISTING file/dir under /agent/uploads gets the same ACL now
+  find /agent/uploads -mindepth 1 -exec setfacl -m u:mare-shell:r-x {} \;
+  ```
+
+  This runs once per container start (entrypoint, before `exec`-ing the
+  agent process). Cost is small (one walk of `/agent/uploads/`) and
+  guarantees cross-case sample readability survives `docker compose
+  restart` and host-volume churn. Implemented in plan 07-01 Task 1
+  entrypoint heredoc. Resolves RESEARCH Open Question 1.
+
 - **D-08:** Three regression tests assert the posture (added to
   `mcp-gateway/tests/test_run_shell.py`):
 
@@ -290,6 +309,25 @@ Explicitly NOT in this phase (deferred to other phases):
     grep for EX_CONFIG in operator runbooks is cleaner than reading
     full logs.
   - No new health endpoint — keeps the surface area unchanged.
+
+- **D-13a:** *(Revision addendum to D-13 — pins the Python-level
+  raise mechanism.)* `assert_no_collisions` raises the collision failure
+  by calling `sys.exit(78)` (not `raise RuntimeError(...)`) so that
+  Starlette / uvicorn cannot catch-and-translate the failure during
+  lifespan startup. The exit-code-78 contract from D-13 is preserved
+  verbatim; only the Python-level raise mechanism is pinned:
+
+  ```python
+  log.error("FATAL: gateway-native tool names collide with backend %r: %s",
+            backend_name, sorted(colliding))
+  sys.exit(_EX_CONFIG)   # _EX_CONFIG = 78  (sysexits.h)
+  ```
+
+  Wave 0 RED test in plan 07-01 (`tests/test_collision_check.py`) asserts
+  the contract with `pytest.raises(SystemExit) as exc: ...; assert
+  exc.value.code == 78`. Plan 07-03 (collision_check.py implementation)
+  and plan 07-08 (app.py lifespan wiring) are already internally
+  consistent on this choice. Resolves RESEARCH Open Question 2.
 
 - **D-14:** This **reverses** v1.0's "backend wins" policy stated
   in `mcp-gateway/src/mcp_gateway/tools/backend_passthrough.py:8`.
