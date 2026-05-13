@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
-status: verifying
-stopped_at: Phase 7 context gathered
-last_updated: "2026-05-13T02:01:03.145Z"
+status: executing
+stopped_at: Completed 07-01-PLAN.md (Wave 0 RED-stub scaffolding)
+last_updated: "2026-05-13T04:15:51.547Z"
 last_activity: 2026-05-13
 progress:
   total_phases: 8
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
-  percent: 100
+  total_plans: 14
+  completed_plans: 7
+  percent: 50
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion scoped)
 
 **Core value:** Automated malware triage and deep analysis via AI agents with full access to professional RE tooling — accessible both from inside the container and from external MCP clients.
-**Current focus:** Phase 06 — retoolrunner-artifacts-io-foundation
+**Current focus:** Phase 07 — run-shell-typed-static-wrappers-re-artifacts
 
 ## Current Position
 
 Milestone: v1.1 Remote RE Tool Expansion
-Phase: 7
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 07 (run-shell-typed-static-wrappers-re-artifacts) — EXECUTING
+Plan: 2 of 8
+Status: Ready to execute
 Last activity: 2026-05-13
 
 Progress: [          ] 0% (0/8 phases complete)
@@ -80,6 +80,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 06-retoolrunner-artifacts-io-foundation]: Stdout/stderr drained concurrently via asyncio.gather of two _drain coros with head_cap_bytes + raw file sink; on timeout, drain results become zero placeholders but on-disk log preserves what flushed (FOUND-02 SC-4, Pitfall 1)
 - [Phase 06-retoolrunner-artifacts-io-foundation]: D-03 12-key return shape locked: exit_code, timed_out, duration_s, stdout_head, stdout_truncated, stdout_bytes_total, stderr_head, stderr_truncated, stderr_bytes_total, log_path, argv, slug -- exact order, never renamed by Phase 7+ consumers
 - [Phase 06-retoolrunner-artifacts-io-foundation]: Grep-the-source chokepoint tests catch BOTH code AND prose violations; future plans must phrase 'never shell-invocation kwarg' (not 'never shell=True') in docstrings to avoid spurious test failures from copy-pasted action blocks
+- [Phase 07-run-shell-typed-static-wrappers-re-artifacts]: Wave 0 fixture binaries built via documented fallback paths (gcc inline asm for ELF; hand-crafted 408-byte PE stub; gcc -c for stripped.o) because executor host lacked nasm/mingw-w64/setfacl; all pass magic-byte + size acceptance; README documents both canonical and fallback build paths.
+- [Phase 07-run-shell-typed-static-wrappers-re-artifacts]: Wave 0 RED-stub discipline locked in for Phase 7: 52 tests collected cleanly, each imports the not-yet-existing Phase 7 module at function top so collection passes but execution ImportErrors -- pytest.skip is forbidden; failure-to-import IS the RED state Wave 1/2 will flip to GREEN.
+- [Phase 07-run-shell-typed-static-wrappers-re-artifacts]: Dockerfile permission/ACL revocations split into build-time best-effort + entrypoint re-apply (overlayfs xattr-drop mitigation per Pitfall 3 / moby#40553); token-file chmod 0400 placed AFTER the MCP_GATEWAY_ENABLED block with a 0.2s x 5 retry loop since the bearer token is generated only when the gateway starts.
 
 ### Pending Todos
 
@@ -115,9 +118,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 06-retoolrunner-artifacts-io-foundation P01 | 3min | 3 tasks | 3 files |
 | Phase 06-retoolrunner-artifacts-io-foundation P02 | 4min | 1 tasks | 1 files |
 | Phase 06-retoolrunner-artifacts-io-foundation P03 | 3min | 1 tasks | 1 files |
+| Phase 07-run-shell-typed-static-wrappers-re-artifacts P01 | 5min | 3 tasks | 15 files |
 
 ## Session Continuity
 
-Last session: 2026-05-13T02:01:03.127Z
-Stopped at: Phase 7 context gathered
-Resume file: .planning/phases/07-run-shell-typed-static-wrappers-re-artifacts/07-CONTEXT.md
+Last session: 2026-05-13T04:15:41.393Z
+Stopped at: Completed 07-01-PLAN.md (Wave 0 RED-stub scaffolding)
+Resume file: None
