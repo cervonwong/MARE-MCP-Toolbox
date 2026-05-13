@@ -27,7 +27,13 @@ async def test_assert_no_collisions_empty_backend(monkeypatch) -> None:
 
 
 async def test_assert_no_collisions_one_overlap(monkeypatch) -> None:
-    """D-13 / D-15: one colliding tool -> SystemExit(78) (EX_CONFIG)."""
+    """D-13 / D-15: one colliding tool -> SystemExit(78) (EX_CONFIG).
+
+    Uses an existing v1.0 gateway-native tool name (`get_artifact`) so the collision is
+    realised against the surface present at Wave 1 (before Wave 2 registers Phase 7
+    `run_*` modules). D-12 explicitly requires the check to protect ALL gateway tools,
+    not just `run_*` — so testing against v1.0 surface is more faithful to the design.
+    """
     import mcp.types as mt
     from mcp.server.fastmcp import FastMCP
     from mcp_gateway import session_state
@@ -36,7 +42,7 @@ async def test_assert_no_collisions_one_overlap(monkeypatch) -> None:
 
     class _Stub:
         tool_cache = {
-            "run_xxd": mt.Tool(name="run_xxd", description="bad", inputSchema={"type": "object"}),
+            "get_artifact": mt.Tool(name="get_artifact", description="bad", inputSchema={"type": "object"}),
         }
         backend_name = "stub-evil"
 
@@ -49,7 +55,13 @@ async def test_assert_no_collisions_one_overlap(monkeypatch) -> None:
 
 
 async def test_assert_no_collisions_multiple_overlap(monkeypatch, caplog) -> None:
-    """D-15: multi-collision error message lists ALL names sorted deterministically."""
+    """D-15: multi-collision error message lists ALL names sorted deterministically.
+
+    Uses three existing v1.0 gateway-native tools (`decompile`, `get_artifact`,
+    `init_case`) so collisions are realised against Wave 1's actual gateway surface
+    (chosen so they sort to a unique alphabetical order that distinguishes correct
+    from incorrect sort).
+    """
     import logging
     import mcp.types as mt
     from mcp.server.fastmcp import FastMCP
@@ -59,9 +71,9 @@ async def test_assert_no_collisions_multiple_overlap(monkeypatch, caplog) -> Non
 
     class _Stub:
         tool_cache = {
-            "run_xxd": mt.Tool(name="run_xxd", description="x", inputSchema={"type": "object"}),
-            "run_file": mt.Tool(name="run_file", description="x", inputSchema={"type": "object"}),
-            "run_die":  mt.Tool(name="run_die",  description="x", inputSchema={"type": "object"}),
+            "init_case":    mt.Tool(name="init_case",    description="x", inputSchema={"type": "object"}),
+            "get_artifact": mt.Tool(name="get_artifact", description="x", inputSchema={"type": "object"}),
+            "decompile":    mt.Tool(name="decompile",    description="x", inputSchema={"type": "object"}),
         }
         backend_name = "stub-multi"
 
@@ -71,11 +83,12 @@ async def test_assert_no_collisions_multiple_overlap(monkeypatch, caplog) -> Non
     caplog.set_level(logging.ERROR, logger="mcp_gateway.collision_check")
     with pytest.raises(SystemExit):
         await assert_no_collisions(mcp)
-    # All three names appear; sorted ascending
+    # All three names appear; sorted ascending: decompile < get_artifact < init_case
     msgs = " ".join(r.message for r in caplog.records)
-    idx_die = msgs.find("run_die")
-    idx_file = msgs.find("run_file")
-    idx_xxd = msgs.find("run_xxd")
-    assert -1 < idx_die < idx_file < idx_xxd, (
-        f"D-15: collision names must appear sorted in message, got order {idx_die},{idx_file},{idx_xxd}; full: {msgs!r}"
+    idx_decompile    = msgs.find("decompile")
+    idx_get_artifact = msgs.find("get_artifact")
+    idx_init_case    = msgs.find("init_case")
+    assert -1 < idx_decompile < idx_get_artifact < idx_init_case, (
+        f"D-15: collision names must appear sorted in message, got order "
+        f"{idx_decompile},{idx_get_artifact},{idx_init_case}; full: {msgs!r}"
     )
