@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: "Completed 07-04-PLAN.md (Wave 1 Plan C: tools/resources.py depth-2 extension)"
-last_updated: "2026-05-13T04:28:38.596Z"
+stopped_at: "Completed 07-05-PLAN.md (Wave 2 Plan A: tools/re_artifacts.py with 5 artifact-control MCP tools)"
+last_updated: "2026-05-13T04:36:36.994Z"
 last_activity: 2026-05-13
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 14
-  completed_plans: 10
-  percent: 71
+  completed_plans: 11
+  percent: 79
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 07 (run-shell-typed-static-wrappers-re-artifacts) — EXECUTING
-Plan: 5 of 8
+Plan: 6 of 8
 Status: Ready to execute
 Last activity: 2026-05-13
 
@@ -86,6 +86,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 07-run-shell-typed-static-wrappers-re-artifacts]: Plan 07-02: ensure_mare_shell_access LEAF extension landed via zero-deviation TDD (RED commit + GREEN commit, 80s total); shutil+subprocess added to artifacts_io.py stdlib-only import block (LEAF discipline preserved, grep 'from mcp_gateway' = 0); fail-loud RuntimeError on missing setfacl OR nonzero exit; mock-based unit tests cover contract on hosts without setfacl (executor host case).
 - [Phase 07-run-shell-typed-static-wrappers-re-artifacts]: Plan 07-03: collision_check.py module (~67 LoC) delivered with verbatim plan code; Wave 0 RED-stub test fixtures retargeted from Phase 7 Wave 2 names (run_xxd/run_file/run_die, not yet registered) to v1.0 gateway-native names (init_case/get_artifact/decompile) so tests are self-contained against Wave 1 surface — collision-detection mechanism unchanged, more faithful to D-12 scope.
 - [Phase 07-run-shell-typed-static-wrappers-re-artifacts]: Plan 07-04: tools/resources.py depth-2 walk delivered with paste-ready plan code + one deviation: added _status_root() helper that reads MCP_GATEWAY_STATUS_DIR dynamically per call (the module-level STATUS_ROOT import is preserved as no-env fallback). This honours the existing 'dynamic' listing docstring promise and unblocks test_resources_no_depth_3 + test_resources_skip_hidden which would otherwise see stale STATUS_ROOT when test_resources_unit.py is collected first.
+- [Phase 07-run-shell-typed-static-wrappers-re-artifacts]: Plan 07-05: re_artifacts.py (335 LoC) delivered with 3 Rule-3 deviations: (a) module-level coroutines over nested-in-register so tests can import directly; (b) skip-on-no-setfacl helper for 6 ACL-exercising tests (host lacks setfacl); (c) autouse samples.STATUS_ROOT monkeypatch fixture (binding-at-import issue). 9 pass + 6 skip on host; container will flip all 6 to PASS.
 
 ### Pending Todos
 
@@ -125,9 +126,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 07-run-shell-typed-static-wrappers-re-artifacts P02 | 80s | 1 tasks | 2 files |
 | Phase 07-run-shell-typed-static-wrappers-re-artifacts P03 | 12min | 1 tasks | 2 files |
 | Phase 07-run-shell-typed-static-wrappers-re-artifacts P04 | 3min | 1 tasks | 1 files |
+| Phase 07-run-shell-typed-static-wrappers-re-artifacts P05 | 4min | 1 tasks | 2 files |
 
 ## Session Continuity
 
-Last session: 2026-05-13T04:28:32.117Z
-Stopped at: Completed 07-04-PLAN.md (Wave 1 Plan C: tools/resources.py depth-2 extension)
+Last session: 2026-05-13T04:36:36.991Z
+Stopped at: Completed 07-05-PLAN.md (Wave 2 Plan A: tools/re_artifacts.py with 5 artifact-control MCP tools)
 Resume file: None
