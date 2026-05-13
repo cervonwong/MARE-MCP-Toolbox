@@ -1,9 +1,17 @@
-"""Tests that the curated tool surface meets GW-02 (15-25 tools) and D-01..D-04.
+"""Tests that the curated tool surface meets GW-02 + Phase 7 D-16 expansion and D-01..D-04.
 
 Maps to VALIDATION.md rows:
   - GW-02 test_tool_count_in_range
   - GW-02 test_atomic_tools_map_to_scripts
   - GW-01/GW-02 (tools/list integration)
+
+Phase 7 D-16 EXPANDED the curated surface from 22 (v1.0) to 39 tools:
+  - run_shell (1)
+  - 11 typed static-RE wrappers (run_file, run_die, run_xxd, run_readelf, run_objdump,
+    run_nm, run_rabin2, run_capstone_disasm, run_ropper, run_jq, run_yq)
+  - 5 artifact-control helpers (write_artifact, append_artifact, list_artifacts,
+    get_artifact_tree, get_tool_log)
+The 15-25 range from v1.0 GW-02 is superseded; the Phase 7 invariant is 35-50.
 
 IMPORTANT -- FastMCP internals vs public API:
   The preferred way to list tool names is via the public MCP client API:
@@ -25,6 +33,7 @@ from mcp.shared.memory import create_connected_server_and_client_session
 from mcp_gateway.tools import register_all_tools
 
 EXPECTED_TOOLS = {
+    # v1.0 curated surface (22 tools) --------------------------------
     # Composite (3)
     "run_triage", "run_deep_analysis", "generate_report",
     # Atomic (10)
@@ -35,6 +44,15 @@ EXPECTED_TOOLS = {
     # Case/sample mgmt (6) — get_active_backend added in Plan 05 (D-07 pass-through model)
     "list_cases", "set_active_case", "get_active_case", "list_uploads", "get_sample_info",
     "get_active_backend",
+    # Phase 7 D-16 expansion (17 tools) ------------------------------
+    # Constrained shell (1)
+    "run_shell",
+    # Typed static-RE wrappers (11)
+    "run_file", "run_die", "run_xxd", "run_readelf", "run_objdump", "run_nm",
+    "run_rabin2", "run_capstone_disasm", "run_ropper", "run_jq", "run_yq",
+    # Artifact-control helpers (5)
+    "write_artifact", "append_artifact", "list_artifacts", "get_artifact_tree",
+    "get_tool_log",
 }
 
 
@@ -60,7 +78,9 @@ async def test_all_expected_tools_present(registered):
 async def test_tool_count_in_range(registered):
     names = await _list_tool_names(registered)
     n = len(names)
-    assert 15 <= n <= 25, f"tool count {n} violates GW-02 (15-25)"
+    # Phase 7 D-16 expanded v1.0's 15-25 range. Current surface is 39 tools
+    # (22 v1.0 + 17 Phase 7); allow a small band for incremental additions.
+    assert 35 <= n <= 50, f"tool count {n} violates Phase 7 D-16 invariant (35-50)"
 
 
 async def test_no_unexpected_tools(registered):
@@ -95,4 +115,5 @@ def test_tool_count_private_sanity(registered):
     """
     # FastMCP internal -- if upgraded past 1.27, rewrite using create_connected_server_and_client_session.call_tool(name, args)
     n = len(registered._tool_manager._tools)
-    assert 15 <= n <= 25, f"private-attr sanity: tool count {n} violates GW-02 (15-25)"
+    # Phase 7 D-16 expanded v1.0's 15-25 range to 35-50.
+    assert 35 <= n <= 50, f"private-attr sanity: tool count {n} violates Phase 7 D-16 (35-50)"
