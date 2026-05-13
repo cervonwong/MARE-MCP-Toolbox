@@ -29,8 +29,11 @@ def register(mcp: FastMCP) -> None:
             cwd="/agent",
             timeout=FAST_TIMEOUT_S,
         )
-        # init_status_tree.sh prints the case dir path as the last stdout line
-        case_dir = init["stdout"].strip().split("\n")[-1] if init["exit_code"] == 0 else ""
+        # init_status_tree.sh prints "Initialized case directory: <path>".
+        # Use the final token so callers and downstream scripts receive only the path.
+        case_dir = init["stdout"].strip().split()[-1] if init["exit_code"] == 0 else ""
+        if case_dir and not Path(case_dir).is_absolute():
+            case_dir = str((Path("/agent") / case_dir).resolve())
         steps = [{"step": "init_case", "exit_code": init["exit_code"], "stderr_head": init["stderr"][:500]}]
 
         for name, base in [

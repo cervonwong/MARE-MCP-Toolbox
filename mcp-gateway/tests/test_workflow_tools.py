@@ -28,9 +28,9 @@ def mocked_run_triage(monkeypatch, tmp_path):
 
     async def fake_run_script(argv, *, cwd="/agent", timeout=600.0, env=None):
         invocations.append(list(argv))
-        # init_status_tree.sh prints the case_dir as the last stdout line
+        # init_status_tree.sh prints a status message ending with the case_dir path.
         if argv[1].endswith("init_status_tree.sh"):
-            return {"exit_code": 0, "stdout": "/agent/status/001-demo.bin", "stderr": ""}
+            return {"exit_code": 0, "stdout": "Initialized case directory: status/001-demo.bin\n", "stderr": ""}
         return {"exit_code": 0, "stdout": "", "stderr": ""}
 
     monkeypatch.setattr(workflows_mod, "run_script", fake_run_script)
@@ -72,6 +72,7 @@ async def test_run_triage_order(mocked_run_triage, mcp_instance):
         "init_case", "collect_strings", "collect_imports", "scan_yara", "scan_capa",
         "rank_signals", "build_hypothesis", "update_state",
     ]
+    assert result["case_dir"] == "/agent/status/001-demo.bin"
 
 
 @pytest.mark.asyncio

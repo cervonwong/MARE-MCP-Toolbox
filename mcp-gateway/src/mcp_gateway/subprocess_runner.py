@@ -8,18 +8,33 @@ come from ``resolve_sample``).
 The test ``test_run_script_never_uses_shell_true`` enforces the policy by
 grepping the function source for the forbidden keyword argument. See the threat
 register row T-02-SUBPROC in the plan for details.
+
+Scripts run in their own process session so timeout cleanup can kill child
+processes spawned by shell pipelines or analysis tools, not just the parent.
 """
 from __future__ import annotations
 import asyncio
 import os
+import signal
 from pathlib import Path
 
-SCRIPTS = Path(
-    os.environ.get(
-        "MCP_GATEWAY_SCRIPTS_DIR",
-        "/agent/workspace/.claude/skills/malware-analysis-orchestrator/scripts",
-    )
-)
+def _resolve_scripts_dir() -> Path:
+    configured = os.environ.get("MCP_GATEWAY_SCRIPTS_DIR")
+    if configured:
+        return Path(configured)
+
+    candidates = [
+        Path("/agent/.codex/skills/malware-analysis-orchestrator/scripts"),
+        Path("/agent/.claude/skills/malware-analysis-orchestrator/scripts"),
+        Path("/agent/workspace/.claude/skills/malware-analysis-orchestrator/scripts"),
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0]
+
+
+SCRIPTS = _resolve_scripts_dir()
 
 
 async def run_script(
@@ -40,11 +55,15 @@ async def run_script(
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         env=env if env is not None else os.environ.copy(),
+        start_new_session=True,
     )
     try:
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
     except asyncio.TimeoutError:
-        proc.kill()
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
         await proc.wait()
         raise
     return {

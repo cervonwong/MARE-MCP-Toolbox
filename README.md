@@ -32,7 +32,9 @@ Drop sample binaries into the `workspace/` directory; they show up at `/agent/` 
 
 ## Quick start — remote mode
 
-`./run_docker.sh --remote` brings the container up detached, generates a fresh bearer token, and prints a ready-block with everything you need to connect:
+Open Docker Desktop first, or make sure Docker Engine is running. Then
+`./run_docker.sh --remote` brings the container up detached, generates a fresh
+bearer token, and prints a ready-block with everything you need to connect:
 
 ```bash
 ./run_docker.sh --remote
@@ -96,6 +98,16 @@ npm install
 npm start ../../workspace/examples/samples/mfc42ul.dll
 ```
 
+To use the default Mastra Studio dashboard instead:
+
+```bash
+npm run dev
+# open http://localhost:4111
+```
+
+Studio shows the starter's `mare_status` and `mare_triage_sample_path` tools,
+the `MARE Malware Analysis Agent`, and the proxied MARE MCP server surface.
+
 Already have a mastra project? Use the drop-in snippet from [`templates/mastra/README.md`](templates/mastra/README.md):
 
 ```typescript
@@ -110,7 +122,8 @@ const mcp = new MCPClient({
     },
   },
 });
-const tools = await mcp.getTools();
+const toolsets = await mcp.listToolsets();
+const tools = toolsets.mare;
 ```
 
 ## Browse case artifacts (MCP Resources)
@@ -164,7 +177,12 @@ case artifacts.
 
 ## Disassembler backends
 
-The gateway routes `decompile`, `list_functions`, `get_xrefs`, etc. to the **pinned** backend (priority: IDA > Binary Ninja > Ghidra). Clients call `get_active_backend()` to discover which surface is active. See [`mcp-gateway/`](mcp-gateway/) for the full tool list (~22 gateway-native tools + the active backend's native passthrough).
+The gateway pins one backend for its lifetime (priority: IDA > Binary Ninja >
+Ghidra), then merges that backend's native MCP tools into `tools/list`. Clients
+call `get_active_backend()` to discover which backend is active. See
+[`mcp-gateway/`](mcp-gateway/) for the agent-callable gateway tools,
+determinism notes, backend pass-through behavior, and the full IDA Pro MCP
+native tool list.
 
 Build with paid backends:
 
@@ -185,7 +203,7 @@ Without either, Ghidra is installed by default.
 | Port 8080 already in use | `MCP_GATEWAY_HOST_PORT=8081 ./run_docker.sh --remote` |
 | Build fails at `[internal] booting buildkit` with `invalid mount config ... docker-desktop-bind-mounts` | Stale Buildx builder state, usually after Docker Desktop/WSL restarts or updates. Recreate it: `docker buildx rm training && docker buildx create --use --name training`, then rerun `./run_docker.sh --remote`. If removal fails, first run `docker rm -f buildx_buildkit_training0`. |
 | Mastra `npm install` peer-dep warning on `@mastra/core` | The project pins `@mastra/mcp@~1.3.x`; `@mastra/core` is open to `^1.x`. Warnings are tolerated; if `npm start` fails, downgrade core. |
-| Resource list returns no `mare://` URIs | No cases yet. Run a triage first (e.g. via the mastra starter or `tools/call mare_run_triage`). |
+| Resource list returns no `mare://` URIs | No cases yet. Run a triage first (e.g. via the mastra starter or `tools/call run_triage`). |
 
 ## Project layout
 
@@ -221,5 +239,5 @@ This project is MIT-licensed. IDA Pro and Binary Ninja licenses are user-provide
 
 - [`mcp-gateway/`](mcp-gateway/) — gateway internals, tool surface, /upload contract
 - [`templates/mastra/README.md`](templates/mastra/README.md) — full mastra starter walkthrough
-- [`workspace/.claude/skills/malware-analysis-orchestrator/`](workspace/.claude/skills/malware-analysis-orchestrator/) — the 13-artifact pipeline
+- [`workspace/.claude/skills/malware-analysis-orchestrator/`](workspace/.claude/skills/malware-analysis-orchestrator/) and [`workspace/.codex/skills/malware-analysis-orchestrator/`](workspace/.codex/skills/malware-analysis-orchestrator/) — the 13-artifact pipeline for Claude and Codex
 - [`.planning/`](.planning/) — design docs, phase plans, requirements

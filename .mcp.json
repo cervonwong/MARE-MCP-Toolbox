@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "ghidra_headless_mcp": {
+      "type": "stdio",
+      "command": "python3",
+      "args": ["/agent/mcp/ghidra-headless-mcp/ghidra_headless_mcp.py"],
+      "env": {"GHIDRA_INSTALL_DIR": "/usr/share/ghidra"}
+    }
+  }
+}

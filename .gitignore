@@ -3,6 +3,24 @@ binaryninja.zip
 binaryninja_linux.zip
 binaryninja*.zip
 
+# IDA Pro installer (proprietary, license-restricted)
+idapro.zip
+idapro*.zip
+
+# MCP gateway secrets / runtime
+.mcp-gateway-token
+**/.mcp-gateway-token
+uploads/
+**/uploads/
+status/
+mcp/
+
+# Mastra build output
+templates/**/.mastra/
+
+# Claude Code GSD worktrees (large repo checkouts)
+.claude/worktrees/
+
 # macOS
 .DS_Store
 

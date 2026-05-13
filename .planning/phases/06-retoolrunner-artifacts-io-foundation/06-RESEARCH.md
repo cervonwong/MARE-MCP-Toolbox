@@ -719,21 +719,24 @@ async def test_oom_safety_100mb_urandom(tmp_path):
 
 **Conclusion:** All assumptions are LOW risk. The two unverified ones (A1, A2) are testable inside Phase 6's own SC verification.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `runner.py` import `confine_to` and apply it to `case_dir` before spawning, or trust the caller to pass an already-validated `case_dir`?**
    - What we know: D-07 permits `runner.py` to import from `artifacts_io`. CONTEXT.md D-14 says `confine_to` does NOT enforce `STATUS_ROOT`; that is `resolve_case_dir`'s job. Phase 7+ wrappers compose `resolve_case_dir(case_dir)` then pass to the runner.
    - What's unclear: Does `ReToolRunner.__init__` call `Path(case_dir).resolve(strict=True)` defensively, or does it trust the caller? If it does call resolve, it's a belt-and-suspenders guard against a future wrapper forgetting; if it doesn't, the runner stays leaf.
    - Recommendation: `ReToolRunner.__init__` SHOULD call `Path(case_dir).resolve(strict=True)` and store the resolved form (raising `ValueError` if it fails to exist or isn't a dir). This is cheap, fails fast, and aligns with the spawn-side `cwd=resolved_case_dir`. It does NOT enforce `STATUS_ROOT` — that's still `resolve_case_dir`'s job upstream.
+   - RESOLVED — 06-03 Task 1 `ReToolRunner.__init__` calls `Path(case_dir).resolve(strict=True)` (06-03-PLAN.md line 382, action block) with fall-through `ValueError` on `FileNotFoundError`/`OSError` and a follow-up `is_dir()` check.
 
 2. **Does the `slow` pytest marker need to be registered in `pyproject.toml`?**
    - What we know: D-21 mandates the 100 MB urandom test be marked `slow`. The existing `pyproject.toml` has `[tool.pytest.ini_options]` with `asyncio_mode = "auto"` and `testpaths` set, but no `markers =` block.
    - What's unclear: Without registration, `@pytest.mark.slow` emits a `PytestUnknownMarkWarning`. The test still runs; the warning is cosmetic.
    - Recommendation: Add `markers = ["slow: marks tests as slow (deselect with '-m \"not slow\"')"]` to `[tool.pytest.ini_options]`. One-line addition; surfaces during the plan-phase implementation work.
+   - RESOLVED — 06-01 Task 1 registers the `slow` marker in `mcp-gateway/pyproject.toml` under `[tool.pytest.ini_options]` (06-01-PLAN.md Task 1 action block, lines 134-140).
 
 3. **Should `confine_to` reject NUL bytes in the `case_dir` argument too, or only in `path`?**
    - What we know: D-13 says "raises ValueError on every rejection path (non-existing case_dir, traversal escape, NUL byte, etc.)".
    - Recommendation: Reject NUL in **both** `case_dir` and `path`. The code in Pattern 8 does this. Cheap; eliminates a class of weird-platform-truncation bugs.
+   - RESOLVED — 06-02 Task 1 NUL-byte check applies to both `case_dir` and `path` via `if "\x00" in case_str or "\x00" in path_str` (06-02-PLAN.md line 219, action block).
 
 ## Environment Availability
 
