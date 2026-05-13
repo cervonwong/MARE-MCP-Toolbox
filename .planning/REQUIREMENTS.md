@@ -40,7 +40,7 @@
 - [ ] **ARTIF-02**: Agent can write/append artifacts via `write_artifact(case_dir, relpath, content)` and `append_artifact(case_dir, relpath, content)`, with `confine_to` enforced
 - [ ] **ARTIF-03**: Agent can enumerate artifacts via `list_artifacts(case_dir, subdir)` and `get_artifact_tree(case_dir)`
 - [ ] **ARTIF-04**: Agent can range-read large tool logs via `get_tool_log(case_dir, log_name, offset, length)` so multi-megabyte logs don't blow the MCP response cap
-- [ ] **ARTIF-05**: MCP Resources expose `mare://cases/<case>/tool-logs/<file>` for every captured log (consistent with v1.0 Resource scheme)
+- [x] **ARTIF-05**: MCP Resources expose `mare://cases/<case>/tool-logs/<file>` for every captured log (consistent with v1.0 Resource scheme)
 
 ### Session-Scoped r2 (SESS)
 
