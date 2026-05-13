@@ -14,6 +14,7 @@ import pytest
 from mcp_gateway.artifacts_io import (
     EXPANDED_CASE_SUBDIRS,
     confine_to,
+    ensure_mare_shell_access,
     ensure_subdir,
     tool_log_path,
 )
@@ -165,3 +166,100 @@ def test_no_empty_subdirs_at_case_init(tmp_path: Path) -> None:
         assert not (case / name).exists(), (
             f"{name} exists in freshly-created case_dir -- catalog must be lazy-create"
         )
+
+
+# =====================================================================
+# Phase 7 D-05 / D-06: ensure_mare_shell_access
+# =====================================================================
+
+import shutil
+import subprocess
+
+
+def test_ensure_mare_shell_access_fail_loud_missing_setfacl(tmp_path: Path, monkeypatch) -> None:
+    """D-06: missing setfacl -> RuntimeError (not silent degradation)."""
+    case = _make_case_dir(tmp_path)
+    monkeypatch.setattr(
+        "mcp_gateway.artifacts_io.shutil.which",
+        lambda name: None,
+    )
+    with pytest.raises(RuntimeError, match="setfacl not on PATH"):
+        ensure_mare_shell_access(case)
+
+
+def test_ensure_mare_shell_access_fail_loud_setfacl_nonzero(tmp_path: Path, monkeypatch) -> None:
+    """D-06: setfacl exit-nonzero -> RuntimeError surfacing stderr."""
+    case = _make_case_dir(tmp_path)
+    monkeypatch.setattr(
+        "mcp_gateway.artifacts_io.shutil.which",
+        lambda name: "/usr/bin/setfacl",
+    )
+
+    class _FakeResult:
+        returncode = 1
+        stderr = "Operation not supported"
+        stdout = ""
+
+    def _fake_run(*args, **kwargs):
+        return _FakeResult()
+
+    monkeypatch.setattr("mcp_gateway.artifacts_io.subprocess.run", _fake_run)
+    with pytest.raises(RuntimeError, match="setfacl failed"):
+        ensure_mare_shell_access(case)
+
+
+def test_ensure_mare_shell_access_argv_shape(tmp_path: Path, monkeypatch) -> None:
+    """D-03: applies BOTH base (-m) and default (-d -m) ACLs in order with the canonical spec."""
+    case = _make_case_dir(tmp_path)
+    monkeypatch.setattr(
+        "mcp_gateway.artifacts_io.shutil.which",
+        lambda name: "/usr/bin/setfacl",
+    )
+    calls: list[list[str]] = []
+
+    class _OK:
+        returncode = 0
+        stderr = ""
+        stdout = ""
+
+    def _capture_run(cmd, *args, **kwargs):
+        calls.append(list(cmd))
+        return _OK()
+
+    monkeypatch.setattr("mcp_gateway.artifacts_io.subprocess.run", _capture_run)
+    ensure_mare_shell_access(case)
+    assert len(calls) == 2, f"expected 2 setfacl calls (base + default), got {len(calls)}: {calls}"
+    assert calls[0] == ["setfacl", "-m", "u:agent:rwx,g:mare-shell:rwx,o::---", str(case)]
+    assert calls[1] == ["setfacl", "-d", "-m", "u:agent:rwx,g:mare-shell:rwx,o::---", str(case)]
+
+
+def test_ensure_mare_shell_access_idempotent(tmp_path: Path) -> None:
+    """D-05: lazy backfill -- second call is a no-op (setfacl re-set is harmless at the OS level)."""
+    if shutil.which("setfacl") is None:
+        pytest.skip("host filesystem lacks setfacl; covered by mock tests above")
+    case = _make_case_dir(tmp_path)
+    # If host fs doesn't support ACLs, this will raise (D-06); skip rather than fail.
+    try:
+        ensure_mare_shell_access(case)
+    except RuntimeError as exc:
+        pytest.skip(f"host fs does not support POSIX ACLs: {exc}")
+    # Second call must not raise:
+    ensure_mare_shell_access(case)
+
+
+def test_ensure_mare_shell_access_grants_visible_in_getfacl(tmp_path: Path) -> None:
+    """D-03: integration -- getfacl shows the expected entries after the helper runs."""
+    if shutil.which("setfacl") is None or shutil.which("getfacl") is None:
+        pytest.skip("setfacl/getfacl not available on host")
+    case = _make_case_dir(tmp_path)
+    try:
+        ensure_mare_shell_access(case)
+    except RuntimeError as exc:
+        pytest.skip(f"host fs does not support POSIX ACLs: {exc}")
+    # Best-effort: mare-shell group may not exist on the host (only in container);
+    # setfacl on a missing group still produces a valid xattr in some kernels.
+    # The agent:rwx entry MUST be present.
+    res = subprocess.run(["getfacl", "-c", str(case)], capture_output=True, text=True)
+    assert res.returncode == 0, f"getfacl failed: {res.stderr}"
+    assert "user:agent:rwx" in res.stdout, f"missing agent ACL: {res.stdout!r}"
+    assert "default:" in res.stdout, f"missing default ACL: {res.stdout!r}"
