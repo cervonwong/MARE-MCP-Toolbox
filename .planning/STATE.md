@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
-status: executing
-stopped_at: Completed 06-02-PLAN.md (artifacts_io leaf module GREEN)
-last_updated: "2026-05-13T01:27:52.840Z"
+status: verifying
+stopped_at: Completed 06-03-PLAN.md (ReToolRunner chokepoint runner GREEN)
+last_updated: "2026-05-13T01:34:48.886Z"
 last_activity: 2026-05-13
 progress:
   total_phases: 8
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 6
-  completed_plans: 5
-  percent: 83
+  completed_plans: 6
+  percent: 100
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 06 (retoolrunner-artifacts-io-foundation) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-13
 
 Progress: [          ] 0% (0/8 phases complete)
@@ -76,6 +76,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 06-retoolrunner-artifacts-io-foundation]: Threat-register-as-tests -- every <threat_model> row with disposition=mitigate (T-6-01/02/03/06/07) has at least one named test function rather than being prose-only mitigations.
 - [Phase 06-retoolrunner-artifacts-io-foundation]: Leaf-module discipline (D-07) enforced for artifacts_io.py -- stdlib-only imports keep the module safe to import from any Phase 7+ tool wrapper without cycles
 - [Phase 06-retoolrunner-artifacts-io-foundation]: Paste-ready code from 06-02-PLAN.md <action> block used verbatim -- TDD GREEN-phase executed with zero deviation; all 16 RED tests flipped GREEN on first run
+- [Phase 06-retoolrunner-artifacts-io-foundation]: ReToolRunner spawned via asyncio.create_subprocess_exec with start_new_session=True; on TimeoutError swallows + returns {timed_out=True, exit_code=-9}; on CancelledError runs killpg+shielded wait then re-raises (D-04, D-17, Pitfall 18)
+- [Phase 06-retoolrunner-artifacts-io-foundation]: Stdout/stderr drained concurrently via asyncio.gather of two _drain coros with head_cap_bytes + raw file sink; on timeout, drain results become zero placeholders but on-disk log preserves what flushed (FOUND-02 SC-4, Pitfall 1)
+- [Phase 06-retoolrunner-artifacts-io-foundation]: D-03 12-key return shape locked: exit_code, timed_out, duration_s, stdout_head, stdout_truncated, stdout_bytes_total, stderr_head, stderr_truncated, stderr_bytes_total, log_path, argv, slug -- exact order, never renamed by Phase 7+ consumers
+- [Phase 06-retoolrunner-artifacts-io-foundation]: Grep-the-source chokepoint tests catch BOTH code AND prose violations; future plans must phrase 'never shell-invocation kwarg' (not 'never shell=True') in docstrings to avoid spurious test failures from copy-pasted action blocks
 
 ### Pending Todos
 
@@ -110,9 +114,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 05-f-1-image-hash-fix P03 | 87s | 1 tasks | 1 files |
 | Phase 06-retoolrunner-artifacts-io-foundation P01 | 3min | 3 tasks | 3 files |
 | Phase 06-retoolrunner-artifacts-io-foundation P02 | 4min | 1 tasks | 1 files |
+| Phase 06-retoolrunner-artifacts-io-foundation P03 | 3min | 1 tasks | 1 files |
 
 ## Session Continuity
 
-Last session: 2026-05-13T01:27:52.810Z
-Stopped at: Completed 06-02-PLAN.md (artifacts_io leaf module GREEN)
+Last session: 2026-05-13T01:34:30.475Z
+Stopped at: Completed 06-03-PLAN.md (ReToolRunner chokepoint runner GREEN)
 Resume file: None
