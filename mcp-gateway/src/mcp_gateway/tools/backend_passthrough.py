@@ -5,8 +5,17 @@ also expose a larger native MCP surface. This module replaces FastMCP's default
 tools/list and tools/call handlers with handlers that merge the gateway-native
 surface with the active backend's native tools.
 
-Conflict policy: backend-native tools win on name conflicts. This preserves the
-backend's own schema for names like IDA's ``decompile``.
+Conflict policy (Phase 7 D-14 -- REVERSES v1.0 "backend wins"):
+  Tool-name collisions between gateway-native tools and the active backend are
+  REFUSED at gateway lifespan startup. See `tools/collision_check.py`. If startup
+  succeeds, the runtime dispatcher below is guaranteed to see disjoint name sets;
+  the "if pinned and name in backend_tools" branch is reachable only for
+  unambiguously backend-owned names. No semantic change post-startup.
+
+  Rationale: v1.0's "backend wins" allowed a future backend (e.g., IDA Pro
+  shipping its own `decompile` tomorrow) to silently shadow our curated tools.
+  Phase 7 prefers a loud config-error (exit code 78) over silent functional
+  regression -- operators get an actionable message before the first MCP call.
 """
 from __future__ import annotations
 

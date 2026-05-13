@@ -18,6 +18,7 @@ from .auth import BearerAuthMiddleware, OriginMiddleware, load_or_generate_token
 from .backend.detect import detect_backend
 from .backend.client import PinnedBackend
 from .tools import register_all_tools
+from .tools.collision_check import assert_no_collisions
 from .uploads import upload_handler
 from . import session_state
 
@@ -85,7 +86,11 @@ def build_app() -> Starlette:
     async def lifespan(app: Starlette):
         if backend_name is None:
             # Test/escape-hatch path -- no backend, disasm tools return stub.
+            # Phase 7 D-11: collision check runs even on the no-backend path; it
+            # sees an empty tool_cache (or PINNED_BACKEND is None), exits cleanly,
+            # and validates the gateway-native surface stands alone correctly.
             try:
+                await assert_no_collisions(mcp)
                 async with mcp.session_manager.run():
                     log.info(
                         "[gateway] ready on %s:%s (no backend)",
@@ -101,6 +106,12 @@ def build_app() -> Starlette:
         async with PinnedBackend(backend_name) as pinned:
             session_state.PINNED_BACKEND = pinned
             try:
+                # Phase 7 D-11: hard-fail at lifespan if backend tools shadow ours.
+                # MUST be AFTER `session_state.PINNED_BACKEND = pinned` so that
+                # PinnedBackend.__aenter__ has populated tool_cache; MUST be
+                # BEFORE serving so a collision exits the process cleanly with
+                # EX_CONFIG (78) rather than a half-started server.
+                await assert_no_collisions(mcp)
                 async with mcp.session_manager.run():
                     log.info(
                         "[gateway] ready on %s:%s",
