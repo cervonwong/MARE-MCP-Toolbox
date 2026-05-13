@@ -10,9 +10,11 @@ Public API:
 - `confine_to(case_dir, path)`: realpath + `is_relative_to` containment (D-11..D-14)
 - `ensure_subdir(case_dir, name)`: lazy mkdir with slug-validated name (D-15)
 - `tool_log_path(case_dir, slug)`: case_dir/tool-logs/<ts>-<slug>-<rand4>.txt (D-09)
+- `ensure_mare_shell_access(case_dir)`: idempotent POSIX ACL grant for mare-shell (D-05, D-06)
 
 References:
 - CONTEXT.md D-09, D-11..D-16
+- Phase 7 CONTEXT.md D-03, D-05, D-06 (mare-shell ACL semantics)
 - RESEARCH.md Pattern 8 (confine_to), Code Examples sec.6-8
 - v1.0 ancestor: `tools/artifacts.py:115-139` (NOT modified by this phase)
 """
@@ -22,6 +24,8 @@ import datetime
 import os
 import re
 import secrets
+import shutil
+import subprocess
 from pathlib import Path
 
 # D-16: catalog of the nine expanded case-dir subdirs.
@@ -131,3 +135,47 @@ def tool_log_path(case_dir: str | Path, slug: str) -> Path:
     ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     rand4 = secrets.token_hex(2)  # 4 lowercase hex chars
     return Path(case_dir) / "tool-logs" / f"{ts}-{lowered}-{rand4}.txt"
+
+
+# D-03 (Phase 7): canonical ACL applied to every case-dir so the mare-shell UID
+# (created by Dockerfile useradd -r -u 700 mare-shell) can rwx the case-dir
+# without joining the agent group. Default ACL means children inherit the grant.
+_MARE_SHELL_ACL_SPEC = "u:agent:rwx,g:mare-shell:rwx,o::---"
+
+
+def ensure_mare_shell_access(case_dir: str | os.PathLike) -> None:
+    """Idempotent POSIX ACL grant for mare-shell on case_dir (D-05, D-06).
+
+    Applies the canonical ACL `u:agent:rwx,g:mare-shell:rwx,o::---` as BOTH:
+      * Access ACL (`setfacl -m`) -- grants the existing case_dir directory
+      * Default ACL (`setfacl -d -m`) -- children created later inherit the grant
+
+    Both calls are idempotent at the OS level: setfacl is a no-op when the ACL
+    already matches. Phase 7's run_shell / write_artifact / append_artifact
+    invoke this helper before any spawn/write, amortising the cost to the
+    first call per case_dir (D-05 lazy backfill semantics).
+
+    Raises:
+      RuntimeError -- `setfacl` not on PATH (Phase 7 D-06 fail-loud: requires
+        apt 'acl' package per Dockerfile D-04); OR either setfacl invocation
+        exits non-zero (Phase 7 ships with ACLs REQUIRED, not optional).
+
+    NOTE: This function is intentionally NOT called from `ensure_subdir`.
+    Read-only artifact creators (the runner writing tool-logs as `agent`)
+    don't need mare-shell ACLs (D-05 rationale).
+    """
+    if shutil.which("setfacl") is None:
+        raise RuntimeError(
+            "setfacl not on PATH; Phase 7 (D-04) requires apt 'acl' package "
+            "to be installed in the container image"
+        )
+    case_str = str(case_dir)
+    base = ["setfacl", "-m", _MARE_SHELL_ACL_SPEC, case_str]
+    default = ["setfacl", "-d", "-m", _MARE_SHELL_ACL_SPEC, case_str]
+    for cmd in (base, default):
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        if res.returncode != 0:
+            raise RuntimeError(
+                f"setfacl failed ({' '.join(cmd)!r}): "
+                f"exit={res.returncode} stderr={res.stderr.strip()!r}"
+            )
