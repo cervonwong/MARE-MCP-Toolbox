@@ -44,12 +44,12 @@
 
 ### Session-Scoped r2 (SESS)
 
-- [ ] **SESS-01**: Agent can open a persistent r2 analysis session via `open_r2_session(case_dir, sample, init_commands)`, receive an opaque session_id, and reuse r2's analysis state (e.g., results of `aaa`) across subsequent calls
-- [ ] **SESS-02**: Agent can execute arbitrary r2 commands in an open session via `r2_cmd(session_id, cmd, format)` with output head-truncated + full output captured
-- [ ] **SESS-03**: Agent can close a session via `close_r2_session(session_id)` and enumerate active sessions via `list_sessions()`
-- [ ] **SESS-04**: r2 sessions are auto-reaped after configurable idle (default 30 min) and a session cap (default 8) is enforced; sessions surviving gateway shutdown are killed (no zombies)
-- [ ] **SESS-05**: Sessions are shared across all MCP clients with the same bearer token (single-tenant by design); this limitation is documented in tool docstrings (per-`Mcp-Session-Id` keying deferred to v1.2)
-- [ ] **SESS-06**: r2 sessions refuse dangerous shell-escape commands (`#!`, `R!`, `!`) at the wrapper layer; r2 init runs with `scr.interactive=false; scr.color=0`
+- [x] **SESS-01**: Agent can open a persistent r2 analysis session via `open_r2_session(case_dir, sample, init_commands)`, receive an opaque session_id, and reuse r2's analysis state (e.g., results of `aaa`) across subsequent calls
+- [x] **SESS-02**: Agent can execute arbitrary r2 commands in an open session via `r2_cmd(session_id, cmd, format)` with output head-truncated + full output captured
+- [x] **SESS-03**: Agent can close a session via `close_r2_session(session_id)` and enumerate active sessions via `list_sessions()`
+- [x] **SESS-04**: r2 sessions are auto-reaped after configurable idle (default 30 min) and a session cap (default 8) is enforced; sessions surviving gateway shutdown are killed (no zombies)
+- [x] **SESS-05**: Sessions are shared across all MCP clients with the same bearer token (single-tenant by design); this limitation is documented in tool docstrings (per-`Mcp-Session-Id` keying deferred to v1.2)
+- [x] **SESS-06**: r2 sessions refuse dangerous shell-escape commands (`#!`, `R!`, `!`) at the wrapper layer; r2 init runs with `scr.interactive=false; scr.color=0`
 
 ### Extraction Tier (EXTR)
 
