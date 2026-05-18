@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: Completed 08-01-PLAN.md
-last_updated: "2026-05-18T09:39:56.378Z"
+stopped_at: Completed 08-02-PLAN.md
+last_updated: "2026-05-18T09:44:46.441Z"
 last_activity: 2026-05-18
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 19
-  completed_plans: 15
-  percent: 79
+  completed_plans: 16
+  percent: 84
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 08 (session-scoped-r2) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-05-18
 
@@ -92,6 +92,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 07-run-shell-typed-static-wrappers-re-artifacts]: Plan 07-08: Wave 3 integration — register_all_tools learns shell/re_static/re_artifacts (D-16); collision_check imported but not registered; assert_no_collisions called on BOTH lifespan paths AFTER backend connect AND BEFORE serving (D-11 ordering, Pitfall 7); backend_passthrough docstring rewritten to reflect D-14 (hard-fail REVERSES v1.0 backend-wins); GW-02 tool-count invariant bumped 15-25 -> 35-50 in test_tool_list.py with explicit D-16 rationale (Rule 1 deviation); final surface = 39 tools (22 v1.0 + 17 Phase 7).
 - [Phase 08-session-scoped-r2]: Plan 01 — Wave 0 RED-stub test scaffolding delivered verbatim from plan; 21 new tests + 1 augmented + 1 new on existing file; collection clean, execution ImportErrors as designed. _require_r2_or_skip lives in shared conftest.
 - [Phase 08-session-scoped-r2]: D-29 catalog regression intentionally double-covered (test_sessions.py + test_artifacts_io.py) — same invariant from two angles per VALIDATION.md test-file note.
+- [Phase 08-session-scoped-r2]: Plan 02: sessions.py primitive landed via zero-deviation TDD GREEN flip — paste-ready Plan 02 code block worked on first import + first test run; 4 of 8 RED stubs in test_sessions.py turned GREEN (regex present, regex matrix, env-var sanity, dataclass fields)
+- [Phase 08-session-scoped-r2]: Inline ANSI-strip + UTF-8-safe truncate helpers in sessions.py (Claude's Discretion) rather than widening runner.py's _ANSI_ESCAPE visibility — keeps both modules self-contained; runner.py untouched
+- [Phase 08-session-scoped-r2]: Parallel shutdown sweep in SessionRegistry.__aexit__ via asyncio.gather(close(reason='shutdown')) over open sessions (Claude's Discretion D-16 recommendation) — shutdown duration bounded by slowest killpg, not their sum
 
 ### Pending Todos
 
@@ -136,9 +139,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 07-run-shell-typed-static-wrappers-re-artifacts P07 | 3min | 1 tasks | 2 files |
 | Phase 07-run-shell-typed-static-wrappers-re-artifacts P08 | 4min | 2 tasks | 6 files |
 | Phase 08-session-scoped-r2 P01 | 3min | 4 tasks | 5 files |
+| Phase 08-session-scoped-r2 P02 | 2min | 1 tasks | 1 files |
 
 ## Session Continuity
 
-Last session: 2026-05-18T09:39:49.696Z
-Stopped at: Completed 08-01-PLAN.md
+Last session: 2026-05-18T09:44:46.437Z
+Stopped at: Completed 08-02-PLAN.md
 Resume file: None
