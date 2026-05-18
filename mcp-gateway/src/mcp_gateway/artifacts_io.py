@@ -29,6 +29,7 @@ import subprocess
 from pathlib import Path
 
 # D-16: catalog of the nine expanded case-dir subdirs.
+# Phase 8 D-26: extended with "r2-sessions" for r2 session transcripts.
 # Order matters for catalog iteration; tuple guarantees immutability.
 EXPANDED_CASE_SUBDIRS: tuple[str, ...] = (
     "tool-logs",
@@ -40,6 +41,7 @@ EXPANDED_CASE_SUBDIRS: tuple[str, ...] = (
     "disassembly",
     "decompilation",
     "xrefs",
+    "r2-sessions",  # Phase 8 D-26
 )
 
 # D-09 + D-15: shared slug regex. ^[a-z0-9][a-z0-9_-]{0,39}$ after lowercase.
