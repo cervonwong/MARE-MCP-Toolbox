@@ -96,7 +96,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 **Plans**: 5 plans
   - [x] 08-01-PLAN.md — Wave 0: RED-stub test scaffolding (test_sessions.py + test_r2_sessions.py + _require_r2_or_skip helper + augment EXPANDED_CASE_SUBDIRS + resource-walker tests) (D-08, D-09, D-26, D-27, D-29)
   - [x] 08-02-PLAN.md — Wave 2: sessions.py primitive (R2Session dataclass, SessionRegistry async-context-manager, reaper loop, _DANGEROUS_R2_CMD_RE, 5 env-var module constants) (D-01..D-04, D-06, D-08, D-09, D-13..D-18)
-  - [ ] 08-03-PLAN.md — Wave 2: tools/r2_sessions.py MCP surface (open_r2_session, r2_cmd, close_r2_session, list_sessions + register pattern + SESS-05 disclaimer in docstrings) (D-05, D-06, D-10..D-13, D-19..D-23)
+  - [x] 08-03-PLAN.md — Wave 2: tools/r2_sessions.py MCP surface (open_r2_session, r2_cmd, close_r2_session, list_sessions + register pattern + SESS-05 disclaimer in docstrings) (D-05, D-06, D-10..D-13, D-19..D-23)
   - [ ] 08-04-PLAN.md — Wave 3: integration (EXPANDED_CASE_SUBDIRS extension, SESSION_REGISTRY slot in session_state, tools/__init__ register wiring, app.py::lifespan SessionRegistry block in both branches) (D-05, D-07, D-24, D-25, D-26)
   - [ ] 08-05-PLAN.md — Wave 4: end-to-end validation (flip RED stubs to GREEN with full behavioural bodies for SC-1..SC-5 + Pitfall 6 + Pitfall 18; update 08-VALIDATION.md nyquist_compliant: true) (D-27, D-28)
 

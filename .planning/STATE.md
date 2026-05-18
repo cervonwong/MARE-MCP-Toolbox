@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: Completed 08-02-PLAN.md
-last_updated: "2026-05-18T09:44:46.441Z"
+stopped_at: Completed 08-03-PLAN.md
+last_updated: "2026-05-18T09:51:12.673Z"
 last_activity: 2026-05-18
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 19
-  completed_plans: 16
-  percent: 84
+  completed_plans: 17
+  percent: 89
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 08 (session-scoped-r2) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-05-18
 
@@ -95,6 +95,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 08-session-scoped-r2]: Plan 02: sessions.py primitive landed via zero-deviation TDD GREEN flip — paste-ready Plan 02 code block worked on first import + first test run; 4 of 8 RED stubs in test_sessions.py turned GREEN (regex present, regex matrix, env-var sanity, dataclass fields)
 - [Phase 08-session-scoped-r2]: Inline ANSI-strip + UTF-8-safe truncate helpers in sessions.py (Claude's Discretion) rather than widening runner.py's _ANSI_ESCAPE visibility — keeps both modules self-contained; runner.py untouched
 - [Phase 08-session-scoped-r2]: Parallel shutdown sweep in SessionRegistry.__aexit__ via asyncio.gather(close(reason='shutdown')) over open sessions (Claude's Discretion D-16 recommendation) — shutdown duration bounded by slowest killpg, not their sum
+- [Phase 08-session-scoped-r2]: Plan 03: tools/r2_sessions.py MCP surface landed via 1-deviation TDD GREEN — Rule 1 fix for docstring-concat idiom that yielded __doc__=None (Python parser only attaches pure string literals); switched open/r2_cmd to the placeholder+splice pattern already used by close/list
+- [Phase 08-session-scoped-r2]: Plan 03: contract-correctness preserved — resolve_sample consumed as str + explicit hashlib.sha256, env-var constants accessed via sessions.<NAME> (not bind-by-value), zero edits leaked into tools/__init__.py / session_state.py / app.py (those land in Plan 04)
 
 ### Pending Todos
 
@@ -140,9 +142,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 07-run-shell-typed-static-wrappers-re-artifacts P08 | 4min | 2 tasks | 6 files |
 | Phase 08-session-scoped-r2 P01 | 3min | 4 tasks | 5 files |
 | Phase 08-session-scoped-r2 P02 | 2min | 1 tasks | 1 files |
+| Phase 08-session-scoped-r2 P03 | 224s | 1 tasks | 1 files |
 
 ## Session Continuity
 
-Last session: 2026-05-18T09:44:46.437Z
-Stopped at: Completed 08-02-PLAN.md
+Last session: 2026-05-18T09:51:12.669Z
+Stopped at: Completed 08-03-PLAN.md
 Resume file: None
