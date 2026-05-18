@@ -1,8 +1,9 @@
-"""Phase 8 RED stubs — registry/reaper/cap/dangerous-cmd-regex/lifespan internals.
+"""Phase 8 GREEN behavioural tests — registry/reaper/cap/dangerous-cmd-regex/lifespan internals.
 
-All tests import `mcp_gateway.sessions` at function top so collection passes
-but execution ImportErrors until Plan 02 creates the module. pytest.skip is
-forbidden in this file — the import-failure IS the RED state.
+Plan 01 produced the RED scaffold (assert hasattr stubs). Plan 05 fills the
+three SC-4 behavioural bodies (reaper, cap-reject, lifespan teardown) so the
+file is fully behavioural. r2-spawning tests cleanly skip on hosts without r2
+on PATH; container image provides r2 via the Kali base.
 """
 from __future__ import annotations
 
@@ -24,9 +25,42 @@ async def test_reaper_kills_idle(tmp_path, monkeypatch):
     """SESS-04: idle session reaped within idle_s + reaper_interval_s."""
     monkeypatch.setenv("MCP_GATEWAY_SESSION_IDLE_S", "2")
     monkeypatch.setenv("MCP_GATEWAY_REAPER_INTERVAL_S", "1")
-    from mcp_gateway import sessions  # RED until Plan 02
-    # Plan 05 fills body: open session, sleep 4s, assert list() empty, assert PID dead
-    assert hasattr(sessions, "SessionRegistry")
+    # Reload module so the new env vars take effect.
+    import importlib
+    from mcp_gateway import sessions
+    importlib.reload(sessions)
+    try:
+        from tests.conftest import _require_r2_or_skip
+    except ImportError:
+        import shutil as _sh
+        if _sh.which("r2") is None:
+            pytest.skip("r2 unavailable on host")
+    else:
+        _require_r2_or_skip()
+
+    # Build a hermetic case_dir + sample. Use the Phase 7 fixture if available;
+    # skip if missing.
+    case = tmp_path / "case_idle"
+    case.mkdir()
+    fixture = Path(__file__).parent / "fixtures" / "hello_elf"
+    if not fixture.exists():
+        pytest.skip("hello_elf fixture missing (Phase 7 D-34)")
+
+    async with sessions.SessionRegistry(
+        max_sessions=4, idle_s=2.0, reaper_interval_s=1.0,
+    ) as reg:
+        sess = await reg.open(
+            case_dir=case, sample_sha256="0" * 64,
+            sample_path=fixture, init_commands=None,
+            open_timeout_s=15.0,
+        )
+        pid = sess.proc.pid
+        # Wait long enough for reaper to fire (idle 2s + interval 1s + margin).
+        await asyncio.sleep(4)
+        assert reg.count_open() == 0, f"reaper did not close idle session: {reg.list()!r}"
+        # The PID must be dead.
+        with pytest.raises(ProcessLookupError):
+            os.kill(pid, 0)
 
 
 # ============================================================================
@@ -35,10 +69,40 @@ async def test_reaper_kills_idle(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_cap_reject(tmp_path, monkeypatch):
     """SESS-04 + D-18: open N+1 returns {error: 'session cap reached', ...}."""
-    monkeypatch.setenv("MCP_GATEWAY_MAX_SESSIONS", "2")
-    from mcp_gateway import sessions  # RED until Plan 02
-    # Plan 05 fills body: open 2 sessions, open 3rd → returns dict with error key
-    assert hasattr(sessions, "SessionRegistry")
+    try:
+        from tests.conftest import _require_r2_or_skip
+        _require_r2_or_skip()
+    except ImportError:
+        import shutil as _sh
+        if _sh.which("r2") is None:
+            pytest.skip("r2 unavailable on host")
+
+    from mcp_gateway import sessions
+
+    case = tmp_path / "case_cap"
+    case.mkdir()
+    fixture = Path(__file__).parent / "fixtures" / "hello_elf"
+    if not fixture.exists():
+        pytest.skip("hello_elf fixture missing")
+
+    async with sessions.SessionRegistry(
+        max_sessions=2, idle_s=600, reaper_interval_s=60,
+    ) as reg:
+        s1 = await reg.open(case_dir=case, sample_sha256="0" * 64,
+                            sample_path=fixture, init_commands=None,
+                            open_timeout_s=15.0)
+        s2 = await reg.open(case_dir=case, sample_sha256="0" * 64,
+                            sample_path=fixture, init_commands=None,
+                            open_timeout_s=15.0)
+        with pytest.raises(sessions.SessionCapReached) as ei:
+            await reg.open(case_dir=case, sample_sha256="0" * 64,
+                           sample_path=fixture, init_commands=None,
+                           open_timeout_s=15.0)
+        d = ei.value.to_dict()
+        assert d["error"] == "session cap reached"
+        assert d["max"] == 2
+        assert d["open_count"] == 2
+        assert isinstance(d["existing"], list) and len(d["existing"]) == 2
 
 
 # ============================================================================
@@ -47,10 +111,36 @@ async def test_cap_reject(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_lifespan_teardown_kills_all(tmp_path):
     """SESS-04: SessionRegistry.__aexit__ killpg's every session."""
-    from mcp_gateway import sessions  # RED until Plan 02
-    # Plan 05 fills body: async with SessionRegistry(...) as reg: open 2 sessions;
-    # collect PIDs; exit context; assert os.kill(pid, 0) raises ProcessLookupError for both.
-    assert hasattr(sessions, "SessionRegistry")
+    try:
+        from tests.conftest import _require_r2_or_skip
+        _require_r2_or_skip()
+    except ImportError:
+        import shutil as _sh
+        if _sh.which("r2") is None:
+            pytest.skip("r2 unavailable on host")
+
+    from mcp_gateway import sessions
+
+    case = tmp_path / "case_shutdown"
+    case.mkdir()
+    fixture = Path(__file__).parent / "fixtures" / "hello_elf"
+    if not fixture.exists():
+        pytest.skip("hello_elf fixture missing")
+
+    pids = []
+    async with sessions.SessionRegistry(
+        max_sessions=4, idle_s=600, reaper_interval_s=60,
+    ) as reg:
+        for _ in range(2):
+            s = await reg.open(case_dir=case, sample_sha256="0" * 64,
+                               sample_path=fixture, init_commands=None,
+                               open_timeout_s=15.0)
+            pids.append(s.proc.pid)
+    # After __aexit__, every PID must be dead.
+    await asyncio.sleep(0.2)  # killpg + shielded wait grace
+    for pid in pids:
+        with pytest.raises(ProcessLookupError):
+            os.kill(pid, 0)
 
 
 # ============================================================================
