@@ -2,10 +2,21 @@
 from __future__ import annotations
 import os
 import secrets
+import shutil
 from pathlib import Path
 
 import pytest
 from mcp.server.fastmcp import FastMCP
+
+
+def _require_r2_or_skip() -> None:
+    """Phase 8 r2-session tests require the `r2` binary on PATH.
+
+    On hosts without r2 (typical dev/CI executor), skip cleanly. Inside the
+    container image (Kali base provides `radare2`), tests run for real.
+    """
+    if shutil.which("r2") is None:
+        pytest.skip("r2 unavailable on host; Kali container image provides radare2 by default")
 
 
 @pytest.fixture
