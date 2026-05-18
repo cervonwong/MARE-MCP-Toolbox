@@ -69,3 +69,24 @@ def test_resources_max_files_cap(tmp_status_dir, monkeypatch) -> None:
     monkeypatch.setenv("MCP_GATEWAY_ARTIFACT_TREE_MAX_FILES", "5")
     out = _build_resource_list()
     assert len(out) <= 5
+
+
+def test_r2_sessions_transcript_exposed(tmp_status_dir) -> None:
+    """Phase 8 D-26: r2-sessions/ at depth 2 auto-exposed by the depth-2 walker.
+
+    Writes a fake transcript file directly (no real r2 spawn needed for the
+    walker test) and asserts the resource URI shows up in _build_resource_list.
+    """
+    from mcp_gateway.tools.resources import _build_resource_list
+    from mcp_gateway.artifacts_io import ensure_subdir
+
+    case = _seed_case(tmp_status_dir, "alpha")
+    ensure_subdir(case, "r2-sessions")
+    transcript = case / "r2-sessions" / "test-sid-transcript.log"
+    transcript.write_text("=== fake transcript ===\n")
+
+    resources = _build_resource_list()
+    uris = [str(r.uri) if hasattr(r, "uri") else str(r["uri"]) for r in resources]
+    # Phase 7 D-26: depth-2 walker exposes <case>/r2-sessions/<filename>
+    assert any("r2-sessions/test-sid-transcript.log" in u for u in uris), \
+        f"r2-sessions transcript not exposed by walker: {uris!r}"

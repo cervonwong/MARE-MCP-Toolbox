@@ -153,9 +153,10 @@ def test_expanded_case_subdirs_catalog() -> None:
     expected = {
         "tool-logs", "extracted", "hex", "rop",
         "dynamic", "qemu", "disassembly", "decompilation", "xrefs",
+        "r2-sessions",  # Phase 8 D-26
     }
     assert set(EXPANDED_CASE_SUBDIRS) == expected
-    assert len(EXPANDED_CASE_SUBDIRS) == 9
+    assert len(EXPANDED_CASE_SUBDIRS) == 10
     assert isinstance(EXPANDED_CASE_SUBDIRS, tuple)
 
 
