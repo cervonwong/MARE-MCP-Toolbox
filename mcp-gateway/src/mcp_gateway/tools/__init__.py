@@ -17,6 +17,10 @@ def register_all_tools(mcp: FastMCP) -> None:
       - re_artifacts.register(mcp): 5 artifact-control helpers
       - tools.collision_check is imported (no register) so the module is loaded
         when register_all_tools runs; app.py::lifespan calls assert_no_collisions(mcp).
+
+    Phase 8 additions (D-05):
+      - r2_sessions.register(mcp): open_r2_session, r2_cmd,
+        close_r2_session, list_sessions (4 session-scoped r2 tools).
     """
     # Imports inside the function avoid import-cycle risk during FastMCP module
     # discovery and keep the function as the single registration seam.
@@ -30,6 +34,7 @@ def register_all_tools(mcp: FastMCP) -> None:
         shell,            # Phase 7 D-16
         re_static,        # Phase 7 D-16
         re_artifacts,     # Phase 7 D-16
+        r2_sessions,      # Phase 8 D-05
         collision_check,  # Phase 7 D-11 (imported; assert_no_collisions called from app.py)
     )  # noqa: F401
     cases.register(mcp)
@@ -42,6 +47,7 @@ def register_all_tools(mcp: FastMCP) -> None:
     re_artifacts.register(mcp)
     re_static.register(mcp)
     shell.register(mcp)
+    r2_sessions.register(mcp)  # Phase 8 D-05
     backend_passthrough.register(mcp)
     # collision_check has no register(); its assert_no_collisions(mcp) is invoked
     # from app.py::lifespan AFTER PinnedBackend's __aenter__ populates tool_cache.

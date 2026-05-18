@@ -11,7 +11,10 @@ Phase 7 D-16 EXPANDED the curated surface from 22 (v1.0) to 39 tools:
     run_nm, run_rabin2, run_capstone_disasm, run_ropper, run_jq, run_yq)
   - 5 artifact-control helpers (write_artifact, append_artifact, list_artifacts,
     get_artifact_tree, get_tool_log)
-The 15-25 range from v1.0 GW-02 is superseded; the Phase 7 invariant is 35-50.
+Phase 8 D-05 adds 4 more (session-scoped r2):
+  - open_r2_session, r2_cmd, close_r2_session, list_sessions
+Total after Phase 8: 43. The 15-25 range from v1.0 GW-02 is superseded; the
+Phase 7/8 invariant is 35-50.
 
 IMPORTANT -- FastMCP internals vs public API:
   The preferred way to list tool names is via the public MCP client API:
@@ -53,6 +56,8 @@ EXPECTED_TOOLS = {
     # Artifact-control helpers (5)
     "write_artifact", "append_artifact", "list_artifacts", "get_artifact_tree",
     "get_tool_log",
+    # Phase 8 D-05 session-scoped r2 (4)
+    "open_r2_session", "r2_cmd", "close_r2_session", "list_sessions",
 }
 
 

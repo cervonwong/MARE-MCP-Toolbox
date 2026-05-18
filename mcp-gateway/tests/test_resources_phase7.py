@@ -80,7 +80,8 @@ def test_r2_sessions_transcript_exposed(tmp_status_dir) -> None:
     from mcp_gateway.tools.resources import _build_resource_list
     from mcp_gateway.artifacts_io import ensure_subdir
 
-    case = _seed_case(tmp_status_dir, "alpha")
+    # Case name must match CASE_NAME_RE = ^\d{3}-.+ so _list_cases() enumerates it.
+    case = _seed_case(tmp_status_dir, "304-r2sess")
     ensure_subdir(case, "r2-sessions")
     transcript = case / "r2-sessions" / "test-sid-transcript.log"
     transcript.write_text("=== fake transcript ===\n")

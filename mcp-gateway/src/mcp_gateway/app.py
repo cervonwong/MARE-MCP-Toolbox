@@ -19,6 +19,12 @@ from .backend.detect import detect_backend
 from .backend.client import PinnedBackend
 from .tools import register_all_tools
 from .tools.collision_check import assert_no_collisions
+from .sessions import (
+    SessionRegistry,
+    MAX_SESSIONS,
+    SESSION_IDLE_S,
+    REAPER_INTERVAL_S,
+)
 from .uploads import upload_handler
 from . import session_state
 
@@ -84,6 +90,17 @@ def build_app() -> Starlette:
 
     @contextlib.asynccontextmanager
     async def lifespan(app: Starlette):
+        # D-14 + D-24: SessionRegistry parameters come from the sessions module
+        # constants which were read ONCE at sessions.py import with RuntimeError
+        # sanity-check on bad env values. We do NOT re-read os.environ here —
+        # that would bypass D-14's validation and create two sources of truth.
+        def _build_registry() -> SessionRegistry:
+            return SessionRegistry(
+                max_sessions=MAX_SESSIONS,
+                idle_s=SESSION_IDLE_S,
+                reaper_interval_s=REAPER_INTERVAL_S,
+            )
+
         if backend_name is None:
             # Test/escape-hatch path -- no backend, disasm tools return stub.
             # Phase 7 D-11: collision check runs even on the no-backend path; it
@@ -91,13 +108,20 @@ def build_app() -> Starlette:
             # and validates the gateway-native surface stands alone correctly.
             try:
                 await assert_no_collisions(mcp)
-                async with mcp.session_manager.run():
-                    log.info(
-                        "[gateway] ready on %s:%s (no backend)",
-                        os.environ.get("MCP_GATEWAY_HOST", "127.0.0.1"),
-                        os.environ.get("MCP_GATEWAY_PORT", "8080"),
-                    )
-                    yield
+                # Phase 8 D-24: SessionRegistry also active on no-backend path
+                # (r2 is standalone; no disassembler dependency).
+                async with _build_registry() as registry:
+                    session_state.SESSION_REGISTRY = registry
+                    try:
+                        async with mcp.session_manager.run():
+                            log.info(
+                                "[gateway] ready on %s:%s (no backend)",
+                                os.environ.get("MCP_GATEWAY_HOST", "127.0.0.1"),
+                                os.environ.get("MCP_GATEWAY_PORT", "8080"),
+                            )
+                            yield
+                    finally:
+                        session_state.SESSION_REGISTRY = None
             finally:
                 session_state.PINNED_BACKEND = None
             return
@@ -112,19 +136,29 @@ def build_app() -> Starlette:
                 # BEFORE serving so a collision exits the process cleanly with
                 # EX_CONFIG (78) rather than a half-started server.
                 await assert_no_collisions(mcp)
-                async with mcp.session_manager.run():
-                    log.info(
-                        "[gateway] ready on %s:%s",
-                        os.environ.get("MCP_GATEWAY_HOST", "127.0.0.1"),
-                        os.environ.get("MCP_GATEWAY_PORT", "8080"),
-                    )
-                    log.info(
-                        "[gateway] token file: %s",
-                        os.environ.get(
-                            "MCP_GATEWAY_TOKEN_FILE", "/agent/.mcp-gateway-token"
-                        ),
-                    )
-                    yield
+                # Phase 8 D-24: SessionRegistry block lives INSIDE the
+                # PinnedBackend block AND AFTER assert_no_collisions. On
+                # shutdown the registry's __aexit__ kills every open r2 session
+                # BEFORE PinnedBackend's __aexit__ fires (LIFO unwind), so no
+                # zombie r2 processes survive container teardown.
+                async with _build_registry() as registry:
+                    session_state.SESSION_REGISTRY = registry
+                    try:
+                        async with mcp.session_manager.run():
+                            log.info(
+                                "[gateway] ready on %s:%s",
+                                os.environ.get("MCP_GATEWAY_HOST", "127.0.0.1"),
+                                os.environ.get("MCP_GATEWAY_PORT", "8080"),
+                            )
+                            log.info(
+                                "[gateway] token file: %s",
+                                os.environ.get(
+                                    "MCP_GATEWAY_TOKEN_FILE", "/agent/.mcp-gateway-token"
+                                ),
+                            )
+                            yield
+                    finally:
+                        session_state.SESSION_REGISTRY = None
             finally:
                 session_state.PINNED_BACKEND = None
 
