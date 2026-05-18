@@ -98,7 +98,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   - [x] 08-02-PLAN.md — Wave 2: sessions.py primitive (R2Session dataclass, SessionRegistry async-context-manager, reaper loop, _DANGEROUS_R2_CMD_RE, 5 env-var module constants) (D-01..D-04, D-06, D-08, D-09, D-13..D-18)
   - [x] 08-03-PLAN.md — Wave 2: tools/r2_sessions.py MCP surface (open_r2_session, r2_cmd, close_r2_session, list_sessions + register pattern + SESS-05 disclaimer in docstrings) (D-05, D-06, D-10..D-13, D-19..D-23)
   - [x] 08-04-PLAN.md — Wave 3: integration (EXPANDED_CASE_SUBDIRS extension, SESSION_REGISTRY slot in session_state, tools/__init__ register wiring, app.py::lifespan SessionRegistry block in both branches) (D-05, D-07, D-24, D-25, D-26)
-  - [ ] 08-05-PLAN.md — Wave 4: end-to-end validation (flip RED stubs to GREEN with full behavioural bodies for SC-1..SC-5 + Pitfall 6 + Pitfall 18; update 08-VALIDATION.md nyquist_compliant: true) (D-27, D-28)
+  - [x] 08-05-PLAN.md — Wave 4: end-to-end validation (flip RED stubs to GREEN with full behavioural bodies for SC-1..SC-5 + Pitfall 6 + Pitfall 18; update 08-VALIDATION.md nyquist_compliant: true) (D-27, D-28)
 
 ### Phase 9: Background Job System
 **Goal**: Remote agents can launch long-running RE tools (capa, unblob, Ghidra/IDA auto, strace, qemu) and poll for completion without hitting the 60 s MCP request cap
