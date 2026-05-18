@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: Completed 08-03-PLAN.md
-last_updated: "2026-05-18T09:51:12.673Z"
+stopped_at: Completed 08-04-PLAN.md
+last_updated: "2026-05-18T09:59:01.997Z"
 last_activity: 2026-05-18
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 19
-  completed_plans: 17
-  percent: 89
+  completed_plans: 18
+  percent: 95
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 08 (session-scoped-r2) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-05-18
 
@@ -97,6 +97,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 08-session-scoped-r2]: Parallel shutdown sweep in SessionRegistry.__aexit__ via asyncio.gather(close(reason='shutdown')) over open sessions (Claude's Discretion D-16 recommendation) — shutdown duration bounded by slowest killpg, not their sum
 - [Phase 08-session-scoped-r2]: Plan 03: tools/r2_sessions.py MCP surface landed via 1-deviation TDD GREEN — Rule 1 fix for docstring-concat idiom that yielded __doc__=None (Python parser only attaches pure string literals); switched open/r2_cmd to the placeholder+splice pattern already used by close/list
 - [Phase 08-session-scoped-r2]: Plan 03: contract-correctness preserved — resolve_sample consumed as str + explicit hashlib.sha256, env-var constants accessed via sessions.<NAME> (not bind-by-value), zero edits leaked into tools/__init__.py / session_state.py / app.py (those land in Plan 04)
+- [Phase 08-session-scoped-r2]: Plan 04: lifespan SessionRegistry wired in both branches with D-14 single-source-of-truth — app.py imports MAX_SESSIONS/SESSION_IDLE_S/REAPER_INTERVAL_S from sessions module (validated at import); negative grep proves 0 os.environ re-reads in app.py
+- [Phase 08-session-scoped-r2]: Plan 04: Rule-1 fixed pre-existing Plan-01 walker test (case 'alpha' did not match CASE_NAME_RE = ^\d{3}-.+; renamed to '304-r2sess'); Rule-2 added 4 r2-session tool names to EXPECTED_TOOLS (Phase 7 39 -> Phase 8 43 tools, still within 35-50 range)
 
 ### Pending Todos
 
@@ -143,9 +145,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 08-session-scoped-r2 P01 | 3min | 4 tasks | 5 files |
 | Phase 08-session-scoped-r2 P02 | 2min | 1 tasks | 1 files |
 | Phase 08-session-scoped-r2 P03 | 224s | 1 tasks | 1 files |
+| Phase 08-session-scoped-r2 P04 | 6min | 2 tasks | 4 files |
 
 ## Session Continuity
 
-Last session: 2026-05-18T09:51:12.669Z
-Stopped at: Completed 08-03-PLAN.md
+Last session: 2026-05-18T09:58:54.144Z
+Stopped at: Completed 08-04-PLAN.md
 Resume file: None
