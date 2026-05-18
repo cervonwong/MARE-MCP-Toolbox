@@ -60,10 +60,12 @@ created: 2026-05-18
 | SESS-06 | After open, r2_cmd(sid, "e scr.interactive") returns "false" | integration | `pytest tests/test_r2_sessions.py::test_lockdown_init_took_effect -x` | ❌ W0 |
 | Pitfall 6 | r2_cmd(sid, "?I prompt", timeout=2.0) returns session_invalidated: true in <5s | integration | `pytest tests/test_r2_sessions.py::test_hung_cmd_kills_session -x` | ❌ W0 |
 | Pitfall 18 | Cancel r2_cmd("aaaa") after 0.5s; r2 PID dead within 200 ms | integration | `pytest tests/test_r2_sessions.py::test_cancel_propagates_to_killpg -x` | ❌ W0 |
-| D-26 | EXPANDED_CASE_SUBDIRS contains "r2-sessions" | unit | `pytest tests/test_artifacts_io.py::test_expanded_case_subdirs_contains_r2_sessions -x` | ❌ W0 (file exists; new test) |
+| D-26 | EXPANDED_CASE_SUBDIRS contains "r2-sessions" | unit | `pytest tests/test_sessions.py::test_expanded_case_subdirs_contains_r2_sessions -x` | ❌ W0 (file exists; new test) |
 | D-26 | Resource walker exposes mare://cases/<case>/r2-sessions/<sid>-transcript.log | integration | `pytest tests/test_resources_phase7.py::test_r2_sessions_transcript_exposed -x` | ❌ W0 (file exists; new test) |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+
+*Test-file note: Plan 01 Task 2 places the D-29 EXPANDED_CASE_SUBDIRS regression in `tests/test_sessions.py` (not `tests/test_artifacts_io.py`). The catalog row above uses `test_sessions.py` consistently with Plan 01.*
 
 ---
 
@@ -99,3 +101,5 @@ created: 2026-05-18
 - [ ] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** pending
+</content>
+</invoke>
