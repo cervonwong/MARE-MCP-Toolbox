@@ -49,7 +49,8 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     python3 python3-pip python3-venv python3-dev python3-all-dev \
     git vim wget coreutils moreutils ripgrep \
     zip unzip xz-utils p7zip-full lz4 zstd \
-    binwalk \
+    # binwalk v2.4.3 reached EOL 2025-12-12 -- migrated to binwalk3 (Rust v3.1.0+, kali-rolling 2026-03-09)
+    binwalk3 \
     yara upx-ucl qemu-user yq acl \
     bison flex libffi-dev libncurses-dev libsqlite3-dev mcpp sqlite3 zlib1g-dev \
  && rm -rf /var/lib/apt/lists/* \
