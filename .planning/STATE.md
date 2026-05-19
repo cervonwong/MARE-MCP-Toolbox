@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: Completed 10-02-PLAN.md
-last_updated: "2026-05-19T06:16:26.843Z"
+stopped_at: Completed 10-03-PLAN.md
+last_updated: "2026-05-19T06:21:24.775Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 29
-  completed_plans: 26
-  percent: 90
+  completed_plans: 27
+  percent: 93
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 10 (extraction-tier) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-05-19
 
@@ -120,6 +120,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 10]: Plan 02: extraction.py LEAF primitive delivered verbatim per plan; module imports cleanly, registers unblob + binwalk_extract JobToolSpecs at import, 20 RED-stub tests flipped GREEN on first run
 - [Phase 10]: Plan 02: binwalk3 depth kwarg retained in schema for forward compatibility but silently ignored in argv (Assumption A2: binwalk3 has no -d/--depth flag); recursion controlled by -M only
 - [Phase 10]: Plan 02: -- argv separator included in both unblob + binwalk argv builders (Open Question #5 resolved YES) -- defense-in-depth against attacker-controlled sample names starting with -
+- [Phase 10]: Plan 03: extraction.py extended in place with archive-bomb monitor (D-17) -- single asyncio.create_task call site inside _spawn_monitor + module-level task retention set (Pitfall: asyncio.create_task GC drop)
+- [Phase 10]: Plan 03: D-15 timing rule enforced -- quarantine_symlinks runs in post-terminal hook BEFORE the final update_meta status flip; CancelledError caught (not re-raised) so quarantine still runs on shutdown
+- [Phase 10]: Plan 03: _du_sb dedups hardlinks via (st_dev, st_ino) seen-set with os.walk(followlinks=False) + lstat + S_ISREG (Pitfall 7 conservative direction); tools.jobs imported LOCALLY inside coroutine to avoid circular import
 
 ### Pending Todos
 
@@ -175,9 +178,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 09-background-job-system P05 | 7min | 3 tasks | 3 files |
 | Phase 10 P01 | 4min | 2 tasks | 16 files |
 | Phase 10 P02 | 259s | 1 tasks | 1 files |
+| Phase 10 P03 | 3min | 1 tasks | 1 files |
 
 ## Session Continuity
 
-Last session: 2026-05-19T06:16:26.839Z
-Stopped at: Completed 10-02-PLAN.md
+Last session: 2026-05-19T06:21:15.971Z
+Stopped at: Completed 10-03-PLAN.md
 Resume file: None

@@ -132,7 +132,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 **Plans**: 5 plans
   - [x] 10-01-PLAN.md — Wave 0: Dockerfile binwalk3 migration + 13-file RED-stub test scaffold + in-container probe script (D-01, D-24, A1/A2/A3 resolution)
   - [x] 10-02-PLAN.md — Wave 1 primitive: extraction.py core (env constants, extraction_dir, sidecar I/O, quarantine_symlinks, write_upload, two pure argv builders, two JobToolSpec registrations) (D-07..D-12, D-15, D-16, D-18, D-19)
-  - [ ] 10-03-PLAN.md — Wave 1 monitor: start_extract_monitor + _du_sb + GC-safe task retention + post-terminal symlink quarantine hook (D-17)
+  - [x] 10-03-PLAN.md — Wave 1 monitor: start_extract_monitor + _du_sb + GC-safe task retention + post-terminal symlink quarantine hook (D-17)
   - [ ] 10-04-PLAN.md — Wave 2 surface: tools/extract.py — 7 @mcp.tool() handlers + D-23 disclaimer splices + 6 D-22 error shapes + register(mcp) (D-01..D-06, D-22, D-23)
   - [ ] 10-05-PLAN.md — Wave 3 integration: tools/__init__.py wiring + EXPECTED_TOOLS 47→54 + range bump + Wave 0 RED→GREEN flip on all 13 test files + VALIDATION.md sign-off (D-20)
 
@@ -173,6 +173,6 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 7. run_shell + Static Wrappers | v1.1      | 0/?   | Not started | -          |
 | 8. Session-Scoped r2           | v1.1      | 0/5   | Not started | -          |
 | 9. Background Job System       | v1.1      | 0/?   | Not started | -          |
-| 10. Extraction Tier            | v1.1      | 2/5 | In Progress|  |
+| 10. Extraction Tier            | v1.1      | 3/5 | In Progress|  |
 | 11. Dynamic Lab Mode           | v1.1      | 0/?   | Not started | -          |
 | 12. Orchestrator Skill Update  | v1.1      | 0/?   | Not started | -          |
