@@ -96,6 +96,54 @@ async def test_invalid_kwargs_shape(case_dir_fixture, attached_registry):
 
 
 @pytest.mark.asyncio
+async def test_capa_missing_sample_returns_invalid_kwargs(case_dir_fixture, attached_registry):
+    """D-15 #4 (Task 1 of 09-05-PLAN): capa with kwargs={} must NOT raise.
+
+    Regression for 09-VERIFICATION.md truth #7 / CR-02: previously KeyError('sample')
+    from _build_capa_argv escaped the MCP boundary. After this fix, the schema's
+    'required': True on capa.sample triggers _validate_kwargs to raise InvalidKwargs
+    BEFORE build_argv is reached.
+    """
+    async def _call():
+        return await tjobs.start_tool_job(
+            tool="capa",
+            kwargs={},
+            case_dir=str(case_dir_fixture),
+        )
+    result = await _no_exception(_call)
+    assert result["error"] == "invalid kwargs"
+    assert result["field"] == "sample"
+    assert result["expected"] == "required field"
+    assert result["got"] == "missing"
+
+
+@pytest.mark.asyncio
+async def test_capa_path_traversal_returns_invalid_kwargs(case_dir_fixture, attached_registry):
+    """D-15 #4 (Task 2 of 09-05-PLAN): capa with traversal sample must NOT raise.
+
+    Regression for 09-VERIFICATION.md truth #7 / CR-01: previously
+    ValueError('path traversal rejected') from samples.resolve_sample escaped the
+    MCP boundary. After this fix, start_tool_job's broadened except wraps
+    (ValueError, FileNotFoundError, KeyError, OSError) into a D-15 #4 InvalidKwargs
+    with field='kwargs'.
+    """
+    async def _call():
+        return await tjobs.start_tool_job(
+            tool="capa",
+            kwargs={"sample": "../etc/passwd"},
+            case_dir=str(case_dir_fixture),
+        )
+    result = await _no_exception(_call)
+    assert result["error"] == "invalid kwargs"
+    assert result["field"] == "kwargs"
+    assert result["expected"] == "valid per-tool argv inputs"
+    # got is f"{type(e).__name__}: {e}" -- exception class varies (ValueError on
+    # traversal-rejection, FileNotFoundError if traversal isn't pre-checked).
+    # Both are caught by the broadened except clause.
+    assert result["got"].startswith(("ValueError:", "FileNotFoundError:", "OSError:", "KeyError:"))
+
+
+@pytest.mark.asyncio
 async def test_every_error_has_error_key(attached_registry, case_dir_fixture):
     results = [
         await tjobs.start_tool_job(tool="unknown", kwargs={}, case_dir=str(case_dir_fixture)),
@@ -118,4 +166,10 @@ async def test_no_tool_handler_raises(attached_registry, case_dir_fixture):
         await tjobs.get_tool_job("0000000000000000")
         await tjobs.cancel_tool_job("0000000000000000")
         await tjobs.list_tool_jobs(state="_specs")
+        # 09-05-PLAN gap-closure: capa with missing/invalid sample previously raised
+        await tjobs.start_tool_job(tool="capa", kwargs={}, case_dir=str(case_dir_fixture))
+        await tjobs.start_tool_job(
+            tool="capa", kwargs={"sample": "../etc/passwd"},
+            case_dir=str(case_dir_fixture),
+        )
     await _no_exception(lambda: _calls())
