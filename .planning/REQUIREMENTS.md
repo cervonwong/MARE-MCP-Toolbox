@@ -63,12 +63,12 @@
 ### Background Job System (JOBS)
 
 - [x] **JOBS-01**: Agent can start a long-running tool as a background job via `start_tool_job(tool, args)` and receive an opaque job_id; the job runs through `ReToolRunner` with the same safety properties
-- [ ] **JOBS-02**: Agent can poll job status via `get_tool_job(job_id)` returning `status`, head-tail of stdout/stderr, exit code if done, and the log artifact path
-- [ ] **JOBS-03**: Agent can cancel a job via `cancel_tool_job(job_id)` which SIGTERMs the process group and (after a grace period) SIGKILLs
+- [x] **JOBS-02**: Agent can poll job status via `get_tool_job(job_id)` returning `status`, head-tail of stdout/stderr, exit code if done, and the log artifact path
+- [x] **JOBS-03**: Agent can cancel a job via `cancel_tool_job(job_id)` which SIGTERMs the process group and (after a grace period) SIGKILLs
 - [x] **JOBS-04**: Agent can enumerate active and recently-completed jobs via `list_tool_jobs(state)`; the registry is in-memory only, gateway restart cancels in-flight jobs (documented behavior)
 - [x] **JOBS-05**: Each job's log artifact is capped at `MCP_GATEWAY_MAX_JOB_LOG_MB` (default 256 MB); over-cap jobs are killed and marked `status=killed_log_cap`. Completed jobs are LRU-cleaned to bound memory
 - [x] **JOBS-06**: Jobs survive request cancellation correctly — `CancelledError` propagates to `killpg(SIGKILL)` via `asyncio.shield(proc.wait())`; client disconnect → subprocess dead within 200 ms (test asserts this)
-- [ ] **JOBS-07**: Jobs that long-run tools support MCP progress notifications via `Context.report_progress(progress, total, message)` where the tool can produce progress signals (e.g., unblob percent-complete)
+- [x] **JOBS-07**: Jobs that long-run tools support MCP progress notifications via `Context.report_progress(progress, total, message)` where the tool can produce progress signals (e.g., unblob percent-complete)
 
 ### Dynamic Lab Mode (DYN, env-gated default-off)
 

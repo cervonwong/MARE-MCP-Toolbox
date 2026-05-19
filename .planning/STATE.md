@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
-status: executing
-stopped_at: Completed 09-03-PLAN.md
-last_updated: "2026-05-19T01:44:30.250Z"
+status: verifying
+stopped_at: Completed 09-04-PLAN.md (Phase 9 Wave 0 Nyquist suite complete; ready for verification)
+last_updated: "2026-05-19T02:00:31.116Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 8
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 23
-  completed_plans: 22
-  percent: 96
+  completed_plans: 23
+  percent: 100
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 09 (background-job-system) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-19
 
 Progress: [          ] 0% (0/8 phases complete)
@@ -109,6 +109,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 09-background-job-system]: Plan 03: D-25 LIFO nesting applied — BackgroundJobRegistry nests INSIDE SessionRegistry in BOTH lifespan branches; shutdown unwinds jobs → r2 → backend (Phase 11 r2-orchestrating jobs must release r2 handles BEFORE SessionRegistry __aexit__ kills the sessions)
 - [Phase 09-background-job-system]: Plan 03: D-24 module-constant invariant preserved — _build_job_registry imports MAX_JOBS_INFLIGHT/JOB_CANCEL_GRACE_S/MAX_COMPLETED_JOBS from jobs.py; zero new os.environ reads added to app.py (negative grep)
 - [Phase 09-background-job-system]: Plan 03: gateway-native tool count 43 → 47 (4 Phase 9 jobs tools); Rule 1 deviation bumped EXPECTED_TOOLS in test_tool_list.py (precedent: Phase 7-08 SUMMARY same pattern)
+- [Phase 09-background-job-system]: Plan 04: Wave 0 Nyquist suite landed -- 17 test files + conftest + package marker; 66 non-slow tests pass + 1 slow capa skips cleanly on dev host; SC-4 disconnect reap measured at 0.91 ms (well under 200 ms ceiling)
+- [Phase 09-background-job-system]: Plan 04: Rule-3 conftest.registry_factory reloads BOTH mcp_gateway.jobs AND mcp_gateway.tools.jobs when env-override is used (with finalizer to restore), because tools.jobs binds D-15 exception classes by name at import; without dual-reload, tools.jobs.except JobNotFound misses the new class object and the D-15 'tools never raise' contract breaks in test scope
+- [Phase 09-background-job-system]: Plan 04: Rule-1 deviation in test_spec_validation -- 'no jsonschema dep' invariant rewritten from  to source-grep against jobs.py because mcp SDK 1.27 transitively installs jsonschema; semantic invariant preserved (jobs.py does NOT import jsonschema)
+- [Phase 09-background-job-system]: Plan 04: VALIDATION.md flipped to nyquist_compliant=true + wave_0_complete=true; status=validated; 19 Wave 0 checkboxes ticked; Approval=green; Phase 9 ready for /gsd-verify-work sign-off
 
 ### Pending Todos
 
@@ -160,9 +164,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 09-background-job-system P01 | 5min | 3 tasks | 3 files |
 | Phase 09-background-job-system P02 | 6min | 1 tasks | 2 files |
 | Phase 09-background-job-system P03 | 3min | 1 tasks | 4 files |
+| Phase 09-background-job-system P04 | 11min | 3 tasks | 20 files |
 
 ## Session Continuity
 
-Last session: 2026-05-19T01:44:30.246Z
-Stopped at: Completed 09-03-PLAN.md
+Last session: 2026-05-19T02:00:31.113Z
+Stopped at: Completed 09-04-PLAN.md (Phase 9 Wave 0 Nyquist suite complete; ready for verification)
 Resume file: None
