@@ -874,29 +874,34 @@ def register_all_tools(mcp: FastMCP) -> None:
 
 **[ASSUMED] items needing user confirmation:** A2 (ltrace maintenance status — should the orchestrator skill explicitly de-prioritize ltrace?). A4 (compose.yaml security_opt — should Phase 11 explicitly pin `seccomp=unconfined` in compose.yaml to lock the posture?). These are low-stakes but explicit confirmation tightens the security story.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should Phase 11 explicitly pin `security_opt: ["seccomp=unconfined"]` and `cap_add: ["SYS_PTRACE"]` in compose.yaml?**
+   **Resolved (OQ#1):** YES — pin both explicitly. Planner accepts the recommendation; Plan 05 verifies the pins are already present in compose.yaml and asserts their preservation via regression test (per D-DYN-FLAG-02 / threat T-11-05-04).
    - What we know: CLAUDE.md declares this posture; compose.yaml currently relies on this implicitly or via compose.remote.yaml.
    - What's unclear: whether the posture is pinned in code or only documented.
    - Recommendation: Verify `compose.yaml` / `compose.remote.yaml` and PIN explicitly in Phase 11's Plan 01 if not already pinned. Otherwise a future compose edit could silently break dynamic mode.
 
 2. **Should `_validate_kwargs` be extended with array schema support, or should array validation move to `build_argv`?**
+   **Resolved (OQ#2):** Builder-side array validation. Planner accepts the recommendation; arrays are validated inside `build_argv` per JobToolSpec (Phase 11 Plan 02), keeping Phase 9 `_validate_kwargs` unchanged.
    - What we know: Current Phase 9 `_validate_kwargs` only handles integer/string/boolean.
    - What's unclear: whether extending it is in-scope for Phase 11 or a Phase 9 retrofit.
    - Recommendation: Validate in `build_argv` (cleaner separation; matches Phase 10 pattern; minimal Phase 9 touch).
 
 3. **Should `JobToolSpec` gain a `post_terminal_hook` field?**
+   **Resolved (OQ#3):** ADDED. Planner accepts the recommendation; `JobToolSpec` gains an optional 8th field `post_terminal_hook: Optional[Callable[[Job], Awaitable[None]]] = None`. Phase 10 specs leave it as None; Phase 11's three trace specs use it for transcript-finalization.
    - What we know: CONTEXT.md D-DYN-JOB-03 prescribes this; Phase 9's spec is a frozen 7-field dataclass.
    - What's unclear: Adding the field is a 1-line change but constitutes a Phase 9 contract extension.
    - Recommendation: Add as optional 8th field (`post_terminal_hook: Optional[Callable[[Job], Awaitable[None]]] = None`). Phase 10's existing specs don't use it; only Phase 11's three do. Backward-compatible.
 
 4. **Should `run_docker.sh --dynamic` warn about ptrace_scope on the HOST before starting the container?**
+   **Resolved (OQ#4):** DEFERRED to Phase 12. Planner accepts the recommendation; the in-container `dynamic.probe_all()` + per-tool WARN log + structured `{error: "dynamic capability unavailable"}` provide sufficient diagnostics for Phase 11.
    - What we know: ptrace_scope is host-controlled; the in-container probe runs only after the gateway starts.
    - What's unclear: Whether host-side detection in run_docker.sh adds enough value to be worth the bash complexity.
    - Recommendation: Defer to Phase 12 (orchestrator-skill operator-help script). Phase 11's in-container WARN log + structured error from each tool is sufficient.
 
 5. **Is `qemu-user-static` from Kali base apt set sufficient, or should Phase 11 pin a specific version?**
+   **Resolved (OQ#5):** DEFERRED — use whatever apt provides. Planner accepts the recommendation; Dockerfile installs `qemu-user-static` without a version pin (Plan 05 Task 2); multi-thread caveats documented in CONTEXT.md Pitfall #10.
    - What we know: Ubuntu noble ships 8.2.2; Kali ships 8.x.
    - What's unclear: Whether qemu's multi-thread/signal stability has materially improved post-8.0 — the Debian bug 925358 was closed April 2024 but other multi-thread issues persist.
    - Recommendation: Use whatever apt provides; document the multi-thread limitation; do NOT pin a specific qemu version (rebuilds become fragile).
