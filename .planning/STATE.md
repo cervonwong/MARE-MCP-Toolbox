@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: Completed 10-01-PLAN.md
-last_updated: "2026-05-19T06:10:34.686Z"
+stopped_at: Completed 10-02-PLAN.md
+last_updated: "2026-05-19T06:16:26.843Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 29
-  completed_plans: 25
-  percent: 86
+  completed_plans: 26
+  percent: 90
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 10 (extraction-tier) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-05-19
 
@@ -117,6 +117,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 10]: Phase 10 Plan 01: Dockerfile apt migrated from binwalk v2 (EOL 2025-12-12) to binwalk3 in Wave 0 so Plan 02 argv builders target binwalk3 CLI from the start
 - [Phase 10]: Phase 10 Plan 01: Wave 0 RED-stub scaffold landed verbatim per plan (54 tests collected, 51 ImportError on execution); test bodies are 'assert True' placeholders -- Plan 05 owns behavioural body fill-in (Phase 6/7/8/9 precedent)
 - [Phase 10]: Phase 10 Plan 01: scripts/probe_extraction_tools.sh defers Assumption A1/A2/A3 verification to next container rebuild (matches Phase 7 best-effort fallback pattern); operator runs probe inside container before Plan 02 argv builders are finalised
+- [Phase 10]: Plan 02: extraction.py LEAF primitive delivered verbatim per plan; module imports cleanly, registers unblob + binwalk_extract JobToolSpecs at import, 20 RED-stub tests flipped GREEN on first run
+- [Phase 10]: Plan 02: binwalk3 depth kwarg retained in schema for forward compatibility but silently ignored in argv (Assumption A2: binwalk3 has no -d/--depth flag); recursion controlled by -M only
+- [Phase 10]: Plan 02: -- argv separator included in both unblob + binwalk argv builders (Open Question #5 resolved YES) -- defense-in-depth against attacker-controlled sample names starting with -
 
 ### Pending Todos
 
@@ -171,9 +174,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 09-background-job-system P04 | 11min | 3 tasks | 20 files |
 | Phase 09-background-job-system P05 | 7min | 3 tasks | 3 files |
 | Phase 10 P01 | 4min | 2 tasks | 16 files |
+| Phase 10 P02 | 259s | 1 tasks | 1 files |
 
 ## Session Continuity
 
-Last session: 2026-05-19T06:10:27.262Z
-Stopped at: Completed 10-01-PLAN.md
+Last session: 2026-05-19T06:16:26.839Z
+Stopped at: Completed 10-02-PLAN.md
 Resume file: None
