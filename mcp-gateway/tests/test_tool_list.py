@@ -15,8 +15,11 @@ Phase 8 D-05 adds 4 more (session-scoped r2):
   - open_r2_session, r2_cmd, close_r2_session, list_sessions
 Phase 9 D-05 adds 4 more (background jobs):
   - start_tool_job, get_tool_job, cancel_tool_job, list_tool_jobs
-Total after Phase 9: 47. The 15-25 range from v1.0 GW-02 is superseded; the
-Phase 7/8/9 invariant is 35-50.
+Phase 10 D-01 adds 7 more (extraction tier):
+  - run_binwalk, run_unblob, run_upx_test, run_upx_list, run_upx_unpack,
+    list_extracted_files, promote_extracted_sample
+Total after Phase 10: 54. The 15-25 range from v1.0 GW-02 is superseded; the
+Phase 10 invariant is 35-60 (absorbs Phase 11's conditional dynamic tools).
 
 IMPORTANT -- FastMCP internals vs public API:
   The preferred way to list tool names is via the public MCP client API:
@@ -62,6 +65,9 @@ EXPECTED_TOOLS = {
     "open_r2_session", "r2_cmd", "close_r2_session", "list_sessions",
     # Phase 9 D-05 background jobs (4)
     "start_tool_job", "get_tool_job", "cancel_tool_job", "list_tool_jobs",
+    # Phase 10 D-01 extraction tier (7)
+    "run_binwalk", "run_unblob", "run_upx_test", "run_upx_list", "run_upx_unpack",
+    "list_extracted_files", "promote_extracted_sample",
 }
 
 
@@ -87,9 +93,9 @@ async def test_all_expected_tools_present(registered):
 async def test_tool_count_in_range(registered):
     names = await _list_tool_names(registered)
     n = len(names)
-    # Phase 7 D-16 expanded v1.0's 15-25 range. Current surface is 39 tools
-    # (22 v1.0 + 17 Phase 7); allow a small band for incremental additions.
-    assert 35 <= n <= 50, f"tool count {n} violates Phase 7 D-16 invariant (35-50)"
+    # Phase 10 D-01 expands to 54 (47 + 7); range 35-60 absorbs Phase 11's
+    # conditional dynamic tools (env-gated, default-off).
+    assert 35 <= n <= 60, f"tool count {n} violates Phase 10 D-01 invariant (35-60)"
 
 
 async def test_no_unexpected_tools(registered):
@@ -124,5 +130,5 @@ def test_tool_count_private_sanity(registered):
     """
     # FastMCP internal -- if upgraded past 1.27, rewrite using create_connected_server_and_client_session.call_tool(name, args)
     n = len(registered._tool_manager._tools)
-    # Phase 7 D-16 expanded v1.0's 15-25 range to 35-50.
-    assert 35 <= n <= 50, f"private-attr sanity: tool count {n} violates Phase 7 D-16 (35-50)"
+    # Phase 10 D-01 expanded the range to 35-60 (absorbs Phase 11's conditional dynamic tools).
+    assert 35 <= n <= 60, f"private-attr sanity: tool count {n} violates Phase 10 D-01 (35-60)"
