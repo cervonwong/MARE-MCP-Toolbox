@@ -12,6 +12,7 @@ Decisions implemented:
 """
 from __future__ import annotations
 
+import asyncio
 import datetime
 import hashlib
 import json
@@ -20,6 +21,7 @@ import os
 import re
 import secrets
 import shutil
+import stat
 import tempfile
 from pathlib import Path
 from typing import Literal
@@ -405,3 +407,179 @@ _BINWALK_EXTRACT_SPEC = JobToolSpec(
     ),
 )
 register_job_tool(_BINWALK_EXTRACT_SPEC)
+
+
+# ----------------------------------------------------------------------------
+# Plan 03: archive-bomb monitor (D-17) + GC-safe task retention
+# ----------------------------------------------------------------------------
+
+_TERMINAL_JOB_STATUSES: frozenset[str] = frozenset({
+    "succeeded", "failed", "cancelled", "killed_timeout", "killed_log_cap",
+})
+
+_extract_monitor_tasks: set[asyncio.Task] = set()
+
+
+def _du_sb(root: Path) -> int:
+    """Sum regular-file sizes under root; do NOT follow symlinks; dedup hardlinks by inode.
+
+    Pitfall 7 mitigation: track (st_dev, st_ino) to avoid double-counting hardlinked
+    content. Errs slightly conservative (caps fire earlier than `du -sb` on hardlinked
+    trees -- the safe direction).
+    """
+    total = 0
+    seen: set[tuple[int, int]] = set()
+    root_p = Path(root)
+    if not root_p.is_dir():
+        return 0
+    for dirpath, _dirs, files in os.walk(str(root_p), followlinks=False):
+        for name in files:
+            p = Path(dirpath) / name
+            try:
+                st = p.lstat()
+            except OSError:
+                continue
+            if not stat.S_ISREG(st.st_mode):
+                continue
+            key = (st.st_dev, st.st_ino)
+            if key in seen:
+                continue
+            seen.add(key)
+            total += st.st_size
+    return total
+
+
+async def start_extract_monitor(
+    job_id: str,
+    extraction_dir: Path,
+    *,
+    interval_s: float | None = None,
+    max_bytes: int | None = None,
+) -> None:
+    """Sibling asyncio.Task -- poll Phase 9 job status + extraction-dir size.
+
+    Cap-exceeded path: write .MARE_EXTRACT_CAP_EXCEEDED marker, flip meta to
+    cap_exceeded (sticky), cancel the Phase 9 job, run post-terminal hook.
+
+    Normal path: poll until job terminal, then post-terminal hook (symlink
+    quarantine BEFORE final meta status flip -- D-15 timing rule).
+
+    Never raises out of the coroutine.
+    """
+    interval = float(interval_s) if interval_s is not None else EXTRACT_MONITOR_INTERVAL_S
+    cap = int(max_bytes) if max_bytes is not None else MAX_EXTRACT_BYTES
+    polls = 0
+    cap_marker_written = False
+
+    from mcp_gateway.tools import jobs as tools_jobs  # LOCAL import: avoid circular
+
+    try:
+        while True:
+            await asyncio.sleep(interval)
+
+            try:
+                snap = await tools_jobs.get_tool_job(job_id)
+            except Exception as e:
+                log.warning("[extract-monitor] get_tool_job(%s) raised: %s", job_id, e)
+                break
+
+            if not isinstance(snap, dict):
+                log.warning("[extract-monitor] non-dict snapshot for %s", job_id)
+                break
+            if "error" in snap:
+                log.info("[extract-monitor] job %s evicted (%s)", job_id, snap.get("error"))
+                break
+            if snap.get("status") in _TERMINAL_JOB_STATUSES:
+                break
+
+            try:
+                size = _du_sb(Path(extraction_dir))
+            except Exception as e:
+                log.warning("[extract-monitor] _du_sb raised: %s", e)
+                size = 0
+            polls += 1
+            try:
+                update_meta(Path(extraction_dir), {
+                    "extract_bytes_total": size,
+                    "monitor_polls": polls,
+                })
+            except Exception as e:
+                log.warning("[extract-monitor] update_meta(progress) failed: %s", e)
+
+            if size > cap and not cap_marker_written:
+                try:
+                    marker = Path(extraction_dir) / ".MARE_EXTRACT_CAP_EXCEEDED"
+                    marker.write_text(
+                        "Cap: " + str(cap) + " bytes; observed: " + str(size)
+                        + " bytes; at: " + _utc_now_iso() + "\n",
+                        encoding="utf-8",
+                    )
+                    cap_marker_written = True
+                except Exception as e:
+                    log.warning("[extract-monitor] cap marker write failed: %s", e)
+                try:
+                    update_meta(Path(extraction_dir), {
+                        "cap_exceeded": True,
+                        "status": "cap_exceeded",
+                    })
+                except Exception as e:
+                    log.warning("[extract-monitor] update_meta(cap) failed: %s", e)
+                try:
+                    await tools_jobs.cancel_tool_job(job_id)
+                except Exception as e:
+                    log.warning("[extract-monitor] cancel_tool_job failed: %s", e)
+                break
+
+    except asyncio.CancelledError:
+        log.info("[extract-monitor] cancelled for %s; running post-terminal hook anyway", job_id)
+
+    # Post-terminal hook -- D-15: quarantine BEFORE final status flip
+    try:
+        count, _paths = quarantine_symlinks(Path(extraction_dir))
+    except Exception as e:
+        log.warning("[extract-monitor] quarantine_symlinks failed: %s", e)
+        count = 0
+
+    try:
+        final_snap = await tools_jobs.get_tool_job(job_id)
+    except Exception:
+        final_snap = {}
+
+    try:
+        existing = read_meta(Path(extraction_dir))
+    except Exception:
+        existing = {}
+
+    if existing.get("cap_exceeded"):
+        final_status = "cap_exceeded"
+    elif isinstance(final_snap, dict) and final_snap.get("status") in _TERMINAL_JOB_STATUSES:
+        final_status = final_snap["status"]
+    else:
+        final_status = existing.get("status", "unknown")
+
+    try:
+        final_size = _du_sb(Path(extraction_dir))
+    except Exception:
+        final_size = 0
+
+    try:
+        update_meta(Path(extraction_dir), {
+            "completed_at": _utc_now_iso(),
+            "exit_code": (final_snap.get("exit_code") if isinstance(final_snap, dict) else None),
+            "status": final_status,
+            "symlinks_quarantined": count,
+            "extract_bytes_total": final_size,
+        })
+    except Exception as e:
+        log.warning("[extract-monitor] update_meta(final) failed: %s", e)
+
+
+def _spawn_monitor(job_id: str, extraction_dir: Path) -> asyncio.Task:
+    """Spawn the monitor and retain a strong ref to prevent GC drop.
+
+    Plan 04 wrappers MUST call this (not bare asyncio.create_task).
+    """
+    task = asyncio.create_task(start_extract_monitor(job_id, Path(extraction_dir)))
+    _extract_monitor_tasks.add(task)
+    task.add_done_callback(_extract_monitor_tasks.discard)
+    return task
