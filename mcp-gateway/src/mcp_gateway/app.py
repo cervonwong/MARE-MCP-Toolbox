@@ -25,6 +25,12 @@ from .sessions import (
     SESSION_IDLE_S,
     REAPER_INTERVAL_S,
 )
+from .jobs import (
+    BackgroundJobRegistry,
+    MAX_JOBS_INFLIGHT,
+    JOB_CANCEL_GRACE_S,
+    MAX_COMPLETED_JOBS,
+)
 from .uploads import upload_handler
 from . import session_state
 
@@ -101,6 +107,15 @@ def build_app() -> Starlette:
                 reaper_interval_s=REAPER_INTERVAL_S,
             )
 
+        def _build_job_registry() -> BackgroundJobRegistry:
+            # D-24 invariant: module constants come from jobs.py (read once at import).
+            # We do NOT re-read os.environ here.
+            return BackgroundJobRegistry(
+                max_inflight=MAX_JOBS_INFLIGHT,
+                cancel_grace_s=JOB_CANCEL_GRACE_S,
+                max_completed=MAX_COMPLETED_JOBS,
+            )
+
         if backend_name is None:
             # Test/escape-hatch path -- no backend, disasm tools return stub.
             # Phase 7 D-11: collision check runs even on the no-backend path; it
@@ -108,18 +123,24 @@ def build_app() -> Starlette:
             # and validates the gateway-native surface stands alone correctly.
             try:
                 await assert_no_collisions(mcp)
-                # Phase 8 D-24: SessionRegistry also active on no-backend path
-                # (r2 is standalone; no disassembler dependency).
+                # Phase 8 D-24: SessionRegistry also active on no-backend path.
+                # Phase 9 D-25: BackgroundJobRegistry nests INSIDE SessionRegistry.
+                # LIFO unwind: jobs killed -> r2 sessions killed -> backend torn down.
                 async with _build_registry() as registry:
                     session_state.SESSION_REGISTRY = registry
                     try:
-                        async with mcp.session_manager.run():
-                            log.info(
-                                "[gateway] ready on %s:%s (no backend)",
-                                os.environ.get("MCP_GATEWAY_HOST", "127.0.0.1"),
-                                os.environ.get("MCP_GATEWAY_PORT", "8080"),
-                            )
-                            yield
+                        async with _build_job_registry() as job_registry:
+                            session_state.JOB_REGISTRY = job_registry
+                            try:
+                                async with mcp.session_manager.run():
+                                    log.info(
+                                        "[gateway] ready on %s:%s (no backend)",
+                                        os.environ.get("MCP_GATEWAY_HOST", "127.0.0.1"),
+                                        os.environ.get("MCP_GATEWAY_PORT", "8080"),
+                                    )
+                                    yield
+                            finally:
+                                session_state.JOB_REGISTRY = None
                     finally:
                         session_state.SESSION_REGISTRY = None
             finally:
@@ -136,27 +157,33 @@ def build_app() -> Starlette:
                 # BEFORE serving so a collision exits the process cleanly with
                 # EX_CONFIG (78) rather than a half-started server.
                 await assert_no_collisions(mcp)
-                # Phase 8 D-24: SessionRegistry block lives INSIDE the
-                # PinnedBackend block AND AFTER assert_no_collisions. On
-                # shutdown the registry's __aexit__ kills every open r2 session
-                # BEFORE PinnedBackend's __aexit__ fires (LIFO unwind), so no
-                # zombie r2 processes survive container teardown.
+                # Phase 8 D-24 + Phase 9 D-25: nesting order is
+                # PinnedBackend > SessionRegistry > BackgroundJobRegistry > session_manager.
+                # LIFO unwind on shutdown: jobs cancelled (Phase 9 may drive r2 sessions
+                # via Phase 11) -> r2 sessions killed -> backend torn down. This ordering
+                # matters because Phase 11 jobs that orchestrate r2 must complete their
+                # cancellation BEFORE the r2 sessions go away.
                 async with _build_registry() as registry:
                     session_state.SESSION_REGISTRY = registry
                     try:
-                        async with mcp.session_manager.run():
-                            log.info(
-                                "[gateway] ready on %s:%s",
-                                os.environ.get("MCP_GATEWAY_HOST", "127.0.0.1"),
-                                os.environ.get("MCP_GATEWAY_PORT", "8080"),
-                            )
-                            log.info(
-                                "[gateway] token file: %s",
-                                os.environ.get(
-                                    "MCP_GATEWAY_TOKEN_FILE", "/agent/.mcp-gateway-token"
-                                ),
-                            )
-                            yield
+                        async with _build_job_registry() as job_registry:
+                            session_state.JOB_REGISTRY = job_registry
+                            try:
+                                async with mcp.session_manager.run():
+                                    log.info(
+                                        "[gateway] ready on %s:%s",
+                                        os.environ.get("MCP_GATEWAY_HOST", "127.0.0.1"),
+                                        os.environ.get("MCP_GATEWAY_PORT", "8080"),
+                                    )
+                                    log.info(
+                                        "[gateway] token file: %s",
+                                        os.environ.get(
+                                            "MCP_GATEWAY_TOKEN_FILE", "/agent/.mcp-gateway-token"
+                                        ),
+                                    )
+                                    yield
+                            finally:
+                                session_state.JOB_REGISTRY = None
                     finally:
                         session_state.SESSION_REGISTRY = None
             finally:

@@ -13,8 +13,10 @@ Phase 7 D-16 EXPANDED the curated surface from 22 (v1.0) to 39 tools:
     get_artifact_tree, get_tool_log)
 Phase 8 D-05 adds 4 more (session-scoped r2):
   - open_r2_session, r2_cmd, close_r2_session, list_sessions
-Total after Phase 8: 43. The 15-25 range from v1.0 GW-02 is superseded; the
-Phase 7/8 invariant is 35-50.
+Phase 9 D-05 adds 4 more (background jobs):
+  - start_tool_job, get_tool_job, cancel_tool_job, list_tool_jobs
+Total after Phase 9: 47. The 15-25 range from v1.0 GW-02 is superseded; the
+Phase 7/8/9 invariant is 35-50.
 
 IMPORTANT -- FastMCP internals vs public API:
   The preferred way to list tool names is via the public MCP client API:
@@ -58,6 +60,8 @@ EXPECTED_TOOLS = {
     "get_tool_log",
     # Phase 8 D-05 session-scoped r2 (4)
     "open_r2_session", "r2_cmd", "close_r2_session", "list_sessions",
+    # Phase 9 D-05 background jobs (4)
+    "start_tool_job", "get_tool_job", "cancel_tool_job", "list_tool_jobs",
 }
 
 
