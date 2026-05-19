@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
-status: executing
-stopped_at: Completed 10-04-PLAN.md
-last_updated: "2026-05-19T06:30:07.066Z"
+status: verifying
+stopped_at: Completed 10-05-PLAN.md
+last_updated: "2026-05-19T06:46:13.850Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 8
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 29
-  completed_plans: 28
-  percent: 97
+  completed_plans: 29
+  percent: 100
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 10 (extraction-tier) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-19
 
 Progress: [          ] 0% (0/8 phases complete)
@@ -126,6 +126,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 10]: Plan 04: _existing_case_for_sha256 D-14 helper co-located in tools/extract.py (NOT extraction.py per CONTEXT D-14) — deliberate primitive-layer-isolation deviation; negative-grep on extraction.py enforces
 - [Phase 10]: Plan 04: promote_extracted_sample shells out to scripts/init_status_tree.sh via subprocess_runner.run_script + STATUS_ROOT iterdir pre/post diff to identify new case dir (Pitfall 5: init_case is a closure inside tools/artifacts.py::register, cannot be imported)
 - [Phase 10]: Plan 04: 7 tools registered via mcp.tool()(fn) wrapping pattern in register(mcp) — NOT @decorator at definition (matches Phase 8/9 r2_sessions/jobs); allows direct test import + call
+- [Phase 10]: Wave-3 integration commit pattern: source wire-up + RED->GREEN test flip + VALIDATION sign-off (matches Phase 7-08 + 9-03 precedent)
+- [Phase 10]: Tool-count range bumped 35-50 -> 35-60 to absorb Phase 11 conditional dynamic tools
 
 ### Pending Todos
 
@@ -183,9 +185,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 10 P02 | 259s | 1 tasks | 1 files |
 | Phase 10 P03 | 3min | 1 tasks | 1 files |
 | Phase 10 P04 | 4min30s | 1 tasks | 1 files |
+| Phase 10 P05 | 10min | 3 tasks | 16 files |
 
 ## Session Continuity
 
-Last session: 2026-05-19T06:29:58.648Z
-Stopped at: Completed 10-04-PLAN.md
+Last session: 2026-05-19T06:46:13.846Z
+Stopped at: Completed 10-05-PLAN.md
 Resume file: None

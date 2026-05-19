@@ -26,7 +26,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 - [ ] **Phase 7: run_shell + Typed Static Wrappers + re_artifacts** — Constrained bash one-liner, 12 typed static RE tool wrappers, expanded case-dir artifact tree, and artifact control helpers
 - [ ] **Phase 8: Session-Scoped r2** — Persistent r2 analysis sessions with idle reaper, session cap, and dangerous-command refusal
 - [ ] **Phase 9: Background Job System** — `start_tool_job`/`get_tool_job`/`cancel_tool_job` for long-running tools that exceed the 60 s MCP request cap
-- [ ] **Phase 10: Extraction Tier** — `run_unblob`, `run_binwalk`, UPX wrappers, child-file enumeration, and `promote_extracted_sample`
+- [x] **Phase 10: Extraction Tier** — `run_unblob`, `run_binwalk`, UPX wrappers, child-file enumeration, and `promote_extracted_sample` (completed 2026-05-19)
 - [ ] **Phase 11: Dynamic Lab Mode (env-gated)** — `run_strace`/`run_ltrace`/`run_qemu_user` + session-scoped gdb, default-off via `MCP_GATEWAY_DYNAMIC_TOOLS=1`
 - [ ] **Phase 12: Orchestrator Skill Update** — Update `malware-analysis-orchestrator` to encode v1.1 tool surface, fix backend priority drift, and preserve dual-mode operation
 
@@ -134,7 +134,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   - [x] 10-02-PLAN.md — Wave 1 primitive: extraction.py core (env constants, extraction_dir, sidecar I/O, quarantine_symlinks, write_upload, two pure argv builders, two JobToolSpec registrations) (D-07..D-12, D-15, D-16, D-18, D-19)
   - [x] 10-03-PLAN.md — Wave 1 monitor: start_extract_monitor + _du_sb + GC-safe task retention + post-terminal symlink quarantine hook (D-17)
   - [x] 10-04-PLAN.md — Wave 2 surface: tools/extract.py — 7 @mcp.tool() handlers + D-23 disclaimer splices + 6 D-22 error shapes + register(mcp) (D-01..D-06, D-22, D-23)
-  - [ ] 10-05-PLAN.md — Wave 3 integration: tools/__init__.py wiring + EXPECTED_TOOLS 47→54 + range bump + Wave 0 RED→GREEN flip on all 13 test files + VALIDATION.md sign-off (D-20)
+  - [x] 10-05-PLAN.md — Wave 3 integration: tools/__init__.py wiring + EXPECTED_TOOLS 47→54 + range bump + Wave 0 RED→GREEN flip on all 13 test files + VALIDATION.md sign-off (D-20)
 
 ### Phase 11: Dynamic Lab Mode (env-gated)
 **Goal**: Operators can opt into a first-class dynamic-analysis surface (strace, ltrace, qemu-user, gdb sessions) via `./run_docker.sh --dynamic`, default-off so the standard container shape is unchanged
@@ -173,6 +173,6 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 7. run_shell + Static Wrappers | v1.1      | 0/?   | Not started | -          |
 | 8. Session-Scoped r2           | v1.1      | 0/5   | Not started | -          |
 | 9. Background Job System       | v1.1      | 0/?   | Not started | -          |
-| 10. Extraction Tier            | v1.1      | 4/5 | In Progress|  |
+| 10. Extraction Tier            | v1.1      | 5/5 | Complete   | 2026-05-19 |
 | 11. Dynamic Lab Mode           | v1.1      | 0/?   | Not started | -          |
 | 12. Orchestrator Skill Update  | v1.1      | 0/?   | Not started | -          |
