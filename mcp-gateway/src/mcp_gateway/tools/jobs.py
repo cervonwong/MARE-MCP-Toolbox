@@ -154,7 +154,7 @@ async def start_tool_job(
             got=str(timeout),
         ).to_dict()
 
-    # Steps 5/6/7: submit via registry (D-15 #1 on cap)
+    # Steps 5/6/7: submit via registry (D-15 #1 on cap, D-15 #4 on build_argv failure)
     try:
         job = await registry.submit(
             spec=spec,
@@ -164,6 +164,16 @@ async def start_tool_job(
         )
     except JobCapReached as e:
         return e.to_dict()
+    except (ValueError, FileNotFoundError, KeyError, OSError) as e:
+        # D-15 #4: spec.build_argv() raised on caller-supplied kwargs (e.g., path
+        # traversal in capa's sample, or non-existent sha256). Convert to the
+        # invalid-kwargs error shape so tools NEVER raise out of the MCP boundary
+        # (verification gap: 09-VERIFICATION.md truth #7 / CR-01 + CR-02).
+        return InvalidKwargs(
+            field="kwargs",
+            expected="valid per-tool argv inputs",
+            got=f"{type(e).__name__}: {e}",
+        ).to_dict()
 
     return registry._build_snapshot(job)
 
