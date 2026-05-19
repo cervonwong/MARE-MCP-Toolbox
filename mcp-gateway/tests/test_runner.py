@@ -166,3 +166,41 @@ def test_no_new_pip_deps() -> None:
     forbidden = ("import psutil", "from psutil", "import aiofiles", "from aiofiles")
     for token in forbidden:
         assert token not in src, f"runner.py must not import {token!r} -- stdlib + anyio only"
+
+
+# ---- Phase 9 Q4: proc_callback kwarg ----
+@pytest.mark.asyncio
+async def test_proc_callback_fires_once_with_live_process(tmp_path):
+    captured = []
+    runner = ReToolRunner(case_dir=tmp_path, slug="cb_probe", timeout=10.0)
+    result = await runner.run(["echo", "hi"], proc_callback=lambda p: captured.append(p))
+    assert len(captured) == 1
+    assert hasattr(captured[0], "pid")
+    assert captured[0].returncode == 0
+    assert result["exit_code"] == 0
+
+
+@pytest.mark.asyncio
+async def test_proc_callback_keyword_only(tmp_path):
+    runner = ReToolRunner(case_dir=tmp_path, slug="cb_probe", timeout=10.0)
+    with pytest.raises(TypeError):
+        await runner.run(["echo", "hi"], lambda p: None)
+
+
+@pytest.mark.asyncio
+async def test_proc_callback_default_none_no_regression(tmp_path):
+    runner = ReToolRunner(case_dir=tmp_path, slug="cb_probe", timeout=10.0)
+    result = await runner.run(["echo", "hi"])
+    for k in ("exit_code", "timed_out", "duration_s", "stdout_head",
+              "stdout_truncated", "stdout_bytes_total", "stderr_head",
+              "stderr_truncated", "stderr_bytes_total", "log_path", "argv", "slug"):
+        assert k in result
+
+
+@pytest.mark.asyncio
+async def test_proc_callback_exception_propagates(tmp_path):
+    runner = ReToolRunner(case_dir=tmp_path, slug="cb_probe", timeout=10.0)
+    def boom(p):
+        raise RuntimeError("by design")
+    with pytest.raises(RuntimeError, match="by design"):
+        await runner.run(["echo", "hi"], proc_callback=boom)
