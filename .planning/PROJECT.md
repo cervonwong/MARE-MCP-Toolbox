@@ -31,6 +31,7 @@ Automated malware triage and deep analysis via AI agents with full access to pro
 - ✓ Image-hash covers `mcp-gateway/` so gateway-package edits trigger image rebuild; hash made locale-stable via `LC_ALL=C sort`; logic extracted to `scripts/compute_image_hash.sh` with hermetic pytest regression — Validated in Phase 5: f-1-image-hash-fix (FOUND-01)
 - ✓ `ReToolRunner` chokepoint subprocess primitive — argv-only spawn, `start_new_session=True`, hard timeout with process-group SIGKILL, CancelledError propagation, head-truncated stdout/stderr with full auto-capture to `case_dir/tool-logs/<timestamp>-<slug>.txt`, 100 MB urandom OOM-bounded — Validated in Phase 6: retoolrunner-artifacts-io-foundation (FOUND-02, FOUND-03)
 - ✓ `artifacts_io` leaf helpers — `confine_to` (NUL-byte + traversal + symlink-escape rejection), `ensure_subdir`, `tool_log_path` (`<UTC>-<slug>-<rand4>.txt`), `EXPANDED_CASE_SUBDIRS` 9-name catalog — Validated in Phase 6: retoolrunner-artifacts-io-foundation (FOUND-04)
+- ✓ Session-scoped r2 (radare2) MCP surface — `SessionRegistry` primitive (cap 4, idle reaper 600s, dangerous-cmd denylist, lifespan teardown via `os.killpg`) + 4 MCP tools (`open_r2_session`, `r2_cmd`, `close_r2_session`, `list_r2_sessions`) with SESS-05 disclaimer spliced into every docstring; lifespan SessionRegistry block wired in both backend/skip branches; `EXPANDED_CASE_SUBDIRS` extended with `r2-sessions/` — Validated in Phase 8: session-scoped-r2 (SESS-01, SESS-02, SESS-03, SESS-04, SESS-05, SESS-06)
 
 ### Active
 
@@ -112,7 +113,7 @@ Active requirements are scoped per milestone in `.planning/REQUIREMENTS.md` (cur
 | Single launcher (`run_docker.sh --remote`) vs separate compose files | One UX entry point; mode selected by flag → env exports → compose overlay | ✓ Done — Phase 3 |
 | Expose a constrained `run_shell` over MCP (vs. typed-only surface) | Analyst-parity goal needs the long tail of Kali tools without writing a wrapper for each; safety from cwd-confinement + timeout + output cap + auto-capture, not argv allowlisting | v1.1 — Planned |
 | Typed wrappers only where parsing/validation pays off | With `run_shell` available, wrappers exist for discoverability and structured output (capstone JSON, ropper bounds, r2/gdb sessions), not as the exclusive surface | v1.1 — Planned |
-| Session-scoped r2 and gdb (vs. batched-only) | Iterative analyst workflow needs shared analysis state across calls; one-shot allowlist would force re-analysis on every call | v1.1 — Planned |
+| Session-scoped r2 and gdb (vs. batched-only) | Iterative analyst workflow needs shared analysis state across calls; one-shot allowlist would force re-analysis on every call | ✓ Done (r2) — Phase 8; gdb pending Dynamic Lab Mode |
 | Dynamic mode env-gated default-off, surfaced via `./run_docker.sh --dynamic` | "First-class" = good UX and design, not always-on; opt-in keeps default container shape unchanged | v1.1 — Planned |
 | Drop composite "investigate_*" MCP tools | Composites are agent prompts dressed as tools; malware-analysis-orchestrator skill is the composer | v1.1 — Planned |
 
@@ -134,4 +135,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-13 — v1.1 Phase 6 (ReToolRunner + artifacts_io foundation) complete; FOUND-02, FOUND-03, FOUND-04 validated*
+*Last updated: 2026-05-19 — v1.1 Phase 8 (session-scoped r2) complete; SESS-01..SESS-06 validated*
