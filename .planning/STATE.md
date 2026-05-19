@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-05-19T01:32:18.075Z"
+stopped_at: Completed 09-02-PLAN.md
+last_updated: "2026-05-19T01:38:51.249Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 23
-  completed_plans: 20
-  percent: 87
+  completed_plans: 21
+  percent: 91
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 09 (background-job-system) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-05-19
 
@@ -103,6 +103,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 09-background-job-system]: Plan 01: Q4 surgical extension applied -- ReToolRunner.run gains keyword-only proc_callback kwarg, fires once with live Process after spawn; D-03 12-key contract preserved when None (default)
 - [Phase 09-background-job-system]: Plan 01: jobs.py primitive layer landed verbatim (752 LoC) -- BackgroundJobRegistry async-context-manager + 4 D-15 error types + 3 ship-with specs (_sleep_probe / _log_burst_probe / capa); D-24 invariant (no fastmcp import) and Q3 invariant (no jsonschema dep) verified by negative grep
 - [Phase 09-background-job-system]: Plan 01: capa spec progress_parser=None per Q1 verification (rich Console.status spinner emits no parseable stderr lines); _spawn_and_drive INLINES spawn+drain rather than wrapping ReToolRunner so Phase 9 can layer per-role tail ring buffers (Q1) and per-line progress dispatch (D-16); JOBS-01 safety preserved at spec level
+- [Phase 09-background-job-system]: Plan 02: D-26 disclaimer spliced into all 4 tool docstrings via post-definition .replace() (Phase 8 D-23 mechanism); D-16 Tier-2 ctx.report_progress dedup keyed by ctx.session_id with '_anon_' fallback for programmatic callers
+- [Phase 09-background-job-system]: Plan 02: tools/jobs.py uses module-attribute import 'from mcp_gateway import jobs' (NOT 'from mcp_gateway.jobs import NAME') so importlib.reload(jobs) propagates through tests -- matches Phase 8 r2_sessions convention
+- [Phase 09-background-job-system]: Plan 02: All 4 D-15 error paths route through .to_dict() (7 call sites covering 4 shapes); tools NEVER raise out of MCP boundary -- Phase 6 D-04 / Phase 8 D-18 contract preserved with defensive type-checks on timeout + limit args (Rule 1/2 deviations)
 
 ### Pending Todos
 
@@ -152,9 +155,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 08-session-scoped-r2 P04 | 6min | 2 tasks | 4 files |
 | Phase 08-session-scoped-r2 P05 | 4min | 3 tasks | 3 files |
 | Phase 09-background-job-system P01 | 5min | 3 tasks | 3 files |
+| Phase 09-background-job-system P02 | 6min | 1 tasks | 2 files |
 
 ## Session Continuity
 
-Last session: 2026-05-19T01:32:18.071Z
-Stopped at: Completed 09-01-PLAN.md
+Last session: 2026-05-19T01:38:51.246Z
+Stopped at: Completed 09-02-PLAN.md
 Resume file: None
