@@ -53,12 +53,12 @@
 
 ### Extraction Tier (EXTR)
 
-- [ ] **EXTR-01**: Agent can run binwalk for signatures and entropy via `run_binwalk(case_dir, sample, mode)` where mode covers signatures-only, entropy, and extract; extraction output confined to `case_dir/extracted/binwalk-<ts>/`
-- [ ] **EXTR-02**: Agent can run unblob with structured `--report` JSON via `run_unblob(case_dir, sample)`; output confined to `case_dir/extracted/unblob-<ts>/`
-- [ ] **EXTR-03**: Agent can test/list/unpack UPX-packed samples via `run_upx_test`, `run_upx_list`, `run_upx_unpack`; unpacked output confined to `case_dir/extracted/upx-<ts>/`
-- [ ] **EXTR-04**: Agent can enumerate previously-extracted files via `list_extracted_files(case_dir)` (engine-agnostic)
-- [ ] **EXTR-05**: Agent can promote an extracted child file to a first-class new case via `promote_extracted_sample(parent_case_dir, child_path)`, which re-uploads with sha256 content-addressing, initializes a new case directory, and returns the new case_dir
-- [ ] **EXTR-06**: Extraction tools enforce: symlink quarantine (symlinks become `.symlink-target.txt` files), archive-bomb cap (`MCP_GATEWAY_MAX_EXTRACT_MB` default 4 GB), and atomic promotion (sha256 recomputed)
+- [x] **EXTR-01**: Agent can run binwalk for signatures and entropy via `run_binwalk(case_dir, sample, mode)` where mode covers signatures-only, entropy, and extract; extraction output confined to `case_dir/extracted/binwalk-<ts>/`
+- [x] **EXTR-02**: Agent can run unblob with structured `--report` JSON via `run_unblob(case_dir, sample)`; output confined to `case_dir/extracted/unblob-<ts>/`
+- [x] **EXTR-03**: Agent can test/list/unpack UPX-packed samples via `run_upx_test`, `run_upx_list`, `run_upx_unpack`; unpacked output confined to `case_dir/extracted/upx-<ts>/`
+- [x] **EXTR-04**: Agent can enumerate previously-extracted files via `list_extracted_files(case_dir)` (engine-agnostic)
+- [x] **EXTR-05**: Agent can promote an extracted child file to a first-class new case via `promote_extracted_sample(parent_case_dir, child_path)`, which re-uploads with sha256 content-addressing, initializes a new case directory, and returns the new case_dir
+- [x] **EXTR-06**: Extraction tools enforce: symlink quarantine (symlinks become `.symlink-target.txt` files), archive-bomb cap (`MCP_GATEWAY_MAX_EXTRACT_MB` default 4 GB), and atomic promotion (sha256 recomputed)
 
 ### Background Job System (JOBS)
 

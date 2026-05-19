@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: Completed 10-03-PLAN.md
-last_updated: "2026-05-19T06:21:24.775Z"
+stopped_at: Completed 10-04-PLAN.md
+last_updated: "2026-05-19T06:30:07.066Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 29
-  completed_plans: 27
-  percent: 93
+  completed_plans: 28
+  percent: 97
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 10 (extraction-tier) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-05-19
 
@@ -123,6 +123,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 10]: Plan 03: extraction.py extended in place with archive-bomb monitor (D-17) -- single asyncio.create_task call site inside _spawn_monitor + module-level task retention set (Pitfall: asyncio.create_task GC drop)
 - [Phase 10]: Plan 03: D-15 timing rule enforced -- quarantine_symlinks runs in post-terminal hook BEFORE the final update_meta status flip; CancelledError caught (not re-raised) so quarantine still runs on shutdown
 - [Phase 10]: Plan 03: _du_sb dedups hardlinks via (st_dev, st_ino) seen-set with os.walk(followlinks=False) + lstat + S_ISREG (Pitfall 7 conservative direction); tools.jobs imported LOCALLY inside coroutine to avoid circular import
+- [Phase 10]: Plan 04: _existing_case_for_sha256 D-14 helper co-located in tools/extract.py (NOT extraction.py per CONTEXT D-14) — deliberate primitive-layer-isolation deviation; negative-grep on extraction.py enforces
+- [Phase 10]: Plan 04: promote_extracted_sample shells out to scripts/init_status_tree.sh via subprocess_runner.run_script + STATUS_ROOT iterdir pre/post diff to identify new case dir (Pitfall 5: init_case is a closure inside tools/artifacts.py::register, cannot be imported)
+- [Phase 10]: Plan 04: 7 tools registered via mcp.tool()(fn) wrapping pattern in register(mcp) — NOT @decorator at definition (matches Phase 8/9 r2_sessions/jobs); allows direct test import + call
 
 ### Pending Todos
 
@@ -179,9 +182,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 10 P01 | 4min | 2 tasks | 16 files |
 | Phase 10 P02 | 259s | 1 tasks | 1 files |
 | Phase 10 P03 | 3min | 1 tasks | 1 files |
+| Phase 10 P04 | 4min30s | 1 tasks | 1 files |
 
 ## Session Continuity
 
-Last session: 2026-05-19T06:21:15.971Z
-Stopped at: Completed 10-03-PLAN.md
+Last session: 2026-05-19T06:29:58.648Z
+Stopped at: Completed 10-04-PLAN.md
 Resume file: None
