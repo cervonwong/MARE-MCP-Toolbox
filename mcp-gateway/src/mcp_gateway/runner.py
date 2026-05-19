@@ -1,7 +1,10 @@
 """ReToolRunner: chokepoint subprocess primitive for v1.1 RE tools (Phase 6).
 
 Public API:
-- `ReToolRunner` -- class form (D-01). Hold across multiple ops in Phase 8 sessions / Phase 9 jobs.
+- `ReToolRunner.run(argv, *, proc_callback=None)` -- class form (D-01). Hold
+  across multiple ops in Phase 8 sessions / Phase 9 jobs. The optional
+  `proc_callback` kwarg (Phase 9 Q4) fires once with the live Process
+  immediately after spawn so registry owners can capture pid+pgid for cancellation.
 - `run_tool` -- module-level convenience (D-02). One-shot use in Phase 7 typed wrappers.
 - Module constants `STDOUT_HEAD_KB`, `STDERR_HEAD_KB`, `DEFAULT_TIMEOUT_S`, `MAX_LOG_MB` --
   read once at module import from `MCP_GATEWAY_RUNNER_*` env vars (D-08).
@@ -38,7 +41,7 @@ import re
 import signal
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from mcp_gateway import artifacts_io
 from mcp_gateway.artifacts_io import ensure_subdir, tool_log_path
@@ -202,7 +205,12 @@ class ReToolRunner:
         ) * 1024
         self._log_cap_bytes = MAX_LOG_MB * 1024 * 1024
 
-    async def run(self, argv: list[str]) -> dict:
+    async def run(
+        self,
+        argv: list[str],
+        *,
+        proc_callback: Optional[Callable[["asyncio.subprocess.Process"], None]] = None,
+    ) -> dict:
         if not argv:
             raise ValueError("argv must not be empty")
 
@@ -222,6 +230,12 @@ class ReToolRunner:
             env=env,
             start_new_session=True,
         )
+
+        # Q4 (Phase 9): notify caller of live Process so registry-owned
+        # cancellation paths (Phase 9 D-07/D-23) can capture pid+pgid for
+        # killpg. Fires exactly once, before drain starts. Exceptions propagate.
+        if proc_callback is not None:
+            proc_callback(proc)
 
         timed_out = False
 
