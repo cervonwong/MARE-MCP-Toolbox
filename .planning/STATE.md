@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
-status: verifying
-stopped_at: Completed 09-04-PLAN.md (Phase 9 Wave 0 Nyquist suite complete; ready for verification)
-last_updated: "2026-05-19T02:00:31.116Z"
+status: executing
+stopped_at: "Completed 09-05-PLAN.md (Phase 9 gap closure: D-15 contract restored for capa)"
+last_updated: "2026-05-19T03:15:59.001Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 8
   completed_phases: 5
-  total_plans: 23
-  completed_plans: 23
+  total_plans: 24
+  completed_plans: 24
   percent: 100
 ---
 
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 09 (background-job-system) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
+Plan: 2 of 5
+Status: Ready to execute
 Last activity: 2026-05-19
 
 Progress: [          ] 0% (0/8 phases complete)
@@ -113,6 +113,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 09-background-job-system]: Plan 04: Rule-3 conftest.registry_factory reloads BOTH mcp_gateway.jobs AND mcp_gateway.tools.jobs when env-override is used (with finalizer to restore), because tools.jobs binds D-15 exception classes by name at import; without dual-reload, tools.jobs.except JobNotFound misses the new class object and the D-15 'tools never raise' contract breaks in test scope
 - [Phase 09-background-job-system]: Plan 04: Rule-1 deviation in test_spec_validation -- 'no jsonschema dep' invariant rewritten from  to source-grep against jobs.py because mcp SDK 1.27 transitively installs jsonschema; semantic invariant preserved (jobs.py does NOT import jsonschema)
 - [Phase 09-background-job-system]: Plan 04: VALIDATION.md flipped to nyquist_compliant=true + wave_0_complete=true; status=validated; 19 Wave 0 checkboxes ticked; Approval=green; Phase 9 ready for /gsd-verify-work sign-off
+- [Phase 09-background-job-system]: Plan 05: D-15 contract gap closure for capa -- 'required' schema rule + broader except (ValueError, FileNotFoundError, KeyError, OSError) around registry.submit() restores 'tools never raise' for capa; baseline 'except Exception' count preserved at 1 (narrow exception list chosen over bare Exception)
 
 ### Pending Todos
 
@@ -165,9 +166,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 09-background-job-system P02 | 6min | 1 tasks | 2 files |
 | Phase 09-background-job-system P03 | 3min | 1 tasks | 4 files |
 | Phase 09-background-job-system P04 | 11min | 3 tasks | 20 files |
+| Phase 09-background-job-system P05 | 7min | 3 tasks | 3 files |
 
 ## Session Continuity
 
-Last session: 2026-05-19T02:00:31.113Z
-Stopped at: Completed 09-04-PLAN.md (Phase 9 Wave 0 Nyquist suite complete; ready for verification)
+Last session: 2026-05-19T03:15:58.996Z
+Stopped at: Completed 09-05-PLAN.md (Phase 9 gap closure: D-15 contract restored for capa)
 Resume file: None
