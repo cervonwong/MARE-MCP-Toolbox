@@ -2,395 +2,312 @@
 phase: 09-background-job-system
 reviewed: 2026-05-19T00:00:00Z
 depth: standard
-files_reviewed: 26
+files_reviewed: 29
 files_reviewed_list:
+  - mcp-gateway/src/mcp_gateway/app.py
   - mcp-gateway/src/mcp_gateway/jobs.py
-  - mcp-gateway/src/mcp_gateway/tools/jobs.py
   - mcp-gateway/src/mcp_gateway/runner.py
   - mcp-gateway/src/mcp_gateway/session_state.py
-  - mcp-gateway/src/mcp_gateway/app.py
   - mcp-gateway/src/mcp_gateway/tools/__init__.py
+  - mcp-gateway/src/mcp_gateway/tools/jobs.py
+  - mcp-gateway/tests/jobs/__init__.py
   - mcp-gateway/tests/jobs/conftest.py
-  - mcp-gateway/tests/jobs/test_spec_validation.py
-  - mcp-gateway/tests/jobs/test_registry_lifecycle.py
-  - mcp-gateway/tests/jobs/test_start_tool_job.py
-  - mcp-gateway/tests/jobs/test_lifecycle_status.py
-  - mcp-gateway/tests/jobs/test_get_tool_job.py
-  - mcp-gateway/tests/jobs/test_list_tool_jobs.py
   - mcp-gateway/tests/jobs/test_cancel_grace.py
-  - mcp-gateway/tests/jobs/test_timeout.py
-  - mcp-gateway/tests/jobs/test_log_cap.py
-  - mcp-gateway/tests/jobs/test_disconnect_200ms.py
-  - mcp-gateway/tests/jobs/test_progress.py
-  - mcp-gateway/tests/jobs/test_errors.py
-  - mcp-gateway/tests/jobs/test_lru_retention.py
-  - mcp-gateway/tests/jobs/test_docstring_disclaimer.py
-  - mcp-gateway/tests/jobs/test_terminal_snapshot_json.py
-  - mcp-gateway/tests/jobs/test_lifespan_integration.py
   - mcp-gateway/tests/jobs/test_capa_integration.py
-  - mcp-gateway/tests/test_tool_list.py
+  - mcp-gateway/tests/jobs/test_disconnect_200ms.py
+  - mcp-gateway/tests/jobs/test_docstring_disclaimer.py
+  - mcp-gateway/tests/jobs/test_errors.py
+  - mcp-gateway/tests/jobs/test_get_tool_job.py
+  - mcp-gateway/tests/jobs/test_lifecycle_status.py
+  - mcp-gateway/tests/jobs/test_lifespan_integration.py
+  - mcp-gateway/tests/jobs/test_list_tool_jobs.py
+  - mcp-gateway/tests/jobs/test_log_cap.py
+  - mcp-gateway/tests/jobs/test_lru_retention.py
+  - mcp-gateway/tests/jobs/test_progress.py
+  - mcp-gateway/tests/jobs/test_registry_lifecycle.py
+  - mcp-gateway/tests/jobs/test_spec_validation.py
+  - mcp-gateway/tests/jobs/test_start_tool_job.py
+  - mcp-gateway/tests/jobs/test_terminal_snapshot_json.py
+  - mcp-gateway/tests/jobs/test_timeout.py
   - mcp-gateway/tests/test_runner.py
+  - mcp-gateway/tests/test_tool_list.py
+  - mcp-gateway/tests/test_tools_jobs_smoke.py
 findings:
-  critical: 3
-  warning: 6
-  info: 5
-  total: 14
+  critical: 0
+  warning: 5
+  info: 7
+  total: 12
 status: issues_found
 ---
 
 # Phase 9: Code Review Report
 
-**Reviewed:** 2026-05-19
+**Reviewed:** 2026-05-19T00:00:00Z
 **Depth:** standard
-**Files Reviewed:** 26
+**Files Reviewed:** 29
 **Status:** issues_found
 
 ## Summary
 
-Phase 9 implements the background-job system: a `BackgroundJobRegistry` async-context-manager primitive (`jobs.py`) plus a four-tool MCP surface (`tools/jobs.py`). The implementation is deliberate, well-documented against decision tags (D-01..D-26, Q1..Q5), and the test suite is dense. Subprocess lifecycle handling (start_new_session + killpg + shielded wait), LRU eviction with on-disk log preservation, and the LIFO unwind ordering in `app.py` are all sound.
+Phase 9 implements the background-job subsystem on top of FastMCP, layering an
+in-memory `BackgroundJobRegistry`, a subprocess drive loop with per-role drain
+and ring buffers, and four MCP-surface tools (start/get/cancel/list_tool_jobs).
+The architecture is well-disciplined: argv-only spawn, `start_new_session=True`
+for killpg, asyncio.shield around the cancellation grace window, lock-free
+subprocess I/O, hand-rolled kwargs validator avoiding a jsonschema dependency,
+and module-attribute access for test-friendly reloads. Errors are dictified
+through four locked shapes; the regression tests for the verification gap
+(CR-01/CR-02: capa raising out of the MCP boundary) are present and assert the
+boundary contract.
 
-The phase has **three Critical issues that violate the D-15 "tools never raise" contract** at the MCP boundary, all in the `start_tool_job` flow:
+The findings below are non-blocking quality concerns -- no Critical issues
+were found. The main warnings cluster around concurrency edges in `_drain`
+during log-cap exceedance, snapshot reads without a lock, and a few minor
+correctness asymmetries between `runner.py`'s ANSI handling and `jobs.py`'s.
+Tests are thorough; a handful of style/clarity nits are noted as Info.
 
-1. `spec.build_argv(...)` is called inside `BackgroundJobRegistry.submit` BEFORE any try/except in `tools/jobs.py::start_tool_job`, and `_build_capa_argv` calls `samples.resolve_sample` which raises `ValueError` / `FileNotFoundError` on bad input -- these propagate out of the MCP tool, contradicting the contract enforced by `test_no_tool_handler_raises`.
-2. `_build_capa_argv` raises a bare `KeyError("sample")` when the required kwarg is missing -- the hand-rolled validator has no required-fields concept, so a perfectly-valid-looking call `start_tool_job(tool="capa", kwargs={}, case_dir=...)` crashes with an uncaught KeyError.
-3. A submit-cap race in `BackgroundJobRegistry.submit` can briefly exceed `max_inflight`: the cap check, id reservation, and inflight-insertion happen in two separate critical sections with file/path work in between, so two concurrent submits at `inflight == cap - 1` can both pass the check and both insert.
+## Warnings
 
-Several Warning-level concerns center on cancel/status correctness: cancel-before-spawn marks a job that ran-to-completion as `cancelled` (misleading), `cancel_tool_job` returns the snapshot after only a single `await asyncio.sleep(0)` (snapshot may still show `running`), and `line_buf` in `_drain` is unbounded for stderr streams without newlines.
+### WR-01: Both drains can race the log-cap branch and emit duplicate kill markers
 
-The test suite is thorough for the happy paths but does not exercise: missing-kwarg paths for tools with required fields, the submit-cap race, or `cancel_tool_job` racing the drive task to terminal status.
-
-## Critical Issues
-
-### CR-01: `capa` argv-builder raises uncaught exceptions from inside `start_tool_job`
-
-**File:** `mcp-gateway/src/mcp_gateway/jobs.py:353-363` (definition) and `mcp-gateway/src/mcp_gateway/jobs.py:550-552` (call site inside `submit`)
-
-**Issue:** `_build_capa_argv` calls `samples.resolve_sample(sample_ref)`, which raises `ValueError` (bad type, traversal, not-under-allowed-prefix) or `FileNotFoundError` (unknown sha256 / empty dir). `BackgroundJobRegistry.submit` invokes `spec.build_argv(case_dir_path, kwargs)` at line 552, OUTSIDE any try/except. In `tools/jobs.py::start_tool_job` (line 158-166), only `JobCapReached` is caught. Result: a caller passing `kwargs={"sample": "../etc/passwd"}` or `kwargs={"sample": "deadbeef..."}` (non-existent sha256) gets the exception propagated out through the MCP boundary -- this directly violates D-15 ("tools never raise") which the test `test_no_tool_handler_raises` claims to enforce, though the test only exercises the happy-error paths (unknown tool, not-found, invalid-kwargs schema miss).
-
-**Fix:** Wrap the `submit` call (or the inner `build_argv` call) and translate to a D-15 `InvalidKwargs` dict shape:
-
+**File:** `mcp-gateway/src/mcp_gateway/jobs.py:417-430`
+**Issue:** When the combined byte cap is exceeded, each drain task independently
+takes the cap-exceeded branch: it writes its truncated remainder, writes the
+`MARE_JOB_KILLED_LOG_CAP` marker, and SIGKILLs the pgroup. Because stdout and
+stderr drains run concurrently via `asyncio.gather`, both can decide the cap is
+hit on the same tick (or in quick succession before EOF arrives) and each will
+write its own marker line. The on-disk log may then contain two trailing
+markers, only one of which is the "real" one. `test_log_cap.py` masks this
+because it asserts `endswith(MARKER)` -- a duplicate marker still satisfies the
+suffix check.
+**Fix:** Make the cap-exceeded handler idempotent within `_drain` by gating the
+marker-write and the `killpg` call on `job._log_cap_exceeded` so the second
+drain to arrive sees the flag already set and skips its branch:
 ```python
-# In tools/jobs.py::start_tool_job, replace the existing submit try/except:
-try:
-    job = await registry.submit(
-        spec=spec,
-        kwargs=kwargs or {},
-        case_dir_resolved=case_dir_resolved,
-        effective_timeout_s=effective_timeout,
+if job.log_bytes_written + n > MAX_JOB_LOG_BYTES:
+    if not job._log_cap_exceeded:
+        job._log_cap_exceeded = True
+        allowed = max(0, MAX_JOB_LOG_BYTES - job.log_bytes_written)
+        if allowed > 0:
+            file_sink.write(chunk[:allowed])
+            job.log_bytes_written += allowed
+        file_sink.write(b"\n=== MARE_JOB_KILLED_LOG_CAP ===\n")
+        if job.pgid is not None:
+            try:
+                os.killpg(job.pgid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
+    return
+```
+
+### WR-02: `_build_snapshot` reads mutable Job state without acquiring the registry lock
+
+**File:** `mcp-gateway/src/mcp_gateway/jobs.py:707-755`
+**Issue:** `_build_snapshot` is invoked from `get_tool_job`, `cancel_tool_job`,
+and `list_tool_jobs` -- all of which can run concurrently with the drive task
+mutating the same `Job` instance (head/tail buffers, byte counters,
+progress fields, status, ended_at). The registry's `_lock` is documented as
+guarding `_inflight`/`_completed`, but `_build_snapshot` reads through the Job
+reference without holding it. With deques and bytearrays the GIL prevents
+corruption per-operation, but composite reads can observe partial updates
+(e.g., `stdout_bytes_total` newer than `stdout_head_buf`). The 25-key snapshot
+contract does not currently document this skew, and `list_tool_jobs` builds
+N snapshots in a loop without coordination.
+**Fix:** Either (a) document explicitly that snapshots are best-effort point-
+in-time approximations and add a single comment to that effect in
+`_build_snapshot`, or (b) acquire `_lock` for the duration of the read and
+copy out the primitive scalars + `bytes(...)` of the buffers before formatting.
+Option (a) is the pragmatic choice given the existing test contract; in that
+case add this docstring note:
+```python
+def _build_snapshot(self, job: Job) -> dict:
+    """... Snapshot is a best-effort read of live state without holding the
+    registry lock; concurrent drain updates can produce small skew between
+    byte counters and ring-buffer contents (acceptable per Phase 9 D-19)."""
+```
+
+### WR-03: `_strip_ansi` runs after UTF-8 decode in `jobs.py` but on bytes in `runner.py` -- inconsistent escape handling
+
+**File:** `mcp-gateway/src/mcp_gateway/jobs.py:92-96, 722-725`
+**Issue:** `runner.py` strips ANSI on the raw bytes BEFORE decode (line 158
+`_ANSI_ESCAPE.sub(b"", head_bytes)`). `jobs.py` decodes first with
+`errors="replace"` and THEN strips ANSI on text. When an ANSI escape contains
+or is adjacent to non-UTF-8 bytes (unlikely for clean tools, possible for
+tools that emit raw memory), the decode step inserts U+FFFD replacement
+characters which may break the regex match, leaving ANSI fragments in the
+snapshot. The two paths diverge in observable behavior for the same input.
+**Fix:** Mirror the runner.py ordering -- ANSI-strip on bytes first, then
+decode. Add a bytes regex to jobs.py and apply it in `_build_snapshot` before
+decoding `bytes(job.stdout_head_buf)`:
+```python
+_ANSI_ESCAPE_BYTES = re.compile(rb"\x1b\[[0-9;]*[A-Za-z]")
+
+def _strip_ansi_bytes(buf: bytes) -> bytes:
+    return _ANSI_ESCAPE_BYTES.sub(b"", buf)
+
+# in _build_snapshot:
+stdout_head_text = _strip_ansi_bytes(bytes(job.stdout_head_buf)).decode("utf-8", errors="replace")
+```
+
+### WR-04: `cancel_tool_job` uses `await asyncio.sleep(0)` as a synchronisation primitive
+
+**File:** `mcp-gateway/src/mcp_gateway/tools/jobs.py:255-258`
+**Issue:** After calling `registry.cancel(...)`, the code does
+`await asyncio.sleep(0)` "to let the drive task's finally-block settle status
+to terminal." A single yield is not a reliable synchronisation point -- the
+drive task's finally block may need multiple awaits (e.g., the json snapshot
+write, the lock acquire in `_mark_terminal`) before it sets the terminal
+status. The snapshot returned from `cancel_tool_job` may therefore still show
+`status="running"` under load even though the kill has been issued, leading
+to user-visible confusion. `test_cancel_grace.py::test_cancel_running_long_job`
+relies on this implicitly when asserting `snap.get("status") == "cancelled"`.
+**Fix:** Await the drive task directly once cancellation has been issued:
+```python
+if not was_terminal:
+    await registry.cancel(job, reason="user")
+    # Wait for the drive task to actually settle terminal status.
+    if job._drive_task is not None:
+        try:
+            await asyncio.shield(job._drive_task)
+        except (asyncio.CancelledError, Exception):
+            pass  # drive task swallows its own errors via _spawn_and_drive
+```
+
+### WR-05: `submit()` checks the inflight cap and inserts the Job under two separate lock acquisitions, opening a small TOCTOU window
+
+**File:** `mcp-gateway/src/mcp_gateway/jobs.py:545-572`
+**Issue:** The cap check at line 546 (`len(self._inflight) >= self._max_inflight`)
+runs inside the lock, but the actual insertion at line 572
+(`self._inflight[job_id] = job`) is in a *second* lock acquisition AFTER
+`build_argv` has run. Between the two lock holds, additional `submit()` calls
+can pass their cap checks while none of them has yet inserted. With three
+concurrent submits against `max_inflight=2` (and two already in-flight),
+all three can see "2 < 2 false" at separate moments and all three eventually
+insert, producing 3 in-flight jobs (cap violated). The race is narrow but
+real -- `build_argv` is fast for `_sleep_probe` (no I/O) but for `capa` it
+calls `samples.resolve_sample` which does filesystem work and significantly
+widens the window.
+**Fix:** Insert a placeholder Job under the same lock that performs the cap
+check, so the cap is honoured atomically. Then backfill argv / log paths
+outside the lock, and remove the placeholder on `build_argv` failure:
+```python
+async with self._lock:
+    if len(self._inflight) >= self._max_inflight:
+        raise JobCapReached(inflight=len(self._inflight), cap=self._max_inflight)
+    job_id = secrets.token_hex(8)
+    while job_id in self._inflight or job_id in self._completed:
+        job_id = secrets.token_hex(8)
+    placeholder = Job(
+        job_id=job_id, tool=spec.name, spec=spec, kwargs=dict(kwargs),
+        case_dir=case_dir_resolved, argv=[],
+        effective_timeout_s=effective_timeout_s,
+        log_path_abs=Path("/"), log_path_rel="",
     )
-except JobCapReached as e:
-    return e.to_dict()
-except (ValueError, FileNotFoundError, KeyError, OSError) as e:
-    # build_argv or path-resolution failure
-    return InvalidKwargs(
-        field="kwargs",
-        expected="valid per-tool argv inputs",
-        got=f"{type(e).__name__}: {e}",
-    ).to_dict()
-```
+    self._inflight[job_id] = placeholder
 
-Alternatively, push the catch inside `submit` itself so the registry primitive guarantees no raise from a build_argv miss.
-
----
-
-### CR-02: Missing required kwarg crashes with bare KeyError (capa)
-
-**File:** `mcp-gateway/src/mcp_gateway/jobs.py:361` and `mcp-gateway/src/mcp_gateway/jobs.py:254-287`
-
-**Issue:** `_build_capa_argv` does `sample_ref = kw["sample"]` -- if a client calls `start_tool_job(tool="capa", kwargs={}, case_dir=...)`, this raises `KeyError("sample")`. The hand-rolled validator `_validate_kwargs` has no concept of "required" fields (line 267: `if field not in kwargs: continue`), so the validator passes the empty dict cleanly. The KeyError then propagates out of `submit` and out of the MCP tool (same propagation path as CR-01). No test in `tests/jobs/test_spec_validation.py` exercises a missing-required-field case.
-
-**Fix:** Add a `"required": True` flag to the schema vocabulary and enforce in `_validate_kwargs`:
-
-```python
-# In _validate_kwargs, after the spec.kwargs_schema None-check:
-for field, rule in spec.kwargs_schema.items():
-    if field not in kwargs:
-        if rule.get("required"):
-            raise InvalidKwargs(field, "present (required)", "missing")
-        continue
-    # ... rest unchanged
-
-# In _CAPA_SPEC.kwargs_schema:
-kwargs_schema={"sample": {"type": "string", "max_length": 256, "required": True}},
-```
-
-Plus add a defensive `kw.get("sample", "")` in `_build_capa_argv` so the validator is the single source of truth, not a second crash site.
-
----
-
-### CR-03: Submit-cap race -- `max_inflight` can be briefly exceeded under concurrent calls
-
-**File:** `mcp-gateway/src/mcp_gateway/jobs.py:533-576`
-
-**Issue:** `submit` takes the lock at line 542 to check `len(self._inflight) >= self._max_inflight` and generate a `job_id`, then RELEASES the lock at line 549. Between line 549 and the second lock acquisition at line 568, `submit` does I/O (`ensure_subdir`, `spec.build_argv`, `tool_log_path`) and constructs the `Job` dataclass. During that window another concurrent `submit` task is free to enter the first critical section, see the same `len(self._inflight)`, and also pass the cap check. With `max_inflight=4` and three jobs in-flight, two simultaneous submits both pass, both build their argv, both insert -> final inflight count is 5.
-
-Although the unique-id collision check holds (token_hex(8) is reserved while the lock is held, but only against `_inflight | _completed` at the moment of the first acquisition -- another submit could pick the same id during the lock-released window; however with 64 bits of entropy this is statistically negligible), the cap-exceedance is a real correctness violation against D-14 / JOBS-04.
-
-**Fix:** Hold the lock across the entire reservation -> insertion sequence, OR insert a placeholder into `_inflight` under the first lock and complete the Job fields afterwards:
-
-```python
-async def submit(self, *, spec, kwargs, case_dir_resolved, effective_timeout_s) -> Job:
+try:
     case_dir_path = Path(case_dir_resolved)
     ensure_subdir(case_dir_path, "tool-logs")
     argv = spec.build_argv(case_dir_path, kwargs)
     log_abs = tool_log_path(case_dir_path, spec.slug)
-    log_rel = str(log_abs.relative_to(case_dir_path))
-
+    placeholder.argv = list(argv)
+    placeholder.log_path_abs = log_abs
+    placeholder.log_path_rel = str(log_abs.relative_to(case_dir_path))
+except Exception:
     async with self._lock:
-        if len(self._inflight) >= self._max_inflight:
-            raise JobCapReached(inflight=len(self._inflight), cap=self._max_inflight)
-        job_id = secrets.token_hex(8)
-        while job_id in self._inflight or job_id in self._completed:
-            job_id = secrets.token_hex(8)
-        job = Job(
-            job_id=job_id, tool=spec.name, spec=spec, kwargs=dict(kwargs),
-            case_dir=case_dir_resolved, argv=list(argv),
-            effective_timeout_s=effective_timeout_s,
-            log_path_abs=log_abs, log_path_rel=log_rel,
-        )
-        self._inflight[job_id] = job
-
-    job._drive_task = asyncio.create_task(self._spawn_and_drive(job), name=f"job-drive-{job_id}")
-    return job
-```
-
-Note: this also moves CR-01's argv-build failure outside the lock, where it can propagate cleanly to the caller (and be wrapped per CR-01's fix).
-
-## Warnings
-
-### WR-01: `cancel-before-spawn` mislabels a successful job as cancelled
-
-**File:** `mcp-gateway/src/mcp_gateway/jobs.py:591-602` (`cancel`) and `mcp-gateway/src/mcp_gateway/jobs.py:663-671` (terminal-status decision)
-
-**Issue:** If `cancel(job)` is called after `submit` returns but BEFORE `_spawn_and_drive` has set `job.proc`, the cancel sets `_cancel_requested=True` and returns (line 596-598 early-out). The drive task then proceeds to spawn, run, and complete the subprocess to a clean exit. At line 664-665, the terminal-status switch sees `_cancel_requested=True` first and sets `status="cancelled"` even though the process ran to a successful exit. The user is told "your job was cancelled" but in fact the work was performed in full -- and any side effects (file writes, network calls, etc.) happened.
-
-**Fix:** In the drive task, check `_cancel_requested` before spawning AND after spawning the process kill it if requested:
-
-```python
-# At the top of _spawn_and_drive, before opening the file sink:
-if job._cancel_requested:
-    job.status = "cancelled"
-    return  # finally-block will set ended_at + mark terminal
-
-# Immediately after capturing pid/pgid (after `job.pgid = os.getpgid(...)`):
-if job._cancel_requested:
-    try:
-        os.killpg(job.pgid, signal.SIGKILL)
-    except (ProcessLookupError, PermissionError):
-        pass
-    await asyncio.shield(proc.wait())
-    job.status = "cancelled"
-    return
-```
-
----
-
-### WR-02: `cancel_tool_job` returns snapshot before drive task has settled
-
-**File:** `mcp-gateway/src/mcp_gateway/tools/jobs.py:243-250`
-
-**Issue:** After calling `await registry.cancel(job, reason="user")`, the code does `await asyncio.sleep(0)` and then immediately calls `registry._build_snapshot(job)`. A single zero-sleep yields only ONE turn of the event loop -- the drive task's finally-block does multiple awaits (status setting, ended_at, `_mark_terminal` which writes the JSON snapshot under the lock). The returned snapshot may therefore show `status="running"` even though the proc has already been reaped, and `ended_at` may still be None. The cancel-grace test passes because `cancel()` itself awaits `proc.wait()`, but the post-cancel `_drive_task` chain is still racing.
-
-**Fix:** Await the drive task directly (with a short timeout as a safety net) instead of a single yield:
-
-```python
-was_terminal = job.status in jobs._TERMINAL_STATUSES
-if not was_terminal:
-    await registry.cancel(job, reason="user")
-    # Wait for the drive task's finally-block to mark terminal status.
-    if job._drive_task is not None and not job._drive_task.done():
-        try:
-            await asyncio.wait_for(asyncio.shield(job._drive_task), timeout=2.0)
-        except (asyncio.TimeoutError, asyncio.CancelledError):
-            pass  # snapshot may be transient; user can re-poll get_tool_job
-snapshot = registry._build_snapshot(job)
-snapshot["previously_terminal"] = was_terminal
-return snapshot
-```
-
----
-
-### WR-03: `_drain` `line_buf` grows unbounded for newline-less stderr
-
-**File:** `mcp-gateway/src/mcp_gateway/jobs.py:457-472`
-
-**Issue:** When a tool with a `progress_parser` is configured, `_drain` accumulates stderr chunks into `line_buf` until a `\n` arrives (`line_buf.extend(chunk); while b"\n" in line_buf: ...`). A misbehaving tool that writes large amounts of stderr without any newline (e.g., a binary dump, a progress carriage-return spinner using `\r` only, or a faulty tool that strips newlines) will balloon `line_buf` in memory up to the per-job log cap (default 256 MiB) before the cap-kill path fires. This is the entire 256 MiB held twice -- once in the bytearray, plus the on-disk log -- a real memory pressure issue.
-
-**Fix:** Cap `line_buf` at a sane line size and drop overflow without parsing it:
-
-```python
-MAX_LINE_BUF = 64 * 1024  # 64 KiB max line for progress parsing
-# ... inside the progress branch:
-if role == "stderr" and spec.progress_parser is not None:
-    line_buf.extend(chunk)
-    if len(line_buf) > MAX_LINE_BUF:
-        # Drop everything before the last newline (if any), or truncate to last
-        # MAX_LINE_BUF bytes -- prevents unbounded growth on newline-less streams.
-        idx = line_buf.rfind(b"\n")
-        if idx >= 0:
-            line_buf = bytearray(line_buf[idx:])
-        else:
-            line_buf = bytearray(line_buf[-MAX_LINE_BUF:])
-    while b"\n" in line_buf:
-        # ... unchanged
-```
-
----
-
-### WR-04: `_truncate_for_response` has no walk-back iteration cap
-
-**File:** `mcp-gateway/src/mcp_gateway/jobs.py:99-107`
-
-**Issue:** `_truncate_for_response` walks the cut backwards while `(cut[-1] & 0xC0) == 0x80` (UTF-8 continuation byte). In valid UTF-8 a codepoint is at most 4 bytes so this terminates in <=3 steps, but on malformed input (e.g., bytes injected by a malicious tool stdout or corrupted output) the loop could in theory chew through the entire buffer. `runner.py::_truncate_to_utf8_boundary` correctly caps the walk-back at 4 iterations (line 95) -- the same defense should be applied here.
-
-**Fix:** Mirror the runner.py pattern:
-
-```python
-def _truncate_for_response(text: str, head_kb: int) -> str:
-    max_bytes = head_kb * 1024
-    encoded = text.encode("utf-8")
-    if len(encoded) <= max_bytes:
-        return text
-    cut = max_bytes
-    for _ in range(4):
-        if cut == 0:
-            return ""
-        if (encoded[cut] & 0xC0) != 0x80:
-            break
-        cut -= 1
-    return encoded[:cut].decode("utf-8", errors="replace")
-```
-
----
-
-### WR-05: `os.getpgid(proc.pid)` after fast-exiting children may raise
-
-**File:** `mcp-gateway/src/mcp_gateway/jobs.py:637`
-
-**Issue:** Immediately after `create_subprocess_exec` returns, the code does `job.pgid = os.getpgid(proc.pid)`. If the child has already exited (e.g., a fast-failing `sh -c "exit 1"`, or `sleep 0`), `getpgid` can raise `ProcessLookupError` (ESRCH). This is not caught -- it propagates to the outer `except Exception` at line 673, which marks status="failed" and logs. The job is marked failed even though the child may have actually executed correctly (exit 0). Compare runner.py line 259 which uses `os.getpgid(proc.pid)` only at signal time and catches ProcessLookupError.
-
-**Fix:** Capture the pgid defensively and tolerate the lookup miss:
-
-```python
-job.proc = proc
-try:
-    job.pgid = os.getpgid(proc.pid)
-except ProcessLookupError:
-    # Child already exited; we can still proc.wait() on the existing handle
-    # and there is nothing to killpg.
-    job.pgid = None
-```
-
-Cancel paths already guard `if job.pgid is None or job.proc is None: return` so this stays safe.
-
----
-
-### WR-06: `stdout_tail_buf.extend(chunk)` is O(n) per byte for high-throughput streams
-
-**File:** `mcp-gateway/src/mcp_gateway/jobs.py:167-172, 443, 454`
-
-**Issue:** `stdout_tail_buf` / `stderr_tail_buf` are `collections.deque[int]` with `maxlen=32*1024` (32 KiB). `deque.extend(bytes)` iterates the bytes object one byte at a time, performing 32 KiB of single-int appends per ring saturation cycle. For a tool that writes 256 MiB to stdout, this is ~256e6 / 64KiB = 4000 chunks, each appending all 64 KiB byte-by-byte (deque-of-int has no bulk-copy fast-path). Then `bytes(job.stdout_tail_buf)` on the snapshot path rebuilds a `bytes` object from the deque -- another byte-by-byte iteration.
-
-This is a perf concern (out of v1 scope per the review guidance), BUT it also has correctness implications under load: a slow `_drain` keeps the OS pipe buffer full longer, increasing the chance that a misbehaving subprocess blocks on a full pipe and never reaches the cap-kill path. Flagging as Warning rather than Info because it interacts with subprocess lifecycle.
-
-**Fix:** Use a bounded bytearray ring or a deque of bytes-chunks (with byte-count tracking) instead of a deque-of-int. Example:
-
-```python
-# Replace deque[int] with a bytearray-based bounded tail buffer.
-class _ByteRing:
-    def __init__(self, maxlen: int):
-        self.maxlen = maxlen
-        self.buf = bytearray()
-    def extend(self, data: bytes) -> None:
-        self.buf.extend(data)
-        if len(self.buf) > self.maxlen:
-            del self.buf[: len(self.buf) - self.maxlen]
-    def __bytes__(self) -> bytes:
-        return bytes(self.buf)
+        self._inflight.pop(job_id, None)
+    raise
 ```
 
 ## Info
 
-### IN-01: `_validate_kwargs` silently ignores unknown schema-type values
+### IN-01: Duplicate env-helper functions across `jobs.py` and `runner.py`
 
-**File:** `mcp-gateway/src/mcp_gateway/jobs.py:266-287`
+**File:** `mcp-gateway/src/mcp_gateway/jobs.py:49-68`, `mcp-gateway/src/mcp_gateway/runner.py:55-74`
+**Issue:** `_env_int` and `_env_float` are duplicated verbatim across both
+modules. The jobs.py file calls out "inlined per Q4 -- avoid runner.py /
+sessions.py cross-import" but that rationale isn't load-bearing -- a small
+`mcp_gateway/_env.py` leaf module would be importable by both without cycles.
+**Fix:** Extract `_env_int` / `_env_float` to a leaf module
+`mcp_gateway/_env.py` and import from there in both `jobs.py` and `runner.py`.
+Phase 8 `sessions.py` can later adopt the same module.
 
-**Issue:** If a future spec adds `{"type": "number"}` (typo) or `{"type": "list"}` (unsupported), `_validate_kwargs` silently passes the value through (none of the `elif` branches match, no `else` clause). This is forward-compat-friendly but masks typos.
+### IN-02: `_validate_kwargs` does not support `enum` on integer fields
 
-**Fix:** Add a final `else: raise RuntimeError(f"unsupported schema type {expected!r} in spec {spec.name}")` -- this is a developer error, not a user error, so a non-D-15 raise at spec-registration / first-call time is appropriate.
+**File:** `mcp-gateway/src/mcp_gateway/jobs.py:274-280`
+**Issue:** The validator supports `enum` for `string` types but not for
+`integer`. No current spec needs it, but the docstring on line 256-263 lists
+the supported shapes; future spec authors may try `{"type": "integer",
+"enum": [1, 2, 3]}` and find it silently ignored.
+**Fix:** Add the same `enum` branch to the integer block, or document the
+omission explicitly: "Note: enum is supported on string only".
 
----
+### IN-03: `_build_capa_argv` ignores its `case_dir` parameter
 
-### IN-02: `MAX_JOBS_INFLIGHT=0` permanently disables job submission
-
-**File:** `mcp-gateway/src/mcp_gateway/jobs.py:78`
-
-**Issue:** `_env_int` accepts `0` (lower bound is `>= 0`, not `> 0`). `MAX_JOBS_INFLIGHT=0` means every submit raises `JobCapReached(0, 0)`. This is technically valid (a way to disable the job system entirely) but is silently accepted. Same applies to `MAX_COMPLETED_JOBS=0` (eviction on every terminal job).
-
-**Fix:** Either (a) explicitly document the zero-value semantics in the module docstring or in CLAUDE.md, or (b) tighten validation:
-
+**File:** `mcp-gateway/src/mcp_gateway/jobs.py:356-366`
+**Issue:** The function takes `case_dir: Path` but never uses it -- it calls
+`samples.resolve_sample(sample_ref)` directly without any case-scoping. Sample
+resolution happens against the global `samples.STATUS_ROOT` rather than
+against the job's `case_dir`. This is documented behaviour elsewhere in the
+codebase but is non-obvious from `_build_capa_argv` alone.
+**Fix:** Add a one-line comment clarifying that `case_dir` is intentionally
+unused because `resolve_sample` already enforces STATUS_ROOT confinement:
 ```python
-MAX_JOBS_INFLIGHT: int = _env_int("MCP_GATEWAY_MAX_JOBS_INFLIGHT", 4)
-if MAX_JOBS_INFLIGHT == 0:
-    log.warning("[jobs] MCP_GATEWAY_MAX_JOBS_INFLIGHT=0 -- all submits will fail with JobCapReached")
+def _build_capa_argv(case_dir: Path, kw: dict) -> list[str]:
+    # case_dir is the cwd for the child process; sample lookup is STATUS_ROOT-
+    # scoped via samples.resolve_sample (not case-scoped).
+    ...
 ```
 
----
+### IN-04: `cancel()` swallows `PermissionError` silently with no logging
 
-### IN-03: `_log_burst_probe` argv uses `sh -c` despite the argv-only invariant
-
-**File:** `mcp-gateway/src/mcp_gateway/jobs.py:337`
-
-**Issue:** `_build_log_burst_argv` returns `["sh", "-c", "while true; do head -c 1048576 /dev/urandom | base64; done"]`. This is technically argv-spawned (not `shell=True`), but the contents are a shell pipeline. The module docstring claims "argv-only spawn ... same safety properties as ReToolRunner" (line 12). The `_log_burst_probe` is an internal/hidden test fixture so this is fine in practice, but if a future tool author copies the pattern thinking sh -c is sanctioned by precedent, the chokepoint property weakens.
-
-**Fix:** Add a comment to `_build_log_burst_argv` reinforcing that `sh -c` is permissible ONLY for internal underscore-prefixed test probes, and that user-visible specs (like capa) must use direct argv only.
-
----
-
-### IN-04: `get_tool_job` swallows `ctx.report_progress` exceptions silently
-
-**File:** `mcp-gateway/src/mcp_gateway/tools/jobs.py:207-215`
-
-**Issue:** The `try/except Exception` block around `ctx.report_progress` catches everything and only logs. This is correct per D-15 (tools never raise) but the bare `except Exception` is broad enough to mask real bugs (e.g., a malformed progress payload, an SDK API mismatch). At minimum the log should include the job_id and progress payload so post-mortem analysis is possible.
-
-**Fix:**
-
+**File:** `mcp-gateway/src/mcp_gateway/jobs.py:602-616, 426-429`
+**Issue:** Both `os.killpg` sites in `cancel()` silently `pass` on
+`PermissionError`. If the gateway's UID ever loses permission to signal a
+child it spawned (unusual but possible with namespacing), the job will hang
+silently with no log breadcrumb. The same pattern in `_drain` (line 428) has
+the same gap.
+**Fix:** Log at debug level when these exceptions fire:
 ```python
-try:
-    await ctx.report_progress(
-        job.progress,
-        job.progress_total if job.progress_total is not None else None,
-        job.progress_message,
-    )
-    job._last_reported_to[sid] = cur
-except Exception:
-    log.exception(
-        "[tools.jobs] ctx.report_progress failed for job=%s progress=%s/%s -- ignoring",
-        job.job_id, job.progress, job.progress_total,
-    )
+except (ProcessLookupError, PermissionError) as e:
+    log.debug("[jobs] killpg pgid=%s failed: %s", job.pgid, e)
 ```
 
+### IN-05: `test_terminal_snapshot_json.py` does not validate timestamp parseability
+
+**File:** `mcp-gateway/tests/jobs/test_terminal_snapshot_json.py:25-42`
+**Issue:** Minor: the test asserts `loaded["ended_at"] is not None` but
+doesn't verify the ISO string is parseable. A future regression that produces
+malformed timestamps (e.g., None on `pending` path, or non-ISO strings) would
+slip through.
+**Fix:** Add `from datetime import datetime; datetime.fromisoformat(loaded["ended_at"])`
+to assert the format is parseable.
+
+### IN-06: `asyncio.get_event_loop()` is deprecated when no loop is running (Python 3.12+)
+
+**File:** `mcp-gateway/tests/jobs/test_cancel_grace.py:27-28`
+**Issue:** `asyncio.get_event_loop().time()` is called inside an `async def`
+helper. Inside a running loop it works, but the recommended replacement is
+`asyncio.get_running_loop().time()`. The deprecation warning is suppressed in
+async context for now but the idiom is being phased out.
+**Fix:** Replace with `asyncio.get_running_loop().time()` in both occurrences
+(lines 27, 28).
+
+### IN-07: Comment in `test_progress.py::test_ctx_different_session_does_report` could sharpen test intent
+
+**File:** `mcp-gateway/tests/jobs/test_progress.py:84-99`
+**Issue:** The test asserts `ctx_a.calls == [(5, 10, "halfway")]` and
+`ctx_b.calls == [(5, 10, "halfway")]` -- which is correct per the dedup
+contract, but the assertions are silent on what would happen if a third call
+on `ctx_a` somehow leaked through (e.g., due to a regression that breaks
+dedup keying). Coverage-wise this is fine; clarity-wise the intent could be
+sharper.
+**Fix:** Add a brief comment above the assertions: `# Each session must get
+its own first-time push; subsequent same-state polls within one session are
+dedup'd (covered by test_ctx_dedup_same_session_no_resend).`
+
 ---
 
-### IN-05: `list_tool_jobs` `limit` coercion silently accepts non-numeric
-
-**File:** `mcp-gateway/src/mcp_gateway/tools/jobs.py:303-308`
-
-**Issue:** When `limit` is not a positive int <= 500, the code tries `min(max(1, int(limit)), max_limit)` and falls back to `limit = 50` on `(TypeError, ValueError)`. This silently rewrites a bogus client argument. A client passing `limit="bogus"` or `limit=None` gets `50` with no indication that their argument was ignored. Borderline -- the tools-never-raise contract argues against signalling an error, but a one-line log at INFO level would aid debuggability:
-
-```python
-if not isinstance(limit, int) or limit <= 0 or limit > max_limit:
-    try:
-        coerced = min(max(1, int(limit)), max_limit)
-        log.info("[tools.jobs] list_tool_jobs limit %r coerced to %d", limit, coerced)
-        limit = coerced
-    except (TypeError, ValueError):
-        log.info("[tools.jobs] list_tool_jobs limit %r invalid, defaulting to 50", limit)
-        limit = 50
-```
-
----
-
-_Reviewed: 2026-05-19_
+_Reviewed: 2026-05-19T00:00:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
