@@ -34,7 +34,7 @@ def case_dir_fixture(tmp_path: Path, monkeypatch) -> Path:
 
 
 @pytest.fixture
-def registry_factory(monkeypatch):
+def registry_factory(monkeypatch, request):
     """Factory that constructs a BackgroundJobRegistry with optional env-overrides.
 
     Use the returned builder to apply test-scoped env values BEFORE the registry's
@@ -43,8 +43,21 @@ def registry_factory(monkeypatch):
     Returns: a callable `_build(**kwargs)` that yields a fresh
     BackgroundJobRegistry. Pass `env={"MCP_GATEWAY_MAX_JOB_LOG_MB": 1}` to apply
     env-overrides + reload jobs module BEFORE constructing the registry.
+
+    When env-override is used, both `mcp_gateway.jobs` AND `mcp_gateway.tools.jobs`
+    are reloaded (the latter holds bound references to the former's classes). A
+    teardown finalizer restores both modules so cross-test pollution doesn't
+    leave `tools.jobs.JobNotFound` pointing at a stale class object.
     """
     from mcp_gateway import jobs as jobs_mod
+    from mcp_gateway.tools import jobs as tools_jobs_mod
+
+    reloaded = [False]
+
+    def _restore_modules():
+        if reloaded[0]:
+            importlib.reload(jobs_mod)
+            importlib.reload(tools_jobs_mod)
 
     def _build(*, max_inflight=4, cancel_grace_s=10.0, max_completed=200,
                env: dict | None = None):
@@ -52,12 +65,15 @@ def registry_factory(monkeypatch):
             for k, v in env.items():
                 monkeypatch.setenv(k, str(v))
             importlib.reload(jobs_mod)
+            importlib.reload(tools_jobs_mod)
+            reloaded[0] = True
         return jobs_mod.BackgroundJobRegistry(
             max_inflight=max_inflight,
             cancel_grace_s=cancel_grace_s,
             max_completed=max_completed,
         )
 
+    request.addfinalizer(_restore_modules)
     return _build
 
 
