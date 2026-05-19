@@ -147,7 +147,13 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   4. An agent can drive an interactive gdb-MI3 session (`open_gdb_session` → `gdb_exec` → `close_gdb_session`) restricted to an allowlist of MI prefixes (no `python <code>` sandbox escape); session plumbing reuses the Phase 8 registry
   5. `get_dynamic_capabilities()` probes and reports `ptrace_scope`, `binfmt_misc` status, available qemu architectures, and netns feasibility at gateway startup so agents and operators detect missing capabilities before sample execution
   6. Long-running dynamic tools dispatch through the JOBS system, follow-fork process groups are reaped via `/proc/<runner_pid>/task/*/children` scanning, and samples must be resolved via sha256 from `uploads/` or an existing `case_dir`
-**Plans**: TBD
+**Plans**: 6 plans
+  - [ ] 11-01-PLAN.md — Wave 1: sessions.py → sessions/ package refactor (BaseSession + kind-aware SessionRegistry; preserves every Phase 8 public symbol) (D-01..D-03)
+  - [ ] 11-02-PLAN.md — Wave 1: dynamic.py LEAF primitive (capability probes, wrap_netns, argv profiles, builders, reap_followfork_strays, 3 JobToolSpec registrations) + JobToolSpec.post_terminal_hook extension (D-DYN-NET-01, D-DYN-PROF-01..04, D-DYN-CAP-PROBE-01..02, D-DYN-JOB-01..03)
+  - [ ] 11-03-PLAN.md — Wave 2: sessions/gdb.py gdb-MI3 driver (GdbSession, MI prefix allowlist + deny regex, sentinel framing, mandatory lockdown init batch) (D-04..D-10)
+  - [ ] 11-04-PLAN.md — Wave 2: tools/dynamic.py MCP surface (7 @mcp.tool() handlers + disclaimer splice + sha256 sample resolution + env-gated registration; EXPECTED_TOOLS parametrized 54/61) (D-DYN-TOOL-01..03, D-DYN-IMPORT-01, D-DYN-TEST-COUNT)
+  - [ ] 11-05-PLAN.md — Wave 3: operator surface — run_docker.sh --dynamic flag + EX_USAGE check, compose.yaml env passthrough, Dockerfile qemu-user-static + util-linux, scripts/probe_dynamic_tools.sh helper (D-DYN-FLAG-01..03)
+  - [ ] 11-06-PLAN.md — Wave 3: integration gate — app.py lifespan probe wiring + WARN logging, end-to-end JOBS tests (ENETUNREACH netns + setsid reap + qemu round-trip), README dynamic-mode section, VALIDATION.md sign-off (D-DYN-CAP-PROBE-01, D-DYN-PROBE-LOG)
 
 ### Phase 12: Orchestrator Skill Update
 **Goal**: The `malware-analysis-orchestrator` skill encodes the v1.1 tool surface, fixes stale v1.0 assumptions, and preserves dual-mode operation (gateway + local-script fallback)
