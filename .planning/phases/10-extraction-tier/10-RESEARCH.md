@@ -863,13 +863,13 @@ def write_upload(child_path: Path, target_basename: str) -> tuple[str, Path]:
 | Validation architecture | HIGH | One-to-one map from CONTEXT.md D-24 test files to EXTR-XX requirements; Wave 0 RED-stub gaps enumerated. |
 | Security (V12 Files and Resources) | HIGH | Symlink-quarantine and archive-bomb-cap are the two primary threats; both have explicit CONTEXT.md decisions and standard mitigation patterns. |
 
-### Open Questions for Planning
+### Open Questions for Planning (RESOLVED)
 
-1. **Migrate Dockerfile to `binwalk3`, or stay on `binwalk` v2 with EOL acknowledgment?** Research recommends migrate; planner makes the call. Affects `_build_binwalk_extract_argv`, the `run_binwalk(mode="signatures")` parser, and the `kwargs_schema["depth"]` design.
-2. **`init_case` reuse path: refactor to module-level OR shell out via `subprocess_runner.run_script`?** Research recommends shellout for Phase 10 scope; refactor (small) is also acceptable.
-3. **Should `_lineage.json` count as a 14th MCP Resource explicitly?** Phase 7 D-26 depth-2 walker covers it automatically; CONTEXT.md discretion item leans yes (free signal).
-4. **`engine_specific_summary` field on `list_extracted_files`?** CONTEXT.md discretion; lean yes-for-unblob (`top_chunk_types` from already-parsed `report.json`), maybe-not for binwalk/upx.
-5. **`--` argv separator before `sample` positional in argv builders (defense in depth against accidental flag-in-filename)?** Not in CONTEXT.md; research recommends YES.
+1. **RESOLVED: Migrate to binwalk3** (Plan 01 Task 1 executes the migration). **Migrate Dockerfile to `binwalk3`, or stay on `binwalk` v2 with EOL acknowledgment?** Research recommends migrate; planner makes the call. Affects `_build_binwalk_extract_argv`, the `run_binwalk(mode="signatures")` parser, and the `kwargs_schema["depth"]` design.
+2. **RESOLVED: Shellout via subprocess_runner.run_script** (Plan 04 Pitfall 5). **`init_case` reuse path: refactor to module-level OR shell out via `subprocess_runner.run_script`?** Research recommends shellout for Phase 10 scope; refactor (small) is also acceptable.
+3. **RESOLVED: Yes, auto-exposed via depth-2 walker** (Plan 05 truth statement — no walker edits required). **Should `_lineage.json` count as a 14th MCP Resource explicitly?** Phase 7 D-26 depth-2 walker covers it automatically; CONTEXT.md discretion item leans yes (free signal).
+4. **RESOLVED: Implementer discretion; not gating.** **`engine_specific_summary` field on `list_extracted_files`?** CONTEXT.md discretion; lean yes-for-unblob (`top_chunk_types` from already-parsed `report.json`), maybe-not for binwalk/upx.
+5. **RESOLVED: YES, include `--` separator** (Plan 02 D-12 BEHAVIOR block — applied in every argv builder). **`--` argv separator before `sample` positional in argv builders (defense in depth against accidental flag-in-filename)?** Not in CONTEXT.md; research recommends YES.
 
 ### Ready for Planning
 
