@@ -259,12 +259,15 @@ def _validate_kwargs(spec: JobToolSpec, kwargs: dict) -> None:
       {field: {"type": "string", "max_length": int}}
       {field: {"type": "string", "enum": [str, ...]}}
       {field: {"type": "boolean"}}
+      {field: {"required": True, ...}}    # missing required fields raise InvalidKwargs
     Unknown fields in kwargs are ignored (forward-compatible).
     """
     if spec.kwargs_schema is None:
         return
     for field, rule in spec.kwargs_schema.items():
         if field not in kwargs:
+            if rule.get("required"):
+                raise InvalidKwargs(field, "required field", "missing")
             continue
         val = kwargs[field]
         expected = rule.get("type")
@@ -369,7 +372,7 @@ _CAPA_SPEC = JobToolSpec(
     build_argv=_build_capa_argv,
     default_timeout_s=900.0,
     progress_parser=None,  # Q1 VERIFIED: capa uses rich Console.status('dots') -- no parseable progress
-    kwargs_schema={"sample": {"type": "string", "max_length": 256}},
+    kwargs_schema={"sample": {"type": "string", "max_length": 256, "required": True}},
     description=(
         "Run Mandiant's capa to identify capabilities of a binary sample. "
         "JSON output. Long-running for real samples (1-5 min typical, up to 15 min cap). "
