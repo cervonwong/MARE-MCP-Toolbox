@@ -32,6 +32,7 @@ Automated malware triage and deep analysis via AI agents with full access to pro
 - ✓ `ReToolRunner` chokepoint subprocess primitive — argv-only spawn, `start_new_session=True`, hard timeout with process-group SIGKILL, CancelledError propagation, head-truncated stdout/stderr with full auto-capture to `case_dir/tool-logs/<timestamp>-<slug>.txt`, 100 MB urandom OOM-bounded — Validated in Phase 6: retoolrunner-artifacts-io-foundation (FOUND-02, FOUND-03)
 - ✓ `artifacts_io` leaf helpers — `confine_to` (NUL-byte + traversal + symlink-escape rejection), `ensure_subdir`, `tool_log_path` (`<UTC>-<slug>-<rand4>.txt`), `EXPANDED_CASE_SUBDIRS` 9-name catalog — Validated in Phase 6: retoolrunner-artifacts-io-foundation (FOUND-04)
 - ✓ Session-scoped r2 (radare2) MCP surface — `SessionRegistry` primitive (cap 4, idle reaper 600s, dangerous-cmd denylist, lifespan teardown via `os.killpg`) + 4 MCP tools (`open_r2_session`, `r2_cmd`, `close_r2_session`, `list_r2_sessions`) with SESS-05 disclaimer spliced into every docstring; lifespan SessionRegistry block wired in both backend/skip branches; `EXPANDED_CASE_SUBDIRS` extended with `r2-sessions/` — Validated in Phase 8: session-scoped-r2 (SESS-01, SESS-02, SESS-03, SESS-04, SESS-05, SESS-06)
+- ✓ Background job system for long-running RE tools — `BackgroundJobRegistry` primitive (FIFO eviction, log-cap with `MARE_JOB_KILLED_LOG_CAP` marker, `killpg(SIGKILL)` cancellation grace, 25-key snapshot) + 4 MCP tools (`start_tool_job`, `get_tool_job`, `cancel_tool_job`, `list_tool_jobs`) with D-26 disclaimer + D-15 four-shape error contract (tools never raise — including capa missing/invalid kwargs path closed via 09-05 gap closure); lifespan nested INSIDE SessionRegistry per D-25 LIFO; surgical `proc_callback` extension on `ReToolRunner.run` — Validated in Phase 9: background-job-system (JOBS-01, JOBS-02, JOBS-03, JOBS-04, JOBS-05, JOBS-06, JOBS-07)
 
 ### Active
 
@@ -135,4 +136,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-19 — v1.1 Phase 8 (session-scoped r2) complete; SESS-01..SESS-06 validated*
+*Last updated: 2026-05-19 — v1.1 Phase 9 (background-job-system) complete; JOBS-01..JOBS-07 validated*
