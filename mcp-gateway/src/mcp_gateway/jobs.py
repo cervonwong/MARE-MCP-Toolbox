@@ -377,3 +377,376 @@ _CAPA_SPEC = JobToolSpec(
     ),
 )
 register_job_tool(_CAPA_SPEC)
+
+
+# ----------------------------------------------------------------------------
+# Drain function (Q2 chunked-read; D-09 counter cap; D-16 Tier-1 progress dispatch)
+# ----------------------------------------------------------------------------
+async def _drain(
+    stream: "asyncio.StreamReader",
+    role: str,                     # "stdout" or "stderr"
+    job: "Job",
+    file_sink,                     # open binary file handle, append mode, unbuffered
+    spec: JobToolSpec,
+) -> None:
+    """Per-pipe drain.
+
+    - Chunked read (Phase 6 precedent), NOT readline (Q2 overrides CONTEXT.md D-09 pseudocode)
+    - Per-byte combined counter cap (D-09)
+    - Per-line `\\n`-boundary dispatch to spec.progress_parser (D-16 Tier-1, stderr only)
+    - In-memory ring buffers populated for head AND tail (Q1)
+    - Writes raw bytes to file_sink (Phase 6 D-09 same shape)
+    - On cap-exceed: write marker, immediate SIGKILL (no grace per D-09), return
+    """
+    CHUNK = 64 * 1024
+    head_cap_bytes = (
+        JOB_STDOUT_HEAD_KB if role == "stdout" else JOB_STDERR_HEAD_KB
+    ) * 1024
+    line_buf = bytearray()  # for progress-parser \n-boundary dispatch
+    while True:
+        chunk = await stream.read(CHUNK)
+        if not chunk:
+            return
+
+        n = len(chunk)
+
+        # Combined stdout+stderr counter cap (D-09)
+        if job.log_bytes_written + n > MAX_JOB_LOG_BYTES:
+            job._log_cap_exceeded = True
+            allowed = max(0, MAX_JOB_LOG_BYTES - job.log_bytes_written)
+            if allowed > 0:
+                file_sink.write(chunk[:allowed])
+                job.log_bytes_written += allowed
+            file_sink.write(b"\n=== MARE_JOB_KILLED_LOG_CAP ===\n")
+            # Immediate SIGKILL -- no grace per D-09 ("pathologically loud tool")
+            if job.pgid is not None:
+                try:
+                    os.killpg(job.pgid, signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    pass
+            return
+
+        file_sink.write(chunk)
+        job.log_bytes_written += n
+
+        # Per-role byte counters + head/tail ring buffers (Q1)
+        if role == "stdout":
+            job.stdout_bytes_total += n
+            head = job.stdout_head_buf
+            if len(head) < head_cap_bytes:
+                remaining = head_cap_bytes - len(head)
+                head.extend(chunk[:remaining])
+                if n > remaining:
+                    job.stdout_head_truncated = True
+            else:
+                job.stdout_head_truncated = True
+            job.stdout_tail_buf.extend(chunk)
+        else:
+            job.stderr_bytes_total += n
+            head = job.stderr_head_buf
+            if len(head) < head_cap_bytes:
+                remaining = head_cap_bytes - len(head)
+                head.extend(chunk[:remaining])
+                if n > remaining:
+                    job.stderr_head_truncated = True
+            else:
+                job.stderr_head_truncated = True
+            job.stderr_tail_buf.extend(chunk)
+
+        # Progress dispatch (D-16 Tier-1) -- only stderr is parsed per D-16
+        if role == "stderr" and spec.progress_parser is not None:
+            line_buf.extend(chunk)
+            while b"\n" in line_buf:
+                line, _, rest = line_buf.partition(b"\n")
+                line_buf = bytearray(rest)
+                try:
+                    result = spec.progress_parser(bytes(line))
+                except Exception:
+                    log.exception("[jobs] progress_parser raised -- ignoring")
+                    result = None
+                if result is not None:
+                    cur, total, msg = result
+                    job.progress = int(cur)
+                    job.progress_total = int(total)
+                    # D-18: message truncated to 200 chars
+                    job.progress_message = str(msg)[:200]
+
+
+# ----------------------------------------------------------------------------
+# BackgroundJobRegistry (D-14)
+# ----------------------------------------------------------------------------
+class BackgroundJobRegistry:
+    """Async-context-managed in-memory job registry (D-14, JOBS-04).
+
+    Lifespan contract:
+      __aenter__: ready state, return self.
+      __aexit__:  parallel cancel of every in-flight job (D-07 ladder),
+                  then await drive tasks; in-memory state lost (JOBS-04 explicit).
+
+    Internal state guarded by `_lock`:
+      _inflight:  dict[job_id -> Job]   (pending|running)
+      _completed: OrderedDict[job_id -> Job]  (FIFO by ended_at -- D-10)
+    The lock is NEVER held during subprocess I/O (avoids cross-job head-of-line blocking).
+
+    Design note (JOBS-01): _spawn_and_drive INLINES spawn+drain matching runner.py
+    because Phase 9 layers two extras on Phase 6's drain (per-role tail ring buffers
+    per Q1, per-line progress_parser dispatch per D-16) that runner.py's drain does
+    not provide. JOBS-01 "same safety properties" is upheld at the spec level:
+    argv-only, start_new_session=True, cwd-confine via Path.resolve(strict=True),
+    log-write to tool_log_path, head-cap, byte-counter cap.
+    """
+
+    def __init__(
+        self,
+        *,
+        max_inflight: int,
+        cancel_grace_s: float,
+        max_completed: int,
+    ):
+        self._max_inflight = max_inflight
+        self._cancel_grace_s = cancel_grace_s
+        self._max_completed = max_completed
+        self._inflight: dict[str, Job] = {}
+        self._completed: "collections.OrderedDict[str, Job]" = collections.OrderedDict()
+        self._lock: asyncio.Lock = asyncio.Lock()
+
+    async def __aenter__(self) -> "BackgroundJobRegistry":
+        log.info(
+            "[jobs] registry entered (max_inflight=%d cancel_grace=%.1fs max_completed=%d)",
+            self._max_inflight, self._cancel_grace_s, self._max_completed,
+        )
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        async with self._lock:
+            inflight_jobs = list(self._inflight.values())
+        if inflight_jobs:
+            log.info("[jobs] shutdown: cancelling %d in-flight job(s)", len(inflight_jobs))
+            await asyncio.gather(
+                *[self.cancel(j, reason="shutdown") for j in inflight_jobs],
+                return_exceptions=True,
+            )
+        drive_tasks = [j._drive_task for j in inflight_jobs if j._drive_task is not None]
+        if drive_tasks:
+            await asyncio.gather(*drive_tasks, return_exceptions=True)
+
+    async def submit(
+        self,
+        *,
+        spec: JobToolSpec,
+        kwargs: dict,
+        case_dir_resolved: str,
+        effective_timeout_s: float,
+    ) -> Job:
+        """Register a new Job + start its drive task. Raises JobCapReached when cap hit."""
+        async with self._lock:
+            if len(self._inflight) >= self._max_inflight:
+                raise JobCapReached(inflight=len(self._inflight), cap=self._max_inflight)
+            # D-05 step 6: 16-hex job_id
+            job_id = secrets.token_hex(8)
+            while job_id in self._inflight or job_id in self._completed:
+                job_id = secrets.token_hex(8)
+
+        case_dir_path = Path(case_dir_resolved)
+        ensure_subdir(case_dir_path, "tool-logs")
+        argv = spec.build_argv(case_dir_path, kwargs)
+        log_abs = tool_log_path(case_dir_path, spec.slug)
+        log_rel = str(log_abs.relative_to(case_dir_path))
+
+        job = Job(
+            job_id=job_id,
+            tool=spec.name,
+            spec=spec,
+            kwargs=dict(kwargs),
+            case_dir=case_dir_resolved,
+            argv=list(argv),
+            effective_timeout_s=effective_timeout_s,
+            log_path_abs=log_abs,
+            log_path_rel=log_rel,
+        )
+
+        async with self._lock:
+            self._inflight[job_id] = job
+
+        # Pitfall 2: retain task on the Job so GC does not drop it
+        job._drive_task = asyncio.create_task(
+            self._spawn_and_drive(job),
+            name=f"job-drive-{job_id}",
+        )
+        return job
+
+    def get(self, job_id: str) -> Job:
+        if job_id in self._inflight:
+            return self._inflight[job_id]
+        if job_id in self._completed:
+            return self._completed[job_id]
+        raise JobNotFound(job_id)
+
+    def list_inflight(self) -> list[Job]:
+        return list(self._inflight.values())
+
+    def list_completed(self) -> list[Job]:
+        return list(self._completed.values())
+
+    async def cancel(self, job: Job, *, reason: str = "user") -> None:
+        """SIGTERM-grace-SIGKILL. Idempotent on terminal jobs (D-07)."""
+        if job.status in _TERMINAL_STATUSES:
+            return
+        job._cancel_requested = True
+        if job.pgid is None or job.proc is None:
+            # Spawn hasn't reached create_subprocess_exec yet; drive task observes flag in finally.
+            return
+        try:
+            os.killpg(job.pgid, signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
+            return
+        try:
+            # D-23: asyncio.shield ONLY here, around the grace-period wait.
+            await asyncio.wait_for(
+                asyncio.shield(job.proc.wait()),
+                timeout=self._cancel_grace_s,
+            )
+        except asyncio.TimeoutError:
+            try:
+                os.killpg(job.pgid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
+            await asyncio.shield(job.proc.wait())
+
+    async def _spawn_and_drive(self, job: Job) -> None:
+        """Spawn subprocess, drive per-role drain, transition to terminal status (D-22)."""
+        spec = job.spec
+        try:
+            case_dir_path = Path(job.case_dir).resolve(strict=True)
+            env = os.environ.copy()
+
+            job.status = "running"
+            job.started_at_mono = time.monotonic()
+            job.started_at_iso = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+
+            with open(job.log_path_abs, "ab", buffering=0) as sink:
+                proc = await asyncio.create_subprocess_exec(
+                    *job.argv,
+                    cwd=str(case_dir_path),
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    env=env,
+                    start_new_session=True,
+                )
+                job.proc = proc
+                job.pgid = os.getpgid(proc.pid)
+
+                try:
+                    await asyncio.wait_for(
+                        asyncio.gather(
+                            _drain(proc.stdout, "stdout", job, sink, spec),
+                            _drain(proc.stderr, "stderr", job, sink, spec),
+                            proc.wait(),
+                        ),
+                        timeout=job.effective_timeout_s,
+                    )
+                except asyncio.TimeoutError:
+                    # D-08: SIGTERM-grace-SIGKILL ladder, then status=killed_timeout
+                    await self.cancel(job, reason="timeout")
+                    job.status = "killed_timeout"
+                    return
+                except asyncio.CancelledError:
+                    # SC-4 path: drive task externally cancelled
+                    try:
+                        os.killpg(job.pgid, signal.SIGKILL)
+                    except (ProcessLookupError, PermissionError):
+                        pass
+                    await asyncio.shield(proc.wait())
+                    job.status = "cancelled"
+                    raise
+
+            # Drain completed naturally -- decide terminal status (D-06 priority order)
+            if job._cancel_requested:
+                job.status = "cancelled"
+            elif job._log_cap_exceeded:
+                job.status = "killed_log_cap"
+            elif proc.returncode == 0:
+                job.status = "succeeded"
+            else:
+                job.status = "failed"
+
+        except Exception:
+            # Unexpected error -- mark failed, log, never propagate (D-15 "tools never raise")
+            log.exception("[jobs] _spawn_and_drive crashed for job %s", job.job_id)
+            job.status = "failed"
+        finally:
+            job.ended_at_mono = time.monotonic()
+            job.ended_at_iso = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+            await self._mark_terminal(job)
+
+    async def _mark_terminal(self, job: Job) -> None:
+        """Move from _inflight to _completed; write .json snapshot (D-21); FIFO-evict (D-10).
+
+        On-disk log file is PRESERVED across eviction (D-10 invariant).
+        """
+        snapshot = self._build_snapshot(job)
+        json_path = job.log_path_abs.with_suffix(".json")
+        try:
+            json_path.write_text(json.dumps(snapshot, default=str, indent=2))
+        except OSError:
+            log.exception("[jobs] failed to write .json snapshot for %s", job.job_id)
+
+        async with self._lock:
+            self._inflight.pop(job.job_id, None)
+            self._completed[job.job_id] = job
+            while len(self._completed) > self._max_completed:
+                evicted_id, _ = self._completed.popitem(last=False)
+                log.info(
+                    "[jobs] FIFO-evicted completed job %s (cap=%d; log file preserved on disk)",
+                    evicted_id, self._max_completed,
+                )
+
+    def _build_snapshot(self, job: Job) -> dict:
+        """Build the D-19 25-key snapshot (12 Phase 6 base + 13 Phase 9 extensions).
+
+        Cheap to call repeatedly: head/tail come from in-memory ring buffers (Q1),
+        no file I/O on the read path.
+        """
+        duration_s = 0.0
+        if job.started_at_mono is not None:
+            end = job.ended_at_mono if job.ended_at_mono is not None else time.monotonic()
+            duration_s = end - job.started_at_mono
+
+        exit_code = -1
+        if job.proc is not None and job.proc.returncode is not None:
+            exit_code = job.proc.returncode
+
+        stdout_head_text = _strip_ansi(bytes(job.stdout_head_buf).decode("utf-8", errors="replace"))
+        stderr_head_text = _strip_ansi(bytes(job.stderr_head_buf).decode("utf-8", errors="replace"))
+        stdout_tail_text = _strip_ansi(bytes(job.stdout_tail_buf).decode("utf-8", errors="replace"))
+        stderr_tail_text = _strip_ansi(bytes(job.stderr_tail_buf).decode("utf-8", errors="replace"))
+
+        return {
+            # Phase 6 D-03 12-key base
+            "exit_code": exit_code,
+            "timed_out": job.status == "killed_timeout",
+            "duration_s": duration_s,
+            "stdout_head": _truncate_for_response(stdout_head_text, JOB_STDOUT_HEAD_KB),
+            "stdout_truncated": job.stdout_head_truncated,
+            "stdout_bytes_total": job.stdout_bytes_total,
+            "stderr_head": _truncate_for_response(stderr_head_text, JOB_STDERR_HEAD_KB),
+            "stderr_truncated": job.stderr_head_truncated,
+            "stderr_bytes_total": job.stderr_bytes_total,
+            "log_path": job.log_path_rel,
+            "argv": list(job.argv),
+            "slug": job.spec.slug,
+            # Phase 9 D-19 extensions (13)
+            "job_id": job.job_id,
+            "tool": job.tool,
+            "status": job.status,
+            "started_at": job.started_at_iso,
+            "ended_at": job.ended_at_iso,
+            "stdout_tail": _truncate_for_response(stdout_tail_text, JOB_STDOUT_TAIL_KB),
+            "stderr_tail": _truncate_for_response(stderr_tail_text, JOB_STDERR_TAIL_KB),
+            "progress": job.progress,
+            "progress_total": job.progress_total,
+            "progress_message": job.progress_message,
+            "kwargs": dict(job.kwargs),
+            "case_dir": job.case_dir,
+            "effective_timeout_s": job.effective_timeout_s,
+        }
