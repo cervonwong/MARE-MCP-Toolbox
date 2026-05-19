@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: Phase 10 context gathered
-last_updated: "2026-05-19T04:21:52.493Z"
+stopped_at: Completed 10-01-PLAN.md
+last_updated: "2026-05-19T06:10:34.686Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 8
   completed_phases: 5
-  total_plans: 24
-  completed_plans: 24
-  percent: 100
+  total_plans: 29
+  completed_plans: 25
+  percent: 86
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion scoped)
 
 **Core value:** Automated malware triage and deep analysis via AI agents with full access to professional RE tooling — accessible both from inside the container and from external MCP clients.
-**Current focus:** Phase 09 — background-job-system
+**Current focus:** Phase 10 — extraction-tier
 
 ## Current Position
 
 Milestone: v1.1 Remote RE Tool Expansion
-Phase: 10
-Plan: Not started
+Phase: 10 (extraction-tier) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
 Last activity: 2026-05-19
 
@@ -114,6 +114,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 09-background-job-system]: Plan 04: Rule-1 deviation in test_spec_validation -- 'no jsonschema dep' invariant rewritten from  to source-grep against jobs.py because mcp SDK 1.27 transitively installs jsonschema; semantic invariant preserved (jobs.py does NOT import jsonschema)
 - [Phase 09-background-job-system]: Plan 04: VALIDATION.md flipped to nyquist_compliant=true + wave_0_complete=true; status=validated; 19 Wave 0 checkboxes ticked; Approval=green; Phase 9 ready for /gsd-verify-work sign-off
 - [Phase 09-background-job-system]: Plan 05: D-15 contract gap closure for capa -- 'required' schema rule + broader except (ValueError, FileNotFoundError, KeyError, OSError) around registry.submit() restores 'tools never raise' for capa; baseline 'except Exception' count preserved at 1 (narrow exception list chosen over bare Exception)
+- [Phase 10]: Phase 10 Plan 01: Dockerfile apt migrated from binwalk v2 (EOL 2025-12-12) to binwalk3 in Wave 0 so Plan 02 argv builders target binwalk3 CLI from the start
+- [Phase 10]: Phase 10 Plan 01: Wave 0 RED-stub scaffold landed verbatim per plan (54 tests collected, 51 ImportError on execution); test bodies are 'assert True' placeholders -- Plan 05 owns behavioural body fill-in (Phase 6/7/8/9 precedent)
+- [Phase 10]: Phase 10 Plan 01: scripts/probe_extraction_tools.sh defers Assumption A1/A2/A3 verification to next container rebuild (matches Phase 7 best-effort fallback pattern); operator runs probe inside container before Plan 02 argv builders are finalised
 
 ### Pending Todos
 
@@ -167,9 +170,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 09-background-job-system P03 | 3min | 1 tasks | 4 files |
 | Phase 09-background-job-system P04 | 11min | 3 tasks | 20 files |
 | Phase 09-background-job-system P05 | 7min | 3 tasks | 3 files |
+| Phase 10 P01 | 4min | 2 tasks | 16 files |
 
 ## Session Continuity
 
-Last session: 2026-05-19T04:21:52.486Z
-Stopped at: Phase 10 context gathered
-Resume file: .planning/phases/10-extraction-tier/10-CONTEXT.md
+Last session: 2026-05-19T06:10:27.262Z
+Stopped at: Completed 10-01-PLAN.md
+Resume file: None
