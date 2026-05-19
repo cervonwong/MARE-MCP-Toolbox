@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: Completed 09-02-PLAN.md
-last_updated: "2026-05-19T01:38:51.249Z"
+stopped_at: Completed 09-03-PLAN.md
+last_updated: "2026-05-19T01:44:30.250Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 23
-  completed_plans: 21
-  percent: 91
+  completed_plans: 22
+  percent: 96
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 09 (background-job-system) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-05-19
 
@@ -106,6 +106,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 09-background-job-system]: Plan 02: D-26 disclaimer spliced into all 4 tool docstrings via post-definition .replace() (Phase 8 D-23 mechanism); D-16 Tier-2 ctx.report_progress dedup keyed by ctx.session_id with '_anon_' fallback for programmatic callers
 - [Phase 09-background-job-system]: Plan 02: tools/jobs.py uses module-attribute import 'from mcp_gateway import jobs' (NOT 'from mcp_gateway.jobs import NAME') so importlib.reload(jobs) propagates through tests -- matches Phase 8 r2_sessions convention
 - [Phase 09-background-job-system]: Plan 02: All 4 D-15 error paths route through .to_dict() (7 call sites covering 4 shapes); tools NEVER raise out of MCP boundary -- Phase 6 D-04 / Phase 8 D-18 contract preserved with defensive type-checks on timeout + limit args (Rule 1/2 deviations)
+- [Phase 09-background-job-system]: Plan 03: D-25 LIFO nesting applied — BackgroundJobRegistry nests INSIDE SessionRegistry in BOTH lifespan branches; shutdown unwinds jobs → r2 → backend (Phase 11 r2-orchestrating jobs must release r2 handles BEFORE SessionRegistry __aexit__ kills the sessions)
+- [Phase 09-background-job-system]: Plan 03: D-24 module-constant invariant preserved — _build_job_registry imports MAX_JOBS_INFLIGHT/JOB_CANCEL_GRACE_S/MAX_COMPLETED_JOBS from jobs.py; zero new os.environ reads added to app.py (negative grep)
+- [Phase 09-background-job-system]: Plan 03: gateway-native tool count 43 → 47 (4 Phase 9 jobs tools); Rule 1 deviation bumped EXPECTED_TOOLS in test_tool_list.py (precedent: Phase 7-08 SUMMARY same pattern)
 
 ### Pending Todos
 
@@ -156,9 +159,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 08-session-scoped-r2 P05 | 4min | 3 tasks | 3 files |
 | Phase 09-background-job-system P01 | 5min | 3 tasks | 3 files |
 | Phase 09-background-job-system P02 | 6min | 1 tasks | 2 files |
+| Phase 09-background-job-system P03 | 3min | 1 tasks | 4 files |
 
 ## Session Continuity
 
-Last session: 2026-05-19T01:38:51.246Z
-Stopped at: Completed 09-02-PLAN.md
+Last session: 2026-05-19T01:44:30.246Z
+Stopped at: Completed 09-03-PLAN.md
 Resume file: None

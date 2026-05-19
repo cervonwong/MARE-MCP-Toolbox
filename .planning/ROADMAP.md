@@ -114,7 +114,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 **Plans**: 4 plans
   - [x] 09-01-PLAN.md — Wave 1: jobs.py primitive (BackgroundJobRegistry + Job/JobToolSpec/JobStatus + 4 D-15 error types + JOB_TOOL_REGISTRY with _sleep_probe/_log_burst_probe/capa specs + 10 env-var constants + chunked-read drain + counter log-cap + FIFO eviction + .json snapshot) AND a surgical 2-line proc_callback kwarg extension to runner.py (D-01..D-14, D-22, D-23, Q1, Q2, Q4)
   - [x] 09-02-PLAN.md — Wave 2: tools/jobs.py MCP surface (start_tool_job / get_tool_job / cancel_tool_job / list_tool_jobs with D-26 disclaimer splice, D-15 four error shapes, D-16 Tier-2 ctx.report_progress with session-id dedup, D-19 25-key snapshot, D-20 _specs magic + Q5 include_internal filter)
-  - [ ] 09-03-PLAN.md — Wave 2: lifespan wiring (session_state.JOB_REGISTRY slot, app.py both branches nest BackgroundJobRegistry INSIDE SessionRegistry per D-25 LIFO unwind, tools/__init__ import + register call)
+  - [x] 09-03-PLAN.md — Wave 2: lifespan wiring (session_state.JOB_REGISTRY slot, app.py both branches nest BackgroundJobRegistry INSIDE SessionRegistry per D-25 LIFO unwind, tools/__init__ import + register call)
   - [ ] 09-04-PLAN.md — Wave 3: Nyquist test suite (18 test files under tests/jobs/ covering SC-1..SC-6 + D-15/D-19/D-20/D-21/D-26 + JOBS-01..JOBS-07; SC-4 200 ms reaping; SC-3 MARE_JOB_KILLED_LOG_CAP marker; capa slow integration gated by capa availability) + test_tool_list.py bumped 43 → 47 + VALIDATION.md flipped nyquist_compliant: true
 
 ### Phase 10: Extraction Tier
