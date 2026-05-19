@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
-status: verifying
-stopped_at: Phase 9 context gathered
-last_updated: "2026-05-19T00:37:12.046Z"
+status: executing
+stopped_at: Completed 09-01-PLAN.md
+last_updated: "2026-05-19T01:32:18.075Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 8
   completed_phases: 4
-  total_plans: 19
-  completed_plans: 19
-  percent: 100
+  total_plans: 23
+  completed_plans: 20
+  percent: 87
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion scoped)
 
 **Core value:** Automated malware triage and deep analysis via AI agents with full access to professional RE tooling — accessible both from inside the container and from external MCP clients.
-**Current focus:** Phase 08 — session-scoped-r2
+**Current focus:** Phase 09 — background-job-system
 
 ## Current Position
 
 Milestone: v1.1 Remote RE Tool Expansion
-Phase: 9
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 09 (background-job-system) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
 Last activity: 2026-05-19
 
 Progress: [          ] 0% (0/8 phases complete)
@@ -100,6 +100,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 08-session-scoped-r2]: Plan 04: lifespan SessionRegistry wired in both branches with D-14 single-source-of-truth — app.py imports MAX_SESSIONS/SESSION_IDLE_S/REAPER_INTERVAL_S from sessions module (validated at import); negative grep proves 0 os.environ re-reads in app.py
 - [Phase 08-session-scoped-r2]: Plan 04: Rule-1 fixed pre-existing Plan-01 walker test (case 'alpha' did not match CASE_NAME_RE = ^\d{3}-.+; renamed to '304-r2sess'); Rule-2 added 4 r2-session tool names to EXPECTED_TOOLS (Phase 7 39 -> Phase 8 43 tools, still within 35-50 range)
 - [Phase 08-session-scoped-r2]: Plan 05: filled every Plan 01 RED stub to GREEN behavioural body; opened_sid pytest-asyncio fixture is single source of open-session boilerplate; VALIDATION.md nyquist_compliant=true + wave_0_complete=true.
+- [Phase 09-background-job-system]: Plan 01: Q4 surgical extension applied -- ReToolRunner.run gains keyword-only proc_callback kwarg, fires once with live Process after spawn; D-03 12-key contract preserved when None (default)
+- [Phase 09-background-job-system]: Plan 01: jobs.py primitive layer landed verbatim (752 LoC) -- BackgroundJobRegistry async-context-manager + 4 D-15 error types + 3 ship-with specs (_sleep_probe / _log_burst_probe / capa); D-24 invariant (no fastmcp import) and Q3 invariant (no jsonschema dep) verified by negative grep
+- [Phase 09-background-job-system]: Plan 01: capa spec progress_parser=None per Q1 verification (rich Console.status spinner emits no parseable stderr lines); _spawn_and_drive INLINES spawn+drain rather than wrapping ReToolRunner so Phase 9 can layer per-role tail ring buffers (Q1) and per-line progress dispatch (D-16); JOBS-01 safety preserved at spec level
 
 ### Pending Todos
 
@@ -148,9 +151,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 08-session-scoped-r2 P03 | 224s | 1 tasks | 1 files |
 | Phase 08-session-scoped-r2 P04 | 6min | 2 tasks | 4 files |
 | Phase 08-session-scoped-r2 P05 | 4min | 3 tasks | 3 files |
+| Phase 09-background-job-system P01 | 5min | 3 tasks | 3 files |
 
 ## Session Continuity
 
-Last session: 2026-05-19T00:37:12.041Z
-Stopped at: Phase 9 context gathered
-Resume file: .planning/phases/09-background-job-system/09-CONTEXT.md
+Last session: 2026-05-19T01:32:18.071Z
+Stopped at: Completed 09-01-PLAN.md
+Resume file: None
