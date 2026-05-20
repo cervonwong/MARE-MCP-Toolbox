@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: Completed 11-03-PLAN.md (gdb-MI3 session driver)
-last_updated: "2026-05-20T00:54:20.578Z"
+stopped_at: Completed 11-04-PLAN.md (dynamic MCP tool surface — 7 env-gated handlers)
+last_updated: "2026-05-20T01:14:07.939Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 35
-  completed_plans: 32
-  percent: 91
+  completed_plans: 33
+  percent: 94
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 11 (dynamic-lab-mode-env-gated) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Status: Ready to execute
 Last activity: 2026-05-20
 
@@ -138,6 +138,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 11-dynamic-lab-mode-env-gated]: Plan 03: deny regex ships 15 alternatives covering 19 deny vectors (jit-reader-load + define explicitly included per VALIDATION DYN-05); allowlist FIRST + deny regex SECOND both raise ValueError
 - [Phase 11-dynamic-lab-mode-env-gated]: Plan 03: sentinel-emit at END of lockdown batch (not interleaved) -- ONE readuntil-the-sentinel for the entire 10-line lockdown init, matches Phase 8 r2 wire shape
 - [Phase 11-dynamic-lab-mode-env-gated]: Plan 03: gdb argv NEVER includes -iex/-ex/-x (Pitfall #10); _build_gdb_argv returns EXACTLY 11 elements via wrap_netns(["gdb","--interpreter=mi3","--quiet","--nx","--nh",sample])
+- [Phase 11-dynamic-lab-mode-env-gated]: Plan 04: tools/dynamic.py (546 LoC) lands 7 env-gated MCP handlers; D-DYN-IMPORT-01 conditional import in tools/__init__.py honored; test_tool_list.py parametrized on env (54 baseline / 61 dynamic); tools NEVER raise contract via try/except returning structured error dicts
+- [Phase 11-dynamic-lab-mode-env-gated]: Plan 04: Test-isolation full-reset pattern (drop sys.modules entries + delete parent-package attrs) required because register_job_tool rejects new-identity re-registration AND from-import resolves via parent-package __dict__ bypassing sys.modules misses
+- [Phase 11-dynamic-lab-mode-env-gated]: Plan 04: test_dynamic_tools.py uses _DynamicProxy class (not module-level from-import) so dynamic_mod.CAPABILITIES writes always target the CURRENT mcp_gateway.dynamic instance, surviving other test files' module resets
 
 ### Pending Todos
 
@@ -199,9 +202,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 11-dynamic-lab-mode-env-gated P01 | 6min | 2 tasks | 6 files |
 | Phase 11-dynamic-lab-mode-env-gated P02 | 8min | 2 tasks | 5 files |
 | Phase 11-dynamic-lab-mode-env-gated P03 | 6min | 2 tasks | 3 files |
+| Phase 11-dynamic-lab-mode-env-gated P04 | 15min | 2 tasks | 5 files |
 
 ## Session Continuity
 
-Last session: 2026-05-20T00:54:07.480Z
-Stopped at: Completed 11-03-PLAN.md (gdb-MI3 session driver)
+Last session: 2026-05-20T01:14:07.935Z
+Stopped at: Completed 11-04-PLAN.md (dynamic MCP tool surface — 7 env-gated handlers)
 Resume file: None
