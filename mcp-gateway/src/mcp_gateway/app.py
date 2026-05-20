@@ -32,6 +32,7 @@ from .jobs import (
     MAX_COMPLETED_JOBS,
 )
 from .uploads import upload_handler
+from . import dynamic
 from . import session_state
 
 log = logging.getLogger("mcp_gateway")
@@ -64,6 +65,64 @@ async def _healthz(request):
     return JSONResponse({"ok": True})
 
 
+def log_dynamic_probe_result(caps: "dynamic.DynamicCapabilities") -> None:
+    """Emit D-DYN-PROBE-LOG WARN lines per missing capability when dynamic mode is on.
+
+    When MCP_GATEWAY_DYNAMIC_TOOLS != "1", log a single INFO line and return.
+    When set, log one INFO/OK or WARN per capability so the operator sees the readiness
+    report at startup (matches scripts/probe_dynamic_tools.sh output structure).
+    """
+    if not caps.dynamic_mode_enabled:
+        log.info(
+            "[gateway] [dynamic] dynamic-mode tools DISABLED "
+            "(set MCP_GATEWAY_DYNAMIC_TOOLS=1 to enable)"
+        )
+        return
+
+    log.info("[gateway] [dynamic] startup capability probe complete")
+    if caps.ptrace_scope is not None and caps.ptrace_scope >= 2:
+        log.warning(
+            "[gateway] [dynamic] WARN: ptrace_scope=%d detected -- strace/ltrace/gdb "
+            "will return ERROR until host sets yama.ptrace_scope=0",
+            caps.ptrace_scope,
+        )
+    if not caps.ptrace_traceme_works:
+        log.warning(
+            "[gateway] [dynamic] WARN: PTRACE_TRACEME smoke test failed -- "
+            "container needs --cap-add=SYS_PTRACE + --security-opt seccomp=unconfined"
+        )
+    if not caps.netns_feasible:
+        log.warning(
+            "[gateway] [dynamic] WARN: unshare --net failed -- container needs "
+            "--security-opt seccomp=unconfined (Pitfall #2)"
+        )
+    else:
+        log.info("[gateway] [dynamic] OK: netns_feasible")
+    if not caps.binfmt_misc_mounted:
+        log.warning(
+            "[gateway] [dynamic] WARN: binfmt_misc not mounted -- run_qemu_user can still "
+            "run explicitly (qemu-<arch>-static path), but ./<foreign_bin> via run_shell will "
+            "fail with exec format error"
+        )
+    if caps.gdb_path is None:
+        log.warning("[gateway] [dynamic] WARN: gdb not found -- open_gdb_session will fail")
+    else:
+        log.info("[gateway] [dynamic] OK: gdb=%s", caps.gdb_version or caps.gdb_path)
+    if caps.strace_path is None:
+        log.warning("[gateway] [dynamic] WARN: strace not found -- run_strace will fail")
+    if caps.ltrace_path is None:
+        log.warning("[gateway] [dynamic] WARN: ltrace not found -- run_ltrace will fail")
+    if caps.qemu_architectures:
+        log.info(
+            "[gateway] [dynamic] qemu_architectures: %s",
+            ", ".join(caps.qemu_architectures),
+        )
+    else:
+        log.info("[gateway] [dynamic] no qemu-<arch>-static binaries detected with binfmt F flag")
+    for w in caps.warnings:
+        log.warning("[gateway] [dynamic] %s", w)
+
+
 def build_app() -> Starlette:
     """Assemble the gateway ASGI app.
 
@@ -93,6 +152,13 @@ def build_app() -> Starlette:
 
     mcp = get_mcp()
     register_all_tools(mcp)
+
+    # Phase 11 D-DYN-CAP-PROBE-01 + D-DYN-PROBE-LOG: one-shot capability probe at startup.
+    # Populates dynamic.CAPABILITIES so tools/dynamic.py handlers can consult it without
+    # re-probing per call. Runs unconditionally (even when dynamic tools disabled) so
+    # get_dynamic_capabilities() is always responsive. NEVER raises (D-DYN-CAP-PROBE-02).
+    dynamic.CAPABILITIES = dynamic.probe_all()
+    log_dynamic_probe_result(dynamic.CAPABILITIES)
 
     @contextlib.asynccontextmanager
     async def lifespan(app: Starlette):
