@@ -1,9 +1,9 @@
 ---
 phase: 11
 slug: dynamic-lab-mode-env-gated
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-05-19
 ---
 
@@ -41,25 +41,25 @@ created: 2026-05-19
 
 | Req ID | Behavior | Test Type | Automated Command | File Exists | Status |
 |--------|----------|-----------|-------------------|-------------|--------|
-| DYN-01 | Tools registered iff env var set | unit | `pytest mcp-gateway/tests/test_dynamic_gate.py -x` | ❌ W0 | ⬜ pending |
-| DYN-01 | EXPECTED_TOOLS = 54 (off) / 61 (on) | unit | `pytest mcp-gateway/tests/test_tool_list.py -x -k "expected_tools"` | ✅ edit existing | ⬜ pending |
-| DYN-02 | `--dynamic` exports env var, requires `--remote` | shell | `bats run_docker.sh --dynamic` (or pytest-shell-wrap matching Phase 3) | ❌ W0 | ⬜ pending |
-| DYN-03 | strace runs with profile, netns active, output in `case_dir/dynamic/` | integration | `pytest mcp-gateway/tests/test_dynamic_tools.py::test_run_strace_roundtrip -x -m slow` | ❌ W0 | ⬜ pending |
-| DYN-03 | argv allowlist rejects shell-metachar in `extra_args` | unit | `pytest mcp-gateway/tests/test_dynamic_primitive.py::test_extra_args_rejects_metachar -x` | ❌ W0 | ⬜ pending |
-| DYN-03 | netns prevents network: `getaddrinfo` returns `ENETUNREACH` | integration | `pytest mcp-gateway/tests/test_dynamic_tools.py::test_netns_blocks_dns -x -m slow` | ❌ W0 | ⬜ pending |
-| DYN-04 | `run_qemu_user` with `arch=arm` runs on a known-good ELF | integration | `pytest mcp-gateway/tests/test_dynamic_tools.py::test_run_qemu_user_arm -x -m slow` | ❌ W0 | ⬜ pending |
-| DYN-04 | `probe_qemu_architectures` returns non-empty when binaries exist | unit | `pytest mcp-gateway/tests/test_dynamic_primitive.py::test_probe_qemu_architectures -x` | ❌ W0 | ⬜ pending |
-| DYN-05 | Open gdb session → exec → close roundtrip with MI3 framing | integration | `pytest mcp-gateway/tests/test_gdb_session.py::test_gdb_session_roundtrip -x -m slow` | ❌ W0 | ⬜ pending |
-| DYN-05 | MI allowlist accepts known prefixes | unit | `pytest mcp-gateway/tests/test_gdb_session.py::test_mi_allowlist_positive -x` | ❌ W0 | ⬜ pending |
-| DYN-05 | MI allowlist rejects `python` / `interpreter-exec console` / `source` / `!` / `pi` / `attach` / `-target-select` / `-gdb-set logging on` / `add-symbol-file` / `dump` / `set inferior-tty` | unit | `pytest mcp-gateway/tests/test_gdb_session.py::test_mi_allowlist_negative_matrix -x` | ❌ W0 | ⬜ pending |
-| DYN-06 | Capability probe returns expected fields, never raises | unit | `pytest mcp-gateway/tests/test_dynamic_primitive.py::test_probe_all -x` | ❌ W0 | ⬜ pending |
-| DYN-06 | Probe with monkeypatched missing tools surfaces warnings | unit | `pytest mcp-gateway/tests/test_dynamic_primitive.py::test_probe_warnings_on_missing -x` | ❌ W0 | ⬜ pending |
-| DYN-07 | Trace tools dispatch via `start_tool_job` | integration | `pytest mcp-gateway/tests/test_dynamic_jobs.py::test_strace_via_jobs -x -m slow` | ❌ W0 | ⬜ pending |
-| DYN-07 | `reap_followfork_strays` kills `setsid` grandchildren | integration | `pytest mcp-gateway/tests/test_dynamic_primitive.py::test_reap_followfork_strays -x -m slow` | ❌ W0 | ⬜ pending |
-| DYN-07 | Sample resolved by sha256 from `uploads/` and existing `case_dir` | unit | `pytest mcp-gateway/tests/test_dynamic_tools.py::test_sample_resolution -x` | ❌ W0 | ⬜ pending |
-| Refactor | `sessions/` package re-exports preserve every Phase 8 symbol | unit | `pytest mcp-gateway/tests/test_sessions_package.py -x` | ❌ W0 | ⬜ pending |
-| Refactor | Phase 8 existing tests continue to pass | regression | `pytest mcp-gateway/tests/test_sessions.py mcp-gateway/tests/test_r2_sessions.py -x` | ✅ existing | ⬜ pending |
-| All | Disclaimer string in all 7 dynamic-tool docstrings | unit | `pytest mcp-gateway/tests/test_dynamic_tools.py::test_disclaimer_in_all_docstrings -x` | ❌ W0 | ⬜ pending |
+| DYN-01 | Tools registered iff env var set | unit | `pytest mcp-gateway/tests/test_dynamic_gate.py -x` | ✅ | ✅ green |
+| DYN-01 | EXPECTED_TOOLS = 54 (off) / 61 (on) | unit | `pytest mcp-gateway/tests/test_tool_list.py -x -k "expected_tools"` | ✅ | ✅ green |
+| DYN-02 | `--dynamic` exports env var, requires `--remote` | shell | `pytest mcp-gateway/tests/test_run_docker_dynamic.py -x` | ✅ | ✅ green |
+| DYN-03 | strace runs with profile, netns active, output in `case_dir/dynamic/` | integration | `pytest mcp-gateway/tests/test_dynamic_jobs.py::test_strace_via_jobs_roundtrip -x -m slow` | ✅ | ✅ green |
+| DYN-03 | argv allowlist rejects shell-metachar in `extra_args` | unit | `pytest mcp-gateway/tests/test_dynamic_primitive.py::test_extra_args_rejects_metachar -x` | ✅ | ✅ green |
+| DYN-03 | netns prevents network: `getaddrinfo` returns `ENETUNREACH` | integration | `pytest mcp-gateway/tests/test_dynamic_jobs.py::test_strace_via_jobs_roundtrip -x -m slow` | ✅ | ✅ green |
+| DYN-04 | `run_qemu_user` with `arch=arm` runs on a known-good ELF | integration | `pytest mcp-gateway/tests/test_dynamic_jobs.py::test_qemu_user_arm_roundtrip -x -m slow` | ✅ | ✅ green |
+| DYN-04 | `probe_qemu_architectures` returns non-empty when binaries exist | unit | `pytest mcp-gateway/tests/test_dynamic_primitive.py::test_probe_qemu_architectures -x` | ✅ | ✅ green |
+| DYN-05 | Open gdb session → exec → close roundtrip with MI3 framing | integration | `pytest mcp-gateway/tests/test_gdb_session.py::test_gdb_session_roundtrip -x -m slow` | ✅ | ✅ green |
+| DYN-05 | MI allowlist accepts known prefixes | unit | `pytest mcp-gateway/tests/test_gdb_session.py::test_mi_allowlist_positive -x` | ✅ | ✅ green |
+| DYN-05 | MI allowlist rejects `python` / `interpreter-exec console` / `source` / `!` / `pi` / `attach` / `-target-select` / `-gdb-set logging on` / `add-symbol-file` / `dump` / `set inferior-tty` | unit | `pytest mcp-gateway/tests/test_gdb_session.py::test_mi_allowlist_negative_matrix -x` | ✅ | ✅ green |
+| DYN-06 | Capability probe returns expected fields, never raises | unit | `pytest mcp-gateway/tests/test_dynamic_primitive.py::test_probe_all -x` | ✅ | ✅ green |
+| DYN-06 | Probe with monkeypatched missing tools surfaces warnings | unit | `pytest mcp-gateway/tests/test_dynamic_primitive.py::test_probe_warnings_on_missing -x` | ✅ | ✅ green |
+| DYN-07 | Trace tools dispatch via `start_tool_job` | integration | `pytest mcp-gateway/tests/test_dynamic_jobs.py::test_strace_via_jobs_roundtrip -x -m slow` | ✅ | ✅ green |
+| DYN-07 | `reap_followfork_strays` kills `setsid` grandchildren | integration | `pytest mcp-gateway/tests/test_dynamic_jobs.py::test_setsid_grandchild_reaped -x -m slow` | ✅ | ✅ green |
+| DYN-07 | Sample resolved by sha256 from `uploads/` and existing `case_dir` | unit | `pytest mcp-gateway/tests/test_dynamic_tools.py::test_sample_resolution -x` | ✅ | ✅ green |
+| Refactor | `sessions/` package re-exports preserve every Phase 8 symbol | unit | `pytest mcp-gateway/tests/test_sessions_package.py -x` | ✅ | ✅ green |
+| Refactor | Phase 8 existing tests continue to pass | regression | `pytest mcp-gateway/tests/test_sessions.py mcp-gateway/tests/test_r2_sessions.py -x` | ✅ | ✅ green |
+| All | Disclaimer string in all 7 dynamic-tool docstrings | unit | `pytest mcp-gateway/tests/test_dynamic_tools.py::test_disclaimer_in_all_docstrings -x` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -97,11 +97,27 @@ Per RESEARCH.md §"Wave 0 Gaps":
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30 s per wave
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 30 s per wave
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+## Phase 11 Sign-Off
+
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references (Plans 01-04 landed RED → GREEN)
+- [x] No watch-mode flags
+- [x] Feedback latency < 30 s per wave
+- [x] `nyquist_compliant: true` set in frontmatter
+- [x] Slow integration tests gated by `_require_*_or_skip` helpers
+- [x] Tool count parametrized on `MCP_GATEWAY_DYNAMIC_TOOLS` (54 / 61 asserted)
+- [x] MI allowlist negative matrix covers 17+ deny vectors
+- [x] Disclaimer present in all 7 dynamic-tool docstrings
+- [x] netns enforcement asserted via ENETUNREACH in slow integration
+- [x] Follow-fork stray reap asserted via setsid_escape fixture
+- [x] compose.yaml seccomp+ptrace posture regression-guarded
+
+**Approval:** green

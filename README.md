@@ -231,6 +231,83 @@ Without either, Ghidra is installed by default.
 - The container runs with elevated capabilities (`SYS_PTRACE`, `seccomp=unconfined`) for analysis tools — do NOT expose it to the public internet without a reverse proxy you trust.
 - Disassembler licenses (IDA, Binary Ninja) live ONLY on the host bind mount; never baked into images.
 
+## Dynamic Mode (env-gated)
+
+The container ships seven dynamic-analysis tools that are **registered only when**
+`MCP_GATEWAY_DYNAMIC_TOOLS=1` is set at gateway startup. Default-off so the standard
+container shape is byte-identical to the static-analysis-only mode.
+
+### Opt-in
+
+```bash
+./run_docker.sh --remote --dynamic
+```
+
+The `--dynamic` flag REQUIRES `--remote` (dynamic tools are an MCP-only surface;
+there is no in-container agent path that calls them directly).
+
+### Tools added when enabled
+
+| Tool | Purpose |
+|------|---------|
+| `run_strace` | Linux syscall trace via strace, profile-driven argv (file_io, network, process, etc.) |
+| `run_ltrace` | Library-call trace via ltrace (ltrace 0.7.3 is unmaintained — prefer strace) |
+| `run_qemu_user` | Cross-arch user-mode emulation via qemu-`<arch>`-static |
+| `open_gdb_session` | Persistent gdb-MI3 session restricted to an MI-prefix allowlist |
+| `gdb_exec` | Execute one MI command in an open gdb session |
+| `close_gdb_session` | Close a gdb session (idempotent) |
+| `get_dynamic_capabilities` | Report startup capability probe results (ptrace_scope, binfmt, netns, qemu arches) |
+
+### Security posture
+
+- **No-net by default.** Each dynamic-tool subprocess runs under per-call
+  `unshare --net --ipc --uts --` — no network, no host IPC, no shared UTS.
+- **gdb MI allowlist.** `gdb_exec` accepts only allowlisted MI prefixes
+  (`-info-`, `-data-evaluate-expression`, `-stack-list-frames`, `-exec-run`,
+  `-break-insert`, etc.). `python`, `-interpreter-exec console`, `source`,
+  `!`, and other escapes are hard-blocked.
+- **Follow-fork reaping.** Setsid grandchildren that escape the runner's process
+  group are killed via `/proc/<pid>/task/*/children` recursive scan after each
+  job terminates.
+- **Argv-only.** All trace tools spawn via `asyncio.create_subprocess_exec`
+  with `start_new_session=True`. `extra_args` are validated against an
+  allowlist regex; `-o`, `-D`, `--detach`, `-p`, `--attach`, `-b`,
+  `--detach-on` flags are denied.
+- **Sample resolution.** All trace tools accept `sample_sha256` (hex string)
+  only; the sha256 is resolved to an absolute path under `uploads/` or the
+  active `case_dir/`. Path traversal is impossible at the MCP boundary.
+- **Host prerequisites.**
+  - `kernel.yama.ptrace_scope <= 1` on the host (run `sudo sysctl -w
+    kernel.yama.ptrace_scope=0` if needed).
+  - Docker container uses `--cap-add=SYS_PTRACE` and
+    `--security-opt seccomp=unconfined` (pinned in `compose.yaml`).
+  - For foreign-arch samples via binfmt, register host-side with `F` flag:
+    `docker run --rm --privileged multiarch/qemu-user-static --reset -p yes`.
+
+### Readiness check
+
+Inside the container, run:
+
+```bash
+./scripts/probe_dynamic_tools.sh
+```
+
+Or query the running gateway via MCP:
+
+```python
+await mcp.call_tool("get_dynamic_capabilities")
+```
+
+### Limitations (v1.1)
+
+- Sessions are shared across all MCP clients with the same bearer token
+  (per-`Mcp-Session-Id` keying is v1.2 territory).
+- No `allow_network=True` opt-in; sandboxed-network mode (INetSim/FakeDNS)
+  is deferred to v1.2.
+- qemu-user multi-threaded sample emulation is unreliable (known qemu issue).
+- ltrace 0.7.3 is unmaintained; the orchestrator should prefer strace for
+  modern binaries.
+
 ## License & licensing constraints
 
 This project is MIT-licensed. IDA Pro and Binary Ninja licenses are user-provided and never included in image layers — see the `Dockerfile` multi-stage build for the seeding pattern.
