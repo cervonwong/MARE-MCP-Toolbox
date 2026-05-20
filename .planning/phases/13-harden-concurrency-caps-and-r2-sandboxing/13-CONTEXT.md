@@ -97,7 +97,7 @@ env-gated tool surface for callers that legitimately need writes or plugins.
   ```
   to
   ```
-  r2 -2 -q0 -e cfg.sandbox=true -e cfg.sandbox.grain=disk,files,exec,io <sample>
+  r2 -2 -q0 -e cfg.sandbox=true <sample>
   ```
   Rationale: r2 processes `-e` BEFORE opening the binary, so the sandbox is
   active before any binary metadata (e.g., autoload hooks) can execute.
@@ -106,10 +106,37 @@ env-gated tool surface for callers that legitimately need writes or plugins.
   surface. Argv is also visible in `ps` and audit logs so operators can
   verify sandbox is on without running r2 commands.
 
-- **D-08:** **Sandbox grain = `disk,files,exec,io`.** Matches r2's canonical
-  "no escape" recipe per upstream docs. Blocks file writes, file open
-  outside cwd, `!`-shell-escape exec, and r2's internal IO redirection.
-  Sockets not enabled (no network in static analysis use case).
+- **D-08:** **No `cfg.sandbox.grain` override — rely on `cfg.sandbox=true`
+  default behavior.** [Resolved 2026-05-20 after Phase 13 research]
+  Research finding: r2's `cfg.sandbox.grain` is an ALLOWLIST (categories that
+  REMAIN ENABLED when sandbox is on), not a blocklist. The original CONTEXT.md
+  spec (`disk,files,exec,io`) was semantically inverted and `io` is not a
+  valid grain value — applied as-written it would have ALLOWED disk/files/exec
+  operations and left only socket/network/environ/hidden blocked. Verified
+  against radare2 source: `libr/util/sandbox.c` `R_SANDBOX_GUARD` macro,
+  `libr/include/r_util/r_sandbox.h` grain bit constants, and
+  `libr/core/cconfig.c` `cb_cfgsanbox_grain` parser.
+
+  **Resolution:** ship `cfg.sandbox=true` with NO `cfg.sandbox.grain` argv
+  flag. This relies on r2's default grain (`all` — all optional categories
+  enabled) plus the base `cfg.sandbox=true` guards:
+  - `r_sandbox_system` blocks `!shell` / `R!` / `system()` escape paths
+  - Upper-directory file-open guard blocks `..`-traversal outside the case dir
+  - `r_sandbox_disable()` is a one-way latch — once `cfg.sandbox=true`, an
+    init-batch `e cfg.sandbox=false` is silently rejected
+
+  Rejected alternatives:
+  - `grain=files,disk` (surgical) — would also block exec helpers beyond
+    `r_sandbox_system` plus sockets/network/environ. More restrictive but
+    needs in-container experimental verification of every r2 feature the
+    static-analysis flow actually uses. Deferred to v1.2+ if a future r2
+    command turns out to need a tighter network/exec boundary.
+  - `grain=none` (paranoid) — likely breaks sample-read because file open
+    is gated by `R_SANDBOX_GRAIN_FILES`. Untested in-container.
+
+  No-grain matches the researcher's primary recommendation and the
+  radare2-mcp project's defensible "block !shell + ..-traversal, keep r2
+  functional" baseline.
 
 - **D-09:** **Old `_DANGEROUS_R2_CMD_RE` filter is kept, frozen, and
   reframed.** Do NOT delete sessions/r2.py:43-44. Do NOT extend it. Update
