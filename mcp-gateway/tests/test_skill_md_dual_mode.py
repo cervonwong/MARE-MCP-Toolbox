@@ -1,0 +1,275 @@
+"""Phase 12 (D-11..D-14): SKILL.md + W-N dual-mode regression tests.
+
+Wave 0 RED-stub: all tests except test_skill_md_frontmatter_intact and
+test_no_abbreviated_prefix should FAIL until Plans 02 (W-N files),
+03 (scripts + artifact-spec), and 04 (SKILL.md rewrite) land.
+
+Refresh the SKILL.md sha256 baseline with:
+    UPDATE_SKILL_SNAPSHOT=1 pytest mcp-gateway/tests/test_skill_md_dual_mode.py::test_skill_md_snapshot
+"""
+from __future__ import annotations
+import hashlib
+import json
+import os
+import re
+import subprocess
+import sys
+import warnings
+from pathlib import Path
+
+import pytest
+
+try:
+    import yaml  # PyYAML may be present on host; venv lacks it -- fallback path below
+except ImportError:  # pragma: no cover
+    yaml = None
+
+# Pitfall 4 mitigation: locate REPO_ROOT by .planning marker, not parents[2].
+REPO_ROOT = next(p for p in Path(__file__).resolve().parents if (p / ".planning").is_dir())
+SKILL_DIR = REPO_ROOT / "workspace/.claude/skills/malware-analysis-orchestrator"
+SKILL_MD = SKILL_DIR / "SKILL.md"
+WORKFLOWS_DIR = SKILL_DIR / "references/workflows"
+WORKFLOW_FILES = sorted(WORKFLOWS_DIR.glob("W-*.md")) if WORKFLOWS_DIR.is_dir() else []
+REF_FILES = [
+    SKILL_DIR / "references/workflow.md",
+    SKILL_DIR / "references/deep-re-workflows.md",
+]
+ALL_SKILL_FILES = [SKILL_MD, *WORKFLOW_FILES, *[p for p in REF_FILES if p.is_file()]]
+SNAPSHOT_FILE = REPO_ROOT / "mcp-gateway/tests/snapshots/SKILL.md.sha256"
+
+GATEWAY_TOOL_RE = re.compile(r"mcp__mare[-_]\w+__\w+")
+FALLBACK_RE = re.compile(r"scripts/|\bfallback\b|\belse\b", re.IGNORECASE)
+ABBREVIATED_RE = re.compile(r"mcp__mare__(?!toolbox)")  # Pitfall 3
+
+# Per-W-N v1.1 wrapper allow-list (D-05 mapping)
+WN_WRAPPER_PATTERNS = {
+    "W-1": r"run_die|run_upx_test|run_upx_unpack",
+    "W-2": r"run_rabin2|run_readelf|run_nm|open_r2_session",
+    "W-3": r"run_rabin2|run_xxd|run_capstone_disasm",
+    "W-4": r"run_rabin2|run_ropper",
+    "W-5": r"start_tool_job|run_strace|run_ltrace",
+    "W-6": r"run_binwalk|run_unblob|list_extracted_files|promote_extracted_sample",
+    "W-7": r"run_rabin2|run_qemu_user",
+}
+
+
+def check_dual_mode(path: Path) -> list[tuple[int, str]]:
+    """Return list of (line_no, snippet) for gateway-tool refs without fallback."""
+    if not path.is_file():
+        return [(0, f"<file missing: {path}>")]
+    lines = path.read_text(encoding="utf-8").splitlines()
+    offenses: list[tuple[int, str]] = []
+    for i, line in enumerate(lines):
+        if not GATEWAY_TOOL_RE.search(line):
+            continue
+        lo = max(0, i - 3)
+        hi = min(len(lines), i + 4)
+        window = "\n".join(lines[lo:hi])
+        if not FALLBACK_RE.search(window):
+            offenses.append((i + 1, line.strip()))
+    return offenses
+
+
+# ---- SKILL-01: backend priority ---------------------------------------
+
+
+def test_skill_md_frontmatter_intact():
+    """Validate top-doc YAML frontmatter has correct `name` + non-empty `description`.
+
+    Parse path: prefer `yaml.safe_load_all` when PyYAML is importable. When it
+    is NOT (e.g., the mcp-gateway venv on this executor host does not pin
+    PyYAML as a dep, and CONTEXT.md `<domain>` puts adding it out of scope for
+    this phase), fall back to a regex-based frontmatter extraction with
+    line-grep on the `name:` and `description:` keys. Both parse paths assert
+    the same T-12 frontmatter invariant.
+    """
+    assert SKILL_MD.is_file(), f"missing SKILL.md at {SKILL_MD}"
+    text = SKILL_MD.read_text(encoding="utf-8")
+    if yaml is not None:
+        with SKILL_MD.open("r", encoding="utf-8") as fh:
+            docs = list(yaml.safe_load_all(fh))
+        assert docs and isinstance(docs[0], dict), "no YAML frontmatter parsed"
+        assert docs[0].get("name") == "malware-analysis-orchestrator"
+        assert docs[0].get("description"), "description must be non-empty"
+        return
+    # Manual fallback: extract leading `---\n...\n---` block, line-grep keys.
+    m = re.match(r"---\n(.*?)\n---", text, re.DOTALL)
+    assert m, "no YAML frontmatter block (---...---) found at file head"
+    block = m.group(1)
+    name_m = re.search(r"^name:\s*(\S.*)$", block, re.MULTILINE)
+    desc_m = re.search(r"^description:\s*(\S.*)$", block, re.MULTILINE)
+    assert name_m, "no `name:` line in frontmatter"
+    assert name_m.group(1).strip().strip("\"'") == "malware-analysis-orchestrator"
+    assert desc_m and desc_m.group(1).strip(), "description must be non-empty"
+
+
+def test_backend_priority_correct():
+    text = SKILL_MD.read_text(encoding="utf-8")
+    # Substring with whitespace tolerance: IDA appears before BN, BN before Ghidra
+    m = re.search(r"IDA[^\n]*?Binary Ninja[^\n]*?Ghidra", text, re.IGNORECASE)
+    assert m, "expected `IDA ... Binary Ninja ... Ghidra` ordering in SKILL.md"
+
+
+def test_no_legacy_bn_first_priority():
+    """Assert the legacy `Binary Ninja MCP server ... primary tool` phrasing is gone.
+
+    NOTE: the SKILL.md v1.0 line uses markdown bold (`**Binary Ninja MCP server**
+    -- primary tool ...`), so the literal substring from the plan's <behavior>
+    block (`Binary Ninja MCP server -- primary tool`) does NOT match. Use a
+    regex tolerant of optional `**` (markdown emphasis) between the server name
+    and the `-- primary tool` phrase. This matches the v1.0 line at SKILL.md:141
+    so the test is RED on the baseline, and turns GREEN once Plan 04 rewrites
+    the backend-priority section to put IDA first.
+    """
+    text = SKILL_MD.read_text(encoding="utf-8")
+    pattern = re.compile(r"Binary Ninja MCP server\*{0,2}\s*--\s*primary tool")
+    m = pattern.search(text)
+    assert m is None, (
+        f"legacy BN-first phrasing still present in SKILL.md "
+        f"(matched: {m.group(0)!r} at offset {m.start()})"
+    )
+
+
+# ---- SKILL-02: W-N files + index --------------------------------------
+
+
+def test_workflow_count_locked():
+    files = sorted(WORKFLOWS_DIR.glob("W-*.md")) if WORKFLOWS_DIR.is_dir() else []
+    assert len(files) == 7, (
+        f"expected 7 W-N workflow files (W-1..W-7), found {len(files)}: "
+        f"{[p.name for p in files]}"
+    )
+
+
+def test_workflow_index_present():
+    idx = SKILL_DIR / "references/deep-re-workflows.md"
+    assert idx.is_file(), f"missing index at {idx}"
+    text = idx.read_text(encoding="utf-8")
+    for n in range(1, 8):
+        assert re.search(rf"W-{n}\b", text), f"index does not reference W-{n}"
+
+
+@pytest.mark.parametrize(
+    "wn_path",
+    WORKFLOW_FILES or [None],
+    ids=lambda p: p.name if p is not None and hasattr(p, "name") else "missing",
+)
+def test_wn_files_reference_v1_1_wrappers(wn_path):
+    if not WORKFLOW_FILES or wn_path is None:
+        pytest.fail("no W-N files exist yet (Wave 0 RED state)")
+    m = re.match(r"W-(\d+)", wn_path.name)
+    assert m, f"unexpected W-N filename: {wn_path.name}"
+    key = f"W-{m.group(1)}"
+    pattern = WN_WRAPPER_PATTERNS.get(key)
+    assert pattern, f"no wrapper pattern for {key}"
+    text = wn_path.read_text(encoding="utf-8")
+    assert re.search(pattern, text), (
+        f"{wn_path.name}: no v1.1 wrapper from /{pattern}/ found"
+    )
+
+
+# ---- SKILL-03: dual-mode invariant ------------------------------------
+
+
+@pytest.mark.parametrize("doc", ALL_SKILL_FILES or [SKILL_MD], ids=lambda p: p.name)
+def test_dual_mode_invariant(doc: Path):
+    offenses = check_dual_mode(doc)
+    assert not offenses, (
+        f"\nDual-mode regression in {doc}:\n"
+        + "\n".join(f"  L{ln}: {snip}" for ln, snip in offenses)
+    )
+
+
+@pytest.mark.parametrize("doc", ALL_SKILL_FILES or [SKILL_MD], ids=lambda p: p.name)
+def test_no_abbreviated_prefix(doc: Path):
+    if not doc.is_file():
+        pytest.fail(f"missing file: {doc}")
+    text = doc.read_text(encoding="utf-8")
+    matches = ABBREVIATED_RE.findall(text)
+    assert not matches, (
+        f"abbreviated prefix `mcp__mare__` (without `-toolbox`) found in "
+        f"{doc.name}: {matches}. Canonical prefix is `mcp__mare-toolbox__`."
+    )
+
+
+def test_skill_md_snapshot():
+    actual = hashlib.sha256(SKILL_MD.read_bytes()).hexdigest()
+    if os.environ.get("UPDATE_SKILL_SNAPSHOT") == "1":
+        SNAPSHOT_FILE.parent.mkdir(parents=True, exist_ok=True)
+        SNAPSHOT_FILE.write_text(actual + "\n")
+        return
+    if not SNAPSHOT_FILE.is_file():
+        warnings.warn(
+            f"SKILL.md snapshot missing at {SNAPSHOT_FILE.relative_to(REPO_ROOT)}. "
+            f"Create with: UPDATE_SKILL_SNAPSHOT=1 pytest "
+            f"mcp-gateway/tests/test_skill_md_dual_mode.py::test_skill_md_snapshot",
+            UserWarning,
+        )
+        return
+    expected = SNAPSHOT_FILE.read_text().strip()
+    if actual != expected:
+        warnings.warn(
+            f"SKILL.md sha256 drift.\n  actual:   {actual}\n  expected: {expected}\n"
+            f"  refresh:  UPDATE_SKILL_SNAPSHOT=1 pytest "
+            f"mcp-gateway/tests/test_skill_md_dual_mode.py::test_skill_md_snapshot",
+            UserWarning,
+        )
+
+
+# ---- SKILL-04: dynamic-mode plumbing ----------------------------------
+
+
+def test_update_state_writes_dynamic_fields(tmp_path: Path):
+    update_state = SKILL_DIR / "scripts/update_state.py"
+    assert update_state.is_file(), f"missing {update_state}"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(update_state),
+            "--status-dir",
+            str(tmp_path),
+            "--phase",
+            "test",
+            "--probe-dynamic",
+            "--mode",
+            "scripts",
+            "--dynamic-enabled",
+            "false",
+            "--dynamic-caps",
+            "{}",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        f"update_state.py exited {result.returncode}\nstderr={result.stderr}"
+    )
+    state = json.loads((tmp_path / "CURRENT_STATE.json").read_text())
+    assert "mode" in state and state["mode"] == "scripts"
+    assert "dynamic_mode_enabled" in state and state["dynamic_mode_enabled"] is False
+    assert "dynamic_capabilities" in state and isinstance(state["dynamic_capabilities"], dict)
+
+
+def test_artifact_spec_documents_dynamic_fields():
+    spec = SKILL_DIR / "references/artifact-spec.md"
+    assert spec.is_file(), f"missing {spec}"
+    text = spec.read_text(encoding="utf-8")
+    for token in ("dynamic_mode_enabled", "dynamic_capabilities", '"mode"'):
+        assert token in text, f"artifact-spec.md missing token {token!r}"
+
+
+def test_skill_documents_dynamic_skip_behavior():
+    # SKILL.md or any W-5/W-6/W-7 file (which is where dynamic skip lives)
+    haystack_files = [SKILL_MD] + [
+        p for p in WORKFLOW_FILES if re.match(r"W-[567]-", p.name)
+    ]
+    haystack = "\n".join(
+        p.read_text(encoding="utf-8") for p in haystack_files if p.is_file()
+    )
+    assert re.search(r"dynamic/[\w\-.<>]+-skipped\.md", haystack), (
+        "no `<case_dir>/dynamic/<step>-skipped.md` placeholder pattern documented"
+    )
+    assert re.search(r"skipped[ \-_]steps", haystack, re.IGNORECASE), (
+        "no 'skipped steps' INDEX.md subsection documented (D-18)"
+    )
