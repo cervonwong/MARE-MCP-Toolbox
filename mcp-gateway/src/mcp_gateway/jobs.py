@@ -137,6 +137,10 @@ class JobToolSpec:
     progress_parser: Optional[Callable[[bytes], Optional[tuple[int, int, str]]]]
     kwargs_schema: Optional[dict]
     description: str
+    # Phase 11 D-DYN-JOB-03: optional post-terminal hook (default None preserves
+    # backward compatibility with Phase 9/10 specs). Invoked from _mark_terminal
+    # AFTER killpg has fired and proc.wait() has returned, BEFORE snapshot write.
+    post_terminal_hook: Optional[Callable[["Job"], "asyncio.Future"]] = None
 
 
 # ----------------------------------------------------------------------------
@@ -687,6 +691,16 @@ class BackgroundJobRegistry:
 
         On-disk log file is PRESERVED across eviction (D-10 invariant).
         """
+        # Phase 11 D-DYN-JOB-03: post-terminal hook (None for Phase 9/10 specs).
+        # Runs AFTER killpg / proc.wait() (the caller path through _spawn_and_drive
+        # guarantees this) and BEFORE snapshot / FIFO eviction. Hook MUST NOT raise;
+        # exceptions are logged and swallowed so cleanup proceeds.
+        hook = job.spec.post_terminal_hook
+        if hook is not None:
+            try:
+                await hook(job)
+            except Exception:
+                log.exception("[jobs] post_terminal_hook raised for job %s (swallowed)", job.job_id)
         snapshot = self._build_snapshot(job)
         json_path = job.log_path_abs.with_suffix(".json")
         try:
