@@ -6,18 +6,24 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 
 # Phase 3: dual-mode flag parsing (D-01, D-09).
 MODE="local"
+DYNAMIC_TOOLS=0
 PASSTHROUGH=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --remote)        MODE="remote"; shift ;;
     --print-config)  MODE="print-config"; shift ;;
+    --dynamic)       DYNAMIC_TOOLS=1; shift ;;
     --token=*)       export MCP_GATEWAY_TOKEN="${1#--token=}"; shift ;;
     --token)         export MCP_GATEWAY_TOKEN="${2:-}"; shift 2 ;;
     --help|-h)
       cat <<USAGE
-Usage: $0 [--remote] [--token=<value>] [-- <args for local-mode bash>]
+Usage: $0 [--remote] [--dynamic] [--token=<value>] [-- <args for local-mode bash>]
   (no flag)         local mode: docker compose run --rm kali (interactive bash, v1 default)
   --remote          remote mode: docker compose up -d kali, gateway port published, token printed
+  --dynamic         enable env-gated dynamic-mode tools (run_strace, run_ltrace, run_qemu_user,
+                    open_gdb_session, etc.). REQUIRES --remote (dynamic tools are an MCP-only
+                    surface). Default-off; container shape unchanged when this flag is absent.
+                    See get_dynamic_capabilities() for readiness probe results.
   --print-config    re-print the ready-block from workspace/.mcp-gateway-token (no container action)
   --token=<value>   pin gateway bearer token (sets MCP_GATEWAY_TOKEN)
   --                stop flag parsing; remaining args pass through to bash in local mode
@@ -28,6 +34,13 @@ USAGE
   esac
 done
 set -- "${PASSTHROUGH[@]+"${PASSTHROUGH[@]}"}"
+
+# Phase 11 D-DYN-FLAG-01: --dynamic REQUIRES --remote (dynamic tools are an MCP-only surface).
+if [[ "$DYNAMIC_TOOLS" == "1" && "$MODE" != "remote" ]]; then
+  echo "[error] --dynamic requires --remote (dynamic tools are an MCP-only surface)" >&2
+  echo "[error] retry: ./run_docker.sh --remote --dynamic" >&2
+  exit 64  # EX_USAGE
+fi
 
 # print_ready_block(token, host_bind, host_port): render the gateway ready-block.
 # Reused by --remote post-up (D-07) and --print-config (D-11).
@@ -78,6 +91,22 @@ READY
           sharing your screen.
 
 WARN
+  fi
+  # Phase 11 D-DYN-FLAG-01: dynamic-mode visibility in ready-block.
+  if [[ "${MCP_GATEWAY_DYNAMIC_TOOLS:-0}" == "1" ]]; then
+    cat <<DYNAMIC
+  Dynamic mode: ENABLED
+    Tools: run_strace, run_ltrace, run_qemu_user, open_gdb_session, gdb_exec,
+           close_gdb_session, get_dynamic_capabilities
+    Capability probe: call get_dynamic_capabilities() over MCP for live results
+    Notes: no-net by default (per-call unshare --net); sample IS executed; case_dir/dynamic/
+
+DYNAMIC
+  else
+    cat <<DYNAMIC
+  Dynamic mode: disabled (use ./run_docker.sh --remote --dynamic to enable)
+
+DYNAMIC
   fi
 }
 
@@ -299,6 +328,8 @@ fi
 
 # === remote mode ===
 export MCP_GATEWAY_ENABLED="${MCP_GATEWAY_ENABLED:-1}"
+# Phase 11 D-DYN-FLAG-02: dynamic-mode env passthrough (compositional with --remote).
+export MCP_GATEWAY_DYNAMIC_TOOLS="${MCP_GATEWAY_DYNAMIC_TOOLS:-$DYNAMIC_TOOLS}"
 export MCP_GATEWAY_HOST="${MCP_GATEWAY_HOST:-0.0.0.0}"          # D-06: must be 0.0.0.0 in-container
 export MCP_GATEWAY_HOST_BIND="${MCP_GATEWAY_HOST_BIND:-127.0.0.1}" # host-side default: localhost only
 export MCP_GATEWAY_HOST_PORT="${MCP_GATEWAY_HOST_PORT:-8080}"
@@ -337,6 +368,7 @@ CLAUDE_USER_DIR="$CLAUDE_USER_DIR" \
 CODEX_USER_DIR="$CODEX_USER_DIR" \
 IMAGE_TAG="$SHORT_SHA" \
 MCP_GATEWAY_ENABLED="$MCP_GATEWAY_ENABLED" \
+MCP_GATEWAY_DYNAMIC_TOOLS="$MCP_GATEWAY_DYNAMIC_TOOLS" \
 MCP_GATEWAY_HOST="$MCP_GATEWAY_HOST" \
 MCP_GATEWAY_HOST_BIND="$MCP_GATEWAY_HOST_BIND" \
 MCP_GATEWAY_HOST_PORT="$MCP_GATEWAY_HOST_PORT" \
