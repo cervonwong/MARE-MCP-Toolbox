@@ -127,99 +127,117 @@ async def _open_r2(
     for ic in (init_commands or []):
         check_dangerous_cmd(ic)
 
-    # Phase 8 D-18: cap check under registry lock; insert under registry lock.
+    # Phase 13 D-01/D-03: atomic cap check + slot reservation. The registry._lock
+    # bridges the locked()-probe and acquire() into a single atomic gate
+    # (Pitfall 3 fix -- without the lock, two coroutines could both see locked()=False
+    # and both await acquire(), with one blocking instead of raising). The lock is
+    # held only across acquire() itself, which is instantaneous when locked() was False.
+    # D-04: cap-reject error payload still reads from registry.count_open() / list()
+    # (the dict is the truth; the semaphore is the gate).
     async with registry._lock:
-        if registry.count_open() >= registry._max:
+        if registry._sem.locked():
             raise SessionCapReached(registry._max, registry.count_open(), registry.list())
+        await registry._sem.acquire()
         session_id = secrets.token_urlsafe(12)
 
-    # Phase 8 D-13: lazy r2-sessions/ subdir + transcript path under confine_to.
-    ensure_subdir(case_dir, "r2-sessions")
-    transcript_path = confine_to(case_dir, f"r2-sessions/{session_id}-transcript.log")
-
-    # Phase 8 D-04: per-session randomized sentinel.
-    sentinel = make_sentinel()
-
-    # Phase 8 D-02: argv-only spawn with start_new_session=True for killpg cleanup.
-    proc = await asyncio.create_subprocess_exec(
-        "r2", "-2", "-q0", str(sample_path),
-        cwd=str(case_dir),
-        stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        start_new_session=True,
-    )
-    pgid = os.getpgid(proc.pid)
-
-    # Phase 8 D-03: lockdown init batch + sentinel emitter. Send as a single batch.
-    init_batch = (
-        "e scr.interactive=false\n"
-        "e scr.color=0\n"
-        "e scr.html=0\n"
-        "e cfg.user=mare\n"
-        f"?e {sentinel}\n"
-    )
+    sess: Optional[R2Session] = None
     try:
-        proc.stdin.write(init_batch.encode())
-        await proc.stdin.drain()
-        await asyncio.wait_for(
-            proc.stdout.readuntil((sentinel + "\n").encode()),
-            timeout=open_timeout_s,
+        # Phase 8 D-13: lazy r2-sessions/ subdir + transcript path under confine_to.
+        ensure_subdir(case_dir, "r2-sessions")
+        transcript_path = confine_to(case_dir, f"r2-sessions/{session_id}-transcript.log")
+
+        # Phase 8 D-04: per-session randomized sentinel.
+        sentinel = make_sentinel()
+
+        # Phase 8 D-02: argv-only spawn with start_new_session=True for killpg cleanup.
+        proc = await asyncio.create_subprocess_exec(
+            "r2", "-2", "-q0", str(sample_path),
+            cwd=str(case_dir),
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            start_new_session=True,
         )
-    except (asyncio.TimeoutError, Exception):
+        pgid = os.getpgid(proc.pid)
+
+        # Phase 8 D-03: lockdown init batch + sentinel emitter. Send as a single batch.
+        init_batch = (
+            "e scr.interactive=false\n"
+            "e scr.color=0\n"
+            "e scr.html=0\n"
+            "e cfg.user=mare\n"
+            f"?e {sentinel}\n"
+        )
         try:
-            os.killpg(pgid, signal.SIGKILL)
-        except (ProcessLookupError, PermissionError):
-            pass
-        await asyncio.shield(proc.wait())
-        raise RuntimeError(
-            "r2 init failed: lockdown commands did not complete within timeout"
+            proc.stdin.write(init_batch.encode())
+            await proc.stdin.drain()
+            await asyncio.wait_for(
+                proc.stdout.readuntil((sentinel + "\n").encode()),
+                timeout=open_timeout_s,
+            )
+        except (asyncio.TimeoutError, Exception):
+            try:
+                os.killpg(pgid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
+            await asyncio.shield(proc.wait())
+            raise RuntimeError(
+                "r2 init failed: lockdown commands did not complete within timeout"
+            )
+
+        # Phase 8 D-13: transcript header.
+        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+        with open(transcript_path, "ab") as f:
+            f.write(
+                f"=== MARE r2_session {session_id} opened {now_iso} "
+                f"sample={sample_sha256[:8]} ===\n".encode()
+            )
+
+        now_mono = time.monotonic()
+        sess = R2Session(
+            session_id=session_id,
+            case_dir=case_dir,
+            proc=proc,
+            pgid=pgid,
+            lock=asyncio.Lock(),
+            sentinel=sentinel,
+            transcript_path=transcript_path,
+            opened_at=now_mono,
+            opened_iso=now_iso,
+            last_used_at=now_mono,
+            sample_sha256=sample_sha256,
+            sample_path=sample_path,
         )
 
-    # Phase 8 D-13: transcript header.
-    now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
-    with open(transcript_path, "ab") as f:
-        f.write(
-            f"=== MARE r2_session {session_id} opened {now_iso} "
-            f"sample={sample_sha256[:8]} ===\n".encode()
-        )
+        # Phase 8 D-19 step 4: run user init_commands inside the session lock
+        # (single-threaded r2).
+        async with sess.lock:
+            for ic in (init_commands or []):
+                raw, timed_out = await sess.exec_one(ic, timeout=open_timeout_s)
+                if timed_out:
+                    try:
+                        os.killpg(pgid, signal.SIGKILL)
+                    except (ProcessLookupError, PermissionError):
+                        pass
+                    await asyncio.shield(proc.wait())
+                    raise RuntimeError(
+                        f"r2 init_commands timed out on {ic!r} after {open_timeout_s}s"
+                    )
+                sess.command_count += 1
+                sess.last_used_at = time.monotonic()
 
-    now_mono = time.monotonic()
-    sess = R2Session(
-        session_id=session_id,
-        case_dir=case_dir,
-        proc=proc,
-        pgid=pgid,
-        lock=asyncio.Lock(),
-        sentinel=sentinel,
-        transcript_path=transcript_path,
-        opened_at=now_mono,
-        opened_iso=now_iso,
-        last_used_at=now_mono,
-        sample_sha256=sample_sha256,
-        sample_path=sample_path,
-    )
-
-    # Phase 8 D-19 step 4: run user init_commands inside the session lock
-    # (single-threaded r2).
-    async with sess.lock:
-        for ic in (init_commands or []):
-            raw, timed_out = await sess.exec_one(ic, timeout=open_timeout_s)
-            if timed_out:
-                try:
-                    os.killpg(pgid, signal.SIGKILL)
-                except (ProcessLookupError, PermissionError):
-                    pass
-                await asyncio.shield(proc.wait())
-                raise RuntimeError(
-                    f"r2 init_commands timed out on {ic!r} after {open_timeout_s}s"
-                )
-            sess.command_count += 1
-            sess.last_used_at = time.monotonic()
-
-    # Register under lock.
-    async with registry._lock:
-        registry._sessions[session_id] = sess
-    log.info("[sessions] opened %s (pid=%d sample=%s)",
-             session_id, proc.pid, sample_sha256[:8])
-    return sess
+        # Register under lock.
+        async with registry._lock:
+            registry._sessions[session_id] = sess
+        log.info("[sessions] opened %s (pid=%d sample=%s)",
+                 session_id, proc.pid, sample_sha256[:8])
+        return sess
+    except BaseException:
+        # Phase 13 D-02: release the reserved slot on ANY spawn-or-init failure
+        # (catches CancelledError + Exception; CancelledError is NOT an Exception
+        # subclass since 3.8). Mark the session as having released its slot so
+        # any subsequent close() call is a no-op on the semaphore (Pitfall 4).
+        if sess is not None:
+            sess._slot_released = True
+        registry._sem.release()
+        raise

@@ -297,124 +297,138 @@ async def _open_gdb(
     for ic in (init_commands or []):
         validate_mi_command(ic)
 
-    # Cap check + session_id allocation under registry lock (matches r2 driver)
+    # Phase 13 D-01/D-03: atomic cap check + slot reservation. Same pattern as
+    # sessions/r2.py::_open_r2 -- the registry._lock bridges locked()-probe and
+    # acquire() into a single atomic gate (Pitfall 3). D-04: cap-reject payload
+    # reads from registry.count_open() / list() (dict-is-truth invariant).
     async with registry._lock:
-        if registry.count_open() >= registry._max:
+        if registry._sem.locked():
             raise SessionCapReached(registry._max, registry.count_open(), registry.list())
+        await registry._sem.acquire()
         session_id = secrets.token_urlsafe(12)
 
-    # Lazy dynamic/ subdir + transcript path
-    ensure_subdir(case_dir, "dynamic")
-    transcript_path = confine_to(case_dir, f"dynamic/{session_id}-gdb-transcript.log")
-
-    sentinel = make_sentinel()
-    argv = _build_gdb_argv(sample_path)
-
-    proc = await asyncio.create_subprocess_exec(
-        *argv,
-        cwd=str(case_dir),
-        stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        start_new_session=True,
-    )
+    sess: Optional[GdbSession] = None
     try:
-        pgid = os.getpgid(proc.pid)
-    except ProcessLookupError:
-        # Process exited before we could read pgid; treat as init failure.
-        await asyncio.shield(proc.wait())
-        raise RuntimeError("gdb process exited before getpgid")
+        # Lazy dynamic/ subdir + transcript path
+        ensure_subdir(case_dir, "dynamic")
+        transcript_path = confine_to(case_dir, f"dynamic/{session_id}-gdb-transcript.log")
 
-    # Lockdown init batch -- write + read-until-sentinel (D-05)
-    gdb_version_line = ""
-    try:
-        batch = build_lockdown_init_batch(sentinel)
-        proc.stdin.write(batch)
-        await proc.stdin.drain()
-        terminator = build_sentinel_terminator(sentinel)
-        init_buf = bytearray()
-        deadline = time.monotonic() + open_timeout_s
-        while True:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                raise asyncio.TimeoutError("gdb init batch timed out")
-            line = await asyncio.wait_for(
-                proc.stdout.readuntil(b"\n"),
-                timeout=remaining,
-            )
-            init_buf.extend(line)
-            if terminator in line:
-                break
-        # Best-effort: pull gdb_version from the init buffer. gdb emits the
-        # version reply as: `~"GNU gdb (...)\n"` (a console-stream record).
-        for ln in init_buf.split(b"\n"):
-            if ln.startswith(b'~"GNU gdb'):
-                gdb_version_line = ln.decode("utf-8", errors="replace").strip()
-                break
-    except Exception as e:
+        sentinel = make_sentinel()
+        argv = _build_gdb_argv(sample_path)
+
+        proc = await asyncio.create_subprocess_exec(
+            *argv,
+            cwd=str(case_dir),
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            start_new_session=True,
+        )
         try:
-            os.killpg(pgid, signal.SIGKILL)
-        except (ProcessLookupError, PermissionError):
-            pass
-        try:
+            pgid = os.getpgid(proc.pid)
+        except ProcessLookupError:
+            # Process exited before we could read pgid; treat as init failure.
             await asyncio.shield(proc.wait())
-        except Exception:
-            pass
-        raise RuntimeError(f"gdb init failed: {type(e).__name__}: {e}") from e
+            raise RuntimeError("gdb process exited before getpgid")
 
-    # Transcript header (matches Phase 8 D-13 r2 format, gdb_session marker).
-    now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
-    try:
-        with open(transcript_path, "ab") as f:
-            f.write(
-                f"=== MARE gdb_session {session_id} opened {now_iso} "
-                f"sample={sample_sha256[:8]} ===\n".encode()
-            )
-    except OSError:
-        log.exception("[sessions/gdb] failed to write transcript header for %s", session_id)
-
-    now_mono = time.monotonic()
-    sess = GdbSession(
-        session_id=session_id,
-        case_dir=case_dir,
-        pgid=pgid,
-        lock=asyncio.Lock(),
-        sentinel=sentinel,
-        transcript_path=transcript_path,
-        opened_at=now_mono,
-        opened_iso=now_iso,
-        last_used_at=now_mono,
-        proc=proc,
-        sample_sha256=sample_sha256,
-        sample_path=sample_path,
-        gdb_version=gdb_version_line,
-        follow_fork_mode=follow_fork_mode,
-    )
-
-    # Run user init_commands inside session lock
-    async with sess.lock:
-        for ic in (init_commands or []):
-            raw, timed_out = await sess.exec_one(ic, timeout=open_timeout_s)
-            if timed_out:
-                try:
-                    os.killpg(pgid, signal.SIGKILL)
-                except (ProcessLookupError, PermissionError):
-                    pass
-                try:
-                    await asyncio.shield(proc.wait())
-                except Exception:
-                    pass
-                raise RuntimeError(
-                    f"gdb init_command timed out on {ic!r} after {open_timeout_s}s"
+        # Lockdown init batch -- write + read-until-sentinel (D-05)
+        gdb_version_line = ""
+        try:
+            batch = build_lockdown_init_batch(sentinel)
+            proc.stdin.write(batch)
+            await proc.stdin.drain()
+            terminator = build_sentinel_terminator(sentinel)
+            init_buf = bytearray()
+            deadline = time.monotonic() + open_timeout_s
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise asyncio.TimeoutError("gdb init batch timed out")
+                line = await asyncio.wait_for(
+                    proc.stdout.readuntil(b"\n"),
+                    timeout=remaining,
                 )
-            sess.command_count += 1
-            sess.last_used_at = time.monotonic()
+                init_buf.extend(line)
+                if terminator in line:
+                    break
+            # Best-effort: pull gdb_version from the init buffer. gdb emits the
+            # version reply as: `~"GNU gdb (...)\n"` (a console-stream record).
+            for ln in init_buf.split(b"\n"):
+                if ln.startswith(b'~"GNU gdb'):
+                    gdb_version_line = ln.decode("utf-8", errors="replace").strip()
+                    break
+        except Exception as e:
+            try:
+                os.killpg(pgid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
+            try:
+                await asyncio.shield(proc.wait())
+            except Exception:
+                pass
+            raise RuntimeError(f"gdb init failed: {type(e).__name__}: {e}") from e
 
-    # Register under registry lock
-    async with registry._lock:
-        registry._sessions[session_id] = sess
-    log.info(
-        "[sessions/gdb] opened %s (pid=%d sample=%s)",
-        session_id, proc.pid, sample_sha256[:8],
-    )
-    return sess
+        # Transcript header (matches Phase 8 D-13 r2 format, gdb_session marker).
+        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+        try:
+            with open(transcript_path, "ab") as f:
+                f.write(
+                    f"=== MARE gdb_session {session_id} opened {now_iso} "
+                    f"sample={sample_sha256[:8]} ===\n".encode()
+                )
+        except OSError:
+            log.exception("[sessions/gdb] failed to write transcript header for %s", session_id)
+
+        now_mono = time.monotonic()
+        sess = GdbSession(
+            session_id=session_id,
+            case_dir=case_dir,
+            pgid=pgid,
+            lock=asyncio.Lock(),
+            sentinel=sentinel,
+            transcript_path=transcript_path,
+            opened_at=now_mono,
+            opened_iso=now_iso,
+            last_used_at=now_mono,
+            proc=proc,
+            sample_sha256=sample_sha256,
+            sample_path=sample_path,
+            gdb_version=gdb_version_line,
+            follow_fork_mode=follow_fork_mode,
+        )
+
+        # Run user init_commands inside session lock
+        async with sess.lock:
+            for ic in (init_commands or []):
+                raw, timed_out = await sess.exec_one(ic, timeout=open_timeout_s)
+                if timed_out:
+                    try:
+                        os.killpg(pgid, signal.SIGKILL)
+                    except (ProcessLookupError, PermissionError):
+                        pass
+                    try:
+                        await asyncio.shield(proc.wait())
+                    except Exception:
+                        pass
+                    raise RuntimeError(
+                        f"gdb init_command timed out on {ic!r} after {open_timeout_s}s"
+                    )
+                sess.command_count += 1
+                sess.last_used_at = time.monotonic()
+
+        # Register under registry lock
+        async with registry._lock:
+            registry._sessions[session_id] = sess
+        log.info(
+            "[sessions/gdb] opened %s (pid=%d sample=%s)",
+            session_id, proc.pid, sample_sha256[:8],
+        )
+        return sess
+    except BaseException:
+        # Phase 13 D-02: release the reserved slot on ANY spawn-or-init failure
+        # (catches CancelledError + Exception). Mark session as having released
+        # its slot so subsequent close() is a no-op on the semaphore (Pitfall 4).
+        if sess is not None:
+            sess._slot_released = True
+        registry._sem.release()
+        raise
