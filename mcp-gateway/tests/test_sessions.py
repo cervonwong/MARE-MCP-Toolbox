@@ -204,3 +204,26 @@ def test_expanded_case_subdirs_contains_r2_sessions():
     from mcp_gateway.artifacts_io import EXPANDED_CASE_SUBDIRS
     assert "r2-sessions" in EXPANDED_CASE_SUBDIRS, \
         f"Phase 8 D-26 reverted: {EXPANDED_CASE_SUBDIRS!r}"
+
+
+# ============================================================================
+# Phase 13 HARDEN-07: SessionCapReached.to_dict() byte-identical to pre-Phase-13
+# ============================================================================
+def test_session_cap_reached_dict_shape():
+    """HARDEN-07: SessionCapReached.to_dict() byte-identical to pre-Phase-13.
+
+    Locks the cap-reject contract verbatim (D-03 invariant). Pre-Phase-13
+    callers (tools/r2_sessions.py, tools/jobs.py) depend on this exact dict
+    shape -- any change here breaks the four-shape error contract (Phase 9
+    D-15) and the SESS-04 surface.
+    """
+    from mcp_gateway.sessions._base import SessionCapReached
+    err = SessionCapReached(
+        max_sessions=8, open_count=8, existing=[{"session_id": "x"}]
+    )
+    assert err.to_dict() == {
+        "error": "session cap reached",
+        "max": 8,
+        "open_count": 8,
+        "existing": [{"session_id": "x"}],
+    }
