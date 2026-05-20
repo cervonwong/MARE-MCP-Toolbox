@@ -1,27 +1,28 @@
-"""SessionRegistry: lifespan-owned r2-session machinery (Phase 8).
+"""Kind-agnostic session primitives shared by r2 and gdb drivers (Phase 11 D-01..D-03).
 
-Public API (consumed by tools/r2_sessions.py and app.py::lifespan):
-- `SessionRegistry` -- async-context-manager (D-16). __aenter__ starts the
-  reaper task; __aexit__ cancels reaper + killpgs every open session.
-- `R2Session` -- dataclass holding per-session state (D-15).
-- `_DANGEROUS_R2_CMD_RE` -- module-level compiled regex (D-08).
-- `check_dangerous_cmd(cmd)` -- raises ValueError with D-09 message on match.
-- 5 module constants read once from env vars (D-14): SESSION_IDLE_S,
-  MAX_SESSIONS, R2_CMD_TIMEOUT_S, REAPER_INTERVAL_S, SESSION_OPEN_TIMEOUT_S.
+This module is the LEAF of the sessions/ package (per D-DYN-IMPORT-01): it
+imports only from stdlib + `mcp_gateway.artifacts_io`. Driver modules
+(`sessions.r2`, future `sessions.gdb`) import FROM `_base`, never the other
+way around.
 
-Design contract (locked):
-- argv-only spawn via asyncio.create_subprocess_exec (D-02) -- never shell-invocation kwarg
-- start_new_session=True for killpg cleanup (Phase 6 D-17)
-- Per-session randomized sentinel via secrets.token_hex(4) (D-04)
-- Lockdown init batch BEFORE user init_commands (D-03):
-    e scr.interactive=false / e scr.color=0 / e scr.html=0 / e cfg.user=mare
-- Dangerous-command check at the wrapper layer (D-08, D-09)
-- Cap-reject (D-18): SessionCapReached carries the D-18 error dict shape
-- Reaper loop (D-17): exception-isolated per iteration; CancelledError exits
-- Shutdown: asyncio.gather(close(...)) over every open session, parallel kill
+Public surface (re-exported by `sessions/__init__.py`):
+- `BaseSession` dataclass: kind-agnostic per-session state (D-02).
+- `SessionRegistry`: kind-aware async-context-managed registry. `open()`
+  dispatches to `r2._open_r2` or `gdb._open_gdb` based on the `kind` kwarg
+  (default `"r2"` for backward compat with Phase 8 callers).
+- `SessionCapReached`: cap-reject signal exception (Phase 8 D-18).
+- Env-var module constants: `SESSION_IDLE_S`, `MAX_SESSIONS`, `R2_CMD_TIMEOUT_S`,
+  `REAPER_INTERVAL_S`, `SESSION_OPEN_TIMEOUT_S` (Phase 8 D-14).
+- ANSI / UTF-8 helpers: `strip_ansi`, `truncate_for_response`, `_ANSI_ESCAPE_TEXT`.
+- Sentinel factory: `make_sentinel()` -- factored out of inline
+  `secrets.token_hex(4)` so Plan 03's gdb driver reuses identical semantics.
+- Env coercers: `_env_int`, `_env_float` (RuntimeError on bad values).
 
-This module is the layer BELOW MCP. It does not import from mcp.server.fastmcp;
-Plan 03 (tools/r2_sessions.py) is the MCP surface that imports from here.
+Design contract is verbatim Phase 8 (no behavior change) except for two
+minimal additions: (a) `BaseSession` dataclass + `R2Session subclass` so
+gdb sessions can store kind-agnostic state symmetrically; (b)
+`SessionRegistry.open` gains a `kind: Literal["r2","gdb"]` kwarg with default
+`"r2"` so Phase 8/9/10 callers continue working unchanged.
 """
 from __future__ import annotations
 
@@ -35,9 +36,7 @@ import secrets
 import signal
 import time
 from pathlib import Path
-from typing import Optional
-
-from mcp_gateway.artifacts_io import confine_to, ensure_subdir
+from typing import Literal, Optional
 
 log = logging.getLogger("mcp_gateway.sessions")
 
@@ -76,33 +75,9 @@ SESSION_OPEN_TIMEOUT_S: float = _env_float("MCP_GATEWAY_SESSION_OPEN_TIMEOUT_S",
 
 
 # ----------------------------------------------------------------------------
-# D-08 / D-09: dangerous-command regex. Full-string scan, not literal-first-char.
-# Anchored at start/`;`/`|`/newline; matches optional whitespace before the prefix.
-# Per-command refusal raises ValueError with the D-09 message naming the prefix.
-# ----------------------------------------------------------------------------
-_DANGEROUS_R2_CMD_RE: re.Pattern[str] = re.compile(
-    r"(?:^|;|\||\n)\s*(?:#!|R!|!)"
-)
-
-
-def check_dangerous_cmd(cmd: str) -> None:
-    """Raise ValueError if `cmd` contains a refused shell-escape prefix (D-08, D-09).
-
-    Refusal is per-command (one bad command does not invalidate the session).
-    The error message names the rejected prefix specifically so operators see an
-    actionable error.
-    """
-    if _DANGEROUS_R2_CMD_RE.search(cmd):
-        raise ValueError(
-            "dangerous r2 command refused: shell-escape prefix "
-            "'!' / '#!' / 'R!' is blocked by the gateway wrapper"
-        )
-
-
-# ----------------------------------------------------------------------------
-# ANSI-strip + UTF-8-safe truncation (reuse from runner.py if exported, else
-# inline local copies -- Claude's Discretion). Phase 8 picks the inline-copy
-# path to keep sessions.py importable without circular-import worry.
+# ANSI-strip + UTF-8-safe truncation (verbatim copy from Phase 8 sessions.py:107-125).
+# Inline local copies keep this module importable without circular-import worry
+# from runner.py (Phase 8 Claude's-Discretion decision preserved).
 # ----------------------------------------------------------------------------
 _ANSI_ESCAPE_TEXT = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
@@ -125,16 +100,24 @@ def truncate_for_response(text: str, head_kb: int) -> str:
     return cut.decode("utf-8", errors="replace")
 
 
+def make_sentinel() -> str:
+    """Per-session randomized sentinel factory.
+
+    Factored from Phase 8 D-04 inline `secrets.token_hex(4)` so Plan 03's gdb
+    driver reuses identical generator semantics. Returns `__MARE_END_<8hex>__`.
+    """
+    return f"__MARE_END_{secrets.token_hex(4)}__"
+
+
 # ----------------------------------------------------------------------------
-# D-15: R2Session dataclass.
+# D-02 (Phase 11): BaseSession dataclass -- kind-agnostic per-session fields ONLY.
+# `R2Session` and the future `GdbSession` subclass this with their own
+# kind-specific fields (sample_sha256, sample_path for r2; whatever gdb needs).
 # ----------------------------------------------------------------------------
 @dataclasses.dataclass
-class R2Session:
+class BaseSession:
     session_id: str
     case_dir: Path
-    sample_sha256: str
-    sample_path: Path
-    proc: asyncio.subprocess.Process
     pgid: int
     lock: asyncio.Lock
     sentinel: str
@@ -142,37 +125,15 @@ class R2Session:
     opened_at: float
     opened_iso: str
     last_used_at: float
+    proc: "asyncio.subprocess.Process"
     command_count: int = 0
     closed: bool = False
     close_reason: Optional[str] = None
-
-    async def exec_one(self, cmd: str, *, timeout: float) -> tuple[bytes, bool]:
-        """Send one command + sentinel, read stdout until sentinel line.
-
-        Returns (raw_bytes_before_sentinel, timed_out_bool).
-        On timeout the caller must close() the session (D-20 step d).
-        Does NOT acquire self.lock -- caller is responsible (Phase 8 D-20).
-        """
-        sentinel_line = (self.sentinel + "\n").encode()
-        self.proc.stdin.write(cmd.encode("utf-8") + b"\n")
-        self.proc.stdin.write(f"?e {self.sentinel}\n".encode())
-        await self.proc.stdin.drain()
-        buf = bytearray()
-        try:
-            while True:
-                line = await asyncio.wait_for(
-                    self.proc.stdout.readuntil(b"\n"),
-                    timeout=timeout,
-                )
-                if line == sentinel_line:
-                    return bytes(buf), False
-                buf.extend(line)
-        except asyncio.TimeoutError:
-            return bytes(buf), True
+    kind: Literal["r2", "gdb"] = "r2"
 
 
 # ----------------------------------------------------------------------------
-# D-18: cap-reject signal.
+# D-18 (Phase 8): cap-reject signal -- preserved verbatim.
 # ----------------------------------------------------------------------------
 class SessionCapReached(Exception):
     """Raised by SessionRegistry.open when the cap is hit. Carries error-dict payload."""
@@ -193,22 +154,31 @@ class SessionCapReached(Exception):
 
 
 # ----------------------------------------------------------------------------
-# D-16, D-17: SessionRegistry async-context-manager + reaper loop.
+# D-16, D-17 (Phase 8): SessionRegistry async-context-manager + reaper loop.
+# Phase 11 D-02 change: kind-aware. `open()` accepts a `kind: Literal["r2","gdb"]`
+# kwarg with default `"r2"` and dispatches to the kind-specific driver function
+# (r2._open_r2 / gdb._open_gdb). The cap (D-02 combined cap of 8) applies across
+# r2 + gdb sessions uniformly because the registry sees only BaseSession objects.
 # ----------------------------------------------------------------------------
 class SessionRegistry:
-    """Async-context-managed registry of R2Sessions; owns the reaper task.
+    """Async-context-managed registry of sessions (r2 + gdb); owns the reaper task.
 
-    Lifespan contract (D-16):
+    Lifespan contract (Phase 8 D-16):
     - __aenter__: start the reaper background task; return self.
     - __aexit__: cancel reaper; asyncio.gather(close(reason='shutdown')) over
       every open session; await reaper exit.
+
+    Phase 11 D-02 update: `open(kind="r2"|"gdb")` dispatches to the kind-specific
+    driver. The combined cap of 8 (default) applies across both kinds.
     """
 
     def __init__(self, *, max_sessions: int, idle_s: float, reaper_interval_s: float):
         self._max = max_sessions
         self._idle_s = idle_s
         self._reaper_interval_s = reaper_interval_s
-        self._sessions: dict[str, R2Session] = {}
+        # NOTE: storage is now BaseSession-typed so the registry can hold any
+        # session-kind. R2Session / GdbSession are both BaseSession subclasses.
+        self._sessions: dict[str, BaseSession] = {}
         self._lock = asyncio.Lock()
         self._reaper_task: Optional[asyncio.Task] = None
 
@@ -241,7 +211,7 @@ class SessionRegistry:
     def count_open(self) -> int:
         return sum(1 for s in self._sessions.values() if not s.closed)
 
-    def get(self, session_id: str) -> R2Session:
+    def get(self, session_id: str) -> BaseSession:
         sess = self._sessions.get(session_id)
         if sess is None or sess.closed:
             raise KeyError(f"unknown session_id: {session_id}")
@@ -255,109 +225,39 @@ class SessionRegistry:
         sample_path: Path,
         init_commands: Optional[list[str]],
         open_timeout_s: float,
-    ) -> R2Session:
-        """Spawn r2, run lockdown init (D-03), then user init_commands (D-19 step 4)."""
-        # D-19 step 3: validate init_commands BEFORE spawn (Pitfall 4).
-        for ic in (init_commands or []):
-            check_dangerous_cmd(ic)
+        kind: Literal["r2", "gdb"] = "r2",
+    ) -> BaseSession:
+        """Spawn a session of the requested kind (D-02: r2 or gdb).
 
-        # D-18: cap check under registry lock; insert under registry lock.
-        async with self._lock:
-            if self.count_open() >= self._max:
-                raise SessionCapReached(self._max, self.count_open(), self.list())
-            session_id = secrets.token_urlsafe(12)
-
-        # D-13: lazy r2-sessions/ subdir + transcript path under confine_to.
-        ensure_subdir(case_dir, "r2-sessions")
-        transcript_path = confine_to(case_dir, f"r2-sessions/{session_id}-transcript.log")
-
-        # D-04: per-session randomized sentinel.
-        sentinel = f"__MARE_END_{secrets.token_hex(4)}__"
-
-        # D-02: argv-only spawn with start_new_session=True for killpg cleanup.
-        proc = await asyncio.create_subprocess_exec(
-            "r2", "-2", "-q0", str(sample_path),
-            cwd=str(case_dir),
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            start_new_session=True,
-        )
-        pgid = os.getpgid(proc.pid)
-
-        # D-03: lockdown init batch + sentinel emitter. Send as a single batch.
-        init_batch = (
-            "e scr.interactive=false\n"
-            "e scr.color=0\n"
-            "e scr.html=0\n"
-            "e cfg.user=mare\n"
-            f"?e {sentinel}\n"
-        )
-        try:
-            proc.stdin.write(init_batch.encode())
-            await proc.stdin.drain()
-            await asyncio.wait_for(
-                proc.stdout.readuntil((sentinel + "\n").encode()),
-                timeout=open_timeout_s,
+        Default `kind="r2"` keeps Phase 8/9/10 callers (which never pass `kind`)
+        working unchanged. Plan 03's gdb path is reached only when `kind="gdb"`
+        and Plan 03 has landed `sessions/gdb.py`.
+        """
+        if kind == "r2":
+            from .r2 import _open_r2
+            return await _open_r2(
+                self,
+                case_dir=case_dir,
+                sample_sha256=sample_sha256,
+                sample_path=sample_path,
+                init_commands=init_commands,
+                open_timeout_s=open_timeout_s,
             )
-        except (asyncio.TimeoutError, Exception):
-            try:
-                os.killpg(pgid, signal.SIGKILL)
-            except (ProcessLookupError, PermissionError):
-                pass
-            await asyncio.shield(proc.wait())
-            raise RuntimeError(
-                "r2 init failed: lockdown commands did not complete within timeout"
+        elif kind == "gdb":
+            from .gdb import _open_gdb  # provided by Plan 03; ImportError until then
+            return await _open_gdb(
+                self,
+                case_dir=case_dir,
+                sample_sha256=sample_sha256,
+                sample_path=sample_path,
+                init_commands=init_commands,
+                open_timeout_s=open_timeout_s,
             )
-
-        # D-13: transcript header.
-        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
-        with open(transcript_path, "ab") as f:
-            f.write(
-                f"=== MARE r2_session {session_id} opened {now_iso} "
-                f"sample={sample_sha256[:8]} ===\n".encode()
-            )
-
-        now_mono = time.monotonic()
-        sess = R2Session(
-            session_id=session_id,
-            case_dir=case_dir,
-            sample_sha256=sample_sha256,
-            sample_path=sample_path,
-            proc=proc,
-            pgid=pgid,
-            lock=asyncio.Lock(),
-            sentinel=sentinel,
-            transcript_path=transcript_path,
-            opened_at=now_mono,
-            opened_iso=now_iso,
-            last_used_at=now_mono,
-        )
-
-        # D-19 step 4: run user init_commands inside the session lock (single-threaded r2).
-        async with sess.lock:
-            for ic in (init_commands or []):
-                raw, timed_out = await sess.exec_one(ic, timeout=open_timeout_s)
-                if timed_out:
-                    try:
-                        os.killpg(pgid, signal.SIGKILL)
-                    except (ProcessLookupError, PermissionError):
-                        pass
-                    await asyncio.shield(proc.wait())
-                    raise RuntimeError(
-                        f"r2 init_commands timed out on {ic!r} after {open_timeout_s}s"
-                    )
-                sess.command_count += 1
-                sess.last_used_at = time.monotonic()
-
-        # Register under lock.
-        async with self._lock:
-            self._sessions[session_id] = sess
-        log.info("[sessions] opened %s (pid=%d sample=%s)", session_id, proc.pid, sample_sha256[:8])
-        return sess
+        else:
+            raise ValueError(f"unknown session kind: {kind!r}")
 
     async def close(self, session_id: str, *, reason: str = "user") -> dict:
-        """Idempotent close: killpg + shielded wait + transcript footer (D-21)."""
+        """Idempotent close: killpg + shielded wait + transcript footer (Phase 8 D-21)."""
         sess = self._sessions.get(session_id)
         if sess is None:
             return {
@@ -392,7 +292,7 @@ class SessionRegistry:
 
         closed_iso = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
         duration = time.monotonic() - sess.opened_at
-        # D-13: transcript-close footer line.
+        # Phase 8 D-13: transcript-close footer line.
         try:
             with open(sess.transcript_path, "ab") as f:
                 f.write(
@@ -416,28 +316,31 @@ class SessionRegistry:
     def list(self) -> list[dict]:
         """Snapshot of open sessions for cap-reject error dict + list_sessions tool (D-22).
 
-        Note: full list_sessions tool surface (with fd_count) lives in
-        tools/r2_sessions.py (Plan 03). This helper is used internally
-        (e.g., cap-reject `existing` field).
+        Phase 11 addition: each entry includes a `"kind"` field so callers can
+        distinguish r2 vs gdb sessions. r2-only callers ignore the extra key.
         """
         now = time.monotonic()
         out = []
         for sid, sess in self._sessions.items():
             if sess.closed:
                 continue
-            out.append({
+            entry = {
                 "session_id": sid,
                 "case_dir": str(sess.case_dir),
-                "sample_sha256": sess.sample_sha256,
+                # `sample_sha256` is r2-specific; access via getattr for kind-agnostic
+                # iteration (gdb session may not have it under that exact attr name).
+                "sample_sha256": getattr(sess, "sample_sha256", ""),
                 "opened_at": sess.opened_iso,
                 "idle_s": now - sess.last_used_at,
                 "command_count": sess.command_count,
                 "pid": sess.proc.pid,
-            })
+                "kind": sess.kind,
+            }
+            out.append(entry)
         return out
 
     async def _reaper_loop(self) -> None:
-        """D-17: poll every reaper_interval_s, close any session idle longer than idle_s."""
+        """Phase 8 D-17: poll every reaper_interval_s, close any session idle longer than idle_s."""
         while True:
             try:
                 await asyncio.sleep(self._reaper_interval_s)
