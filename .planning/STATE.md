@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
-status: verifying
-stopped_at: Phase 12 context gathered
-last_updated: "2026-05-20T02:07:33.938Z"
+status: executing
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-05-20T03:10:12.420Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 8
   completed_phases: 7
-  total_plans: 35
-  completed_plans: 35
-  percent: 100
+  total_plans: 39
+  completed_plans: 36
+  percent: 92
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion scoped)
 
 **Core value:** Automated malware triage and deep analysis via AI agents with full access to professional RE tooling — accessible both from inside the container and from external MCP clients.
-**Current focus:** Phase 11 — dynamic-lab-mode-env-gated
+**Current focus:** Phase 12 — orchestrator-skill-update
 
 ## Current Position
 
 Milestone: v1.1 Remote RE Tool Expansion
-Phase: 12
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 12 (orchestrator-skill-update) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
 Last activity: 2026-05-20
 
 Progress: [          ] 0% (0/8 phases complete)
@@ -147,6 +147,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 11-dynamic-lab-mode-env-gated]: Plan 06: Lifespan probe runs UNCONDITIONALLY (env-gate only affects WARN log dispatch); dynamic.CAPABILITIES populated even when MCP_GATEWAY_DYNAMIC_TOOLS=0 so get_dynamic_capabilities() is always responsive (D-DYN-CAP-PROBE-01 invariant)
 - [Phase 11-dynamic-lab-mode-env-gated]: Plan 06: Generated fixture binaries (dns_lookup, setsid_escape, hello_arm.bin) added to .gitignore; build_fixtures.sh is the source of truth, mirrors Phase 7 best-effort fallback pattern (static-link first, dynamic fallback)
 - [Phase 11-dynamic-lab-mode-env-gated]: Plan 06: VALIDATION.md signed off green -- nyquist_compliant=true, wave_0_complete=true, status=validated, Approval=green; 19 per-task rows flipped ✅; 13-invariant Phase 11 Sign-Off block added
+- [Phase 12]: Phase 12 Plan 01: PyYAML fallback path (manual regex frontmatter parse) added because mcp-gateway venv lacks pyyaml; CONTEXT.md domain forbids adding it
+- [Phase 12]: Phase 12 Plan 01: test_no_legacy_bn_first_priority rewritten as markdown-tolerant regex (Binary Ninja MCP server\*{0,2}\s*--\s*primary tool) to match SKILL.md:141 bold form; Rule-1 deviation
 
 ### Pending Todos
 
@@ -211,9 +213,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 11-dynamic-lab-mode-env-gated P04 | 15min | 2 tasks | 5 files |
 | Phase 11-dynamic-lab-mode-env-gated P05 | 8min | 4 tasks | 5 files |
 | Phase 11-dynamic-lab-mode-env-gated P06 | 8min | 3 tasks | 7 files |
+| Phase 12 P01 | 259s | 1 tasks | 2 files |
 
 ## Session Continuity
 
-Last session: 2026-05-20T02:07:33.926Z
-Stopped at: Phase 12 context gathered
-Resume file: .planning/phases/12-orchestrator-skill-update/12-CONTEXT.md
+Last session: 2026-05-20T03:10:12.412Z
+Stopped at: Completed 12-01-PLAN.md
+Resume file: None
