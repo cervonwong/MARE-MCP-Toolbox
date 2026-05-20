@@ -180,5 +180,5 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 8. Session-Scoped r2           | v1.1      | 0/5   | Not started | -          |
 | 9. Background Job System       | v1.1      | 0/?   | Not started | -          |
 | 10. Extraction Tier            | v1.1      | 5/5 | Complete    | 2026-05-19 |
-| 11. Dynamic Lab Mode           | v1.1      | 6/6 | Complete   | 2026-05-20 |
+| 11. Dynamic Lab Mode           | v1.1      | 6/6 | Complete    | 2026-05-20 |
 | 12. Orchestrator Skill Update  | v1.1      | 0/?   | Not started | -          |
