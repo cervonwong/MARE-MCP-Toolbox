@@ -73,7 +73,7 @@
 ### Dynamic Lab Mode (DYN, env-gated default-off)
 
 - [x] **DYN-01**: Dynamic tools (`run_strace`, `run_ltrace`, `run_qemu_user`, `open_gdb_session`, `gdb_exec`, `close_gdb_session`, `get_dynamic_capabilities`) are registered if and only if `MCP_GATEWAY_DYNAMIC_TOOLS=1` is set at gateway startup. Default-off; `tools/list` does not advertise these tools when off
-- [ ] **DYN-02**: Operator can enable dynamic mode end-to-end via `./run_docker.sh --dynamic` which sets the env var, surfaces the mode in `CURRENT_STATE.json`, and applies dynamic-mode defaults (no-net, dedicated cwd under `dynamic/`)
+- [x] **DYN-02**: Operator can enable dynamic mode end-to-end via `./run_docker.sh --dynamic` which sets the env var, surfaces the mode in `CURRENT_STATE.json`, and applies dynamic-mode defaults (no-net, dedicated cwd under `dynamic/`)
 - [x] **DYN-03**: Agent can run `run_strace(case_dir, sample, profile)` and `run_ltrace(case_dir, sample, profile)` with allowlisted argv profiles (e.g., `file_network_process`, `library_calls`); output to `case_dir/dynamic/`; default no-net via per-call `unshare --net`
 - [x] **DYN-04**: Agent can run `run_qemu_user(case_dir, sample, arch, argv, profile)` for cross-arch user-mode emulation; binfmt drift is detected at startup via `get_dynamic_capabilities()`; output to `case_dir/qemu/`
 - [x] **DYN-05**: Agent can drive an interactive gdb session via `open_gdb_session(case_dir, sample)` → `gdb_exec(session_id, cmd)` → `close_gdb_session(session_id)`, using `gdb --interpreter=mi3`; commands are restricted to an allowlist of MI prefixes (e.g., `info`, `print`, `x`, `disas`, `bt`, `continue`, `break`) to prevent `python <code>` sandbox escape

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: Completed 11-04-PLAN.md (dynamic MCP tool surface — 7 env-gated handlers)
-last_updated: "2026-05-20T01:14:07.939Z"
+stopped_at: Completed 11-05-PLAN.md (dynamic-mode operator surface — run_docker.sh --dynamic flag + compose env passthrough + probe script + shell-wrap tests)
+last_updated: "2026-05-20T01:24:56.663Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 35
-  completed_plans: 33
-  percent: 94
+  completed_plans: 34
+  percent: 97
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 11 (dynamic-lab-mode-env-gated) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 Status: Ready to execute
 Last activity: 2026-05-20
 
@@ -141,6 +141,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 11-dynamic-lab-mode-env-gated]: Plan 04: tools/dynamic.py (546 LoC) lands 7 env-gated MCP handlers; D-DYN-IMPORT-01 conditional import in tools/__init__.py honored; test_tool_list.py parametrized on env (54 baseline / 61 dynamic); tools NEVER raise contract via try/except returning structured error dicts
 - [Phase 11-dynamic-lab-mode-env-gated]: Plan 04: Test-isolation full-reset pattern (drop sys.modules entries + delete parent-package attrs) required because register_job_tool rejects new-identity re-registration AND from-import resolves via parent-package __dict__ bypassing sys.modules misses
 - [Phase 11-dynamic-lab-mode-env-gated]: Plan 04: test_dynamic_tools.py uses _DynamicProxy class (not module-level from-import) so dynamic_mod.CAPABILITIES writes always target the CURRENT mcp_gateway.dynamic instance, surviving other test files' module resets
+- [Phase 11-dynamic-lab-mode-env-gated]: Plan 05: --dynamic flag compositional with --remote; EX_USAGE (64) hard-fail when used standalone with actionable retry hint
+- [Phase 11-dynamic-lab-mode-env-gated]: Plan 05: MCP_GATEWAY_DYNAMIC_TOOLS env passthrough via env-name-only in compose.yaml; ${env:-$DYNAMIC_TOOLS} fallback in run_docker.sh -- explicit env wins, flag wins otherwise
+- [Phase 11-dynamic-lab-mode-env-gated]: Plan 05: Dockerfile keeps qemu-user AND adds qemu-user-static (complementary packages); util-linux added defense-in-depth even though Kali base provides it
 
 ### Pending Todos
 
@@ -203,9 +206,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 11-dynamic-lab-mode-env-gated P02 | 8min | 2 tasks | 5 files |
 | Phase 11-dynamic-lab-mode-env-gated P03 | 6min | 2 tasks | 3 files |
 | Phase 11-dynamic-lab-mode-env-gated P04 | 15min | 2 tasks | 5 files |
+| Phase 11-dynamic-lab-mode-env-gated P05 | 8min | 4 tasks | 5 files |
 
 ## Session Continuity
 
-Last session: 2026-05-20T01:14:07.935Z
-Stopped at: Completed 11-04-PLAN.md (dynamic MCP tool surface — 7 env-gated handlers)
+Last session: 2026-05-20T01:24:56.654Z
+Stopped at: Completed 11-05-PLAN.md (dynamic-mode operator surface — run_docker.sh --dynamic flag + compose env passthrough + probe script + shell-wrap tests)
 Resume file: None

@@ -152,7 +152,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   - [x] 11-02-PLAN.md — Wave 1: dynamic.py LEAF primitive (capability probes, wrap_netns, argv profiles, builders, reap_followfork_strays, 3 JobToolSpec registrations) + JobToolSpec.post_terminal_hook extension (D-DYN-NET-01, D-DYN-PROF-01..04, D-DYN-CAP-PROBE-01..02, D-DYN-JOB-01..03)
   - [x] 11-03-PLAN.md — Wave 2: sessions/gdb.py gdb-MI3 driver (GdbSession, MI prefix allowlist + deny regex, sentinel framing, mandatory lockdown init batch) (D-04..D-10)
   - [x] 11-04-PLAN.md — Wave 2: tools/dynamic.py MCP surface (7 @mcp.tool() handlers + disclaimer splice + sha256 sample resolution + env-gated registration; EXPECTED_TOOLS parametrized 54/61) (D-DYN-TOOL-01..03, D-DYN-IMPORT-01, D-DYN-TEST-COUNT)
-  - [ ] 11-05-PLAN.md — Wave 3: operator surface — run_docker.sh --dynamic flag + EX_USAGE check, compose.yaml env passthrough, Dockerfile qemu-user-static + util-linux, scripts/probe_dynamic_tools.sh helper (D-DYN-FLAG-01..03)
+  - [x] 11-05-PLAN.md — Wave 3: operator surface — run_docker.sh --dynamic flag + EX_USAGE check, compose.yaml env passthrough, Dockerfile qemu-user-static + util-linux, scripts/probe_dynamic_tools.sh helper (D-DYN-FLAG-01..03)
   - [ ] 11-06-PLAN.md — Wave 3: integration gate — app.py lifespan probe wiring + WARN logging, end-to-end JOBS tests (ENETUNREACH netns + setsid reap + qemu round-trip), README dynamic-mode section, VALIDATION.md sign-off (D-DYN-CAP-PROBE-01, D-DYN-PROBE-LOG)
 
 ### Phase 12: Orchestrator Skill Update
@@ -180,5 +180,5 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 8. Session-Scoped r2           | v1.1      | 0/5   | Not started | -          |
 | 9. Background Job System       | v1.1      | 0/?   | Not started | -          |
 | 10. Extraction Tier            | v1.1      | 5/5 | Complete    | 2026-05-19 |
-| 11. Dynamic Lab Mode           | v1.1      | 4/6 | In Progress|  |
+| 11. Dynamic Lab Mode           | v1.1      | 5/6 | In Progress|  |
 | 12. Orchestrator Skill Update  | v1.1      | 0/?   | Not started | -          |
