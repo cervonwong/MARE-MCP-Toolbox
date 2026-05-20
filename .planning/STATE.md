@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: Phase 11 context gathered
-last_updated: "2026-05-19T09:45:45.270Z"
-last_activity: 2026-05-19 -- Phase 11 planning complete
+stopped_at: Completed 11-01-PLAN.md (sessions/ package refactor)
+last_updated: "2026-05-20T00:32:34.800Z"
+last_activity: 2026-05-20
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 35
-  completed_plans: 29
-  percent: 83
+  completed_plans: 30
+  percent: 86
 ---
 
 # Project State
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion scoped)
 
 **Core value:** Automated malware triage and deep analysis via AI agents with full access to professional RE tooling — accessible both from inside the container and from external MCP clients.
-**Current focus:** Phase 10 — extraction-tier
+**Current focus:** Phase 11 — dynamic-lab-mode-env-gated
 
 ## Current Position
 
 Milestone: v1.1 Remote RE Tool Expansion
-Phase: 11
-Plan: Not started
+Phase: 11 (dynamic-lab-mode-env-gated) — EXECUTING
+Plan: 2 of 6
 Status: Ready to execute
-Last activity: 2026-05-19 -- Phase 11 planning complete
+Last activity: 2026-05-20
 
 Progress: [          ] 0% (0/8 phases complete)
 
@@ -128,6 +128,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 10]: Plan 04: 7 tools registered via mcp.tool()(fn) wrapping pattern in register(mcp) — NOT @decorator at definition (matches Phase 8/9 r2_sessions/jobs); allows direct test import + call
 - [Phase 10]: Wave-3 integration commit pattern: source wire-up + RED->GREEN test flip + VALIDATION sign-off (matches Phase 7-08 + 9-03 precedent)
 - [Phase 10]: Tool-count range bumped 35-50 -> 35-60 to absorb Phase 11 conditional dynamic tools
+- [Phase 11-dynamic-lab-mode-env-gated]: Plan 01: sessions/ package re-export __init__.py force-reloads _base + r2 on package reload (4-line block) to preserve Phase 8 D-14 importlib.reload semantics -- Rule-1 deviation surfaced by test_env_var_bad_value_raises during Task 2 verification
+- [Phase 11-dynamic-lab-mode-env-gated]: Plan 01: BaseSession dataclass + R2Session subclass with tail-defaulted fields (sample_sha256='', sample_path=Path()) -- no kw_only=True needed; symmetric structure ready for Plan 03 GdbSession
+- [Phase 11-dynamic-lab-mode-env-gated]: Plan 01: kind kwarg on SessionRegistry.open defaults to 'r2' for backward compat; gdb branch uses deferred  so Plan 03 lands the gdb driver later without breaking this plan
 
 ### Pending Todos
 
@@ -186,9 +189,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 10 P03 | 3min | 1 tasks | 1 files |
 | Phase 10 P04 | 4min30s | 1 tasks | 1 files |
 | Phase 10 P05 | 10min | 3 tasks | 16 files |
+| Phase 11-dynamic-lab-mode-env-gated P01 | 6min | 2 tasks | 6 files |
 
 ## Session Continuity
 
-Last session: 2026-05-19T07:39:57.191Z
-Stopped at: Phase 11 context gathered
-Resume file: .planning/phases/11-dynamic-lab-mode-env-gated/11-CONTEXT.md
+Last session: 2026-05-20T00:32:34.796Z
+Stopped at: Completed 11-01-PLAN.md (sessions/ package refactor)
+Resume file: None
