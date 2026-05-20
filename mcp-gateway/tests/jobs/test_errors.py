@@ -173,3 +173,20 @@ async def test_no_tool_handler_raises(attached_registry, case_dir_fixture):
             case_dir=str(case_dir_fixture),
         )
     await _no_exception(lambda: _calls())
+
+
+def test_job_cap_reached_dict_shape():
+    """HARDEN-07: JobCapReached.to_dict() byte-identical to pre-Phase-13.
+
+    Phase 13 D-03 invariant: the cap-reject error contract is preserved
+    verbatim. Callers in tools/jobs.py and any external consumers reading
+    `{error, inflight, cap, hint}` see the same shape post-Phase-13 as before.
+    """
+    from mcp_gateway.jobs import JobCapReached
+    err = JobCapReached(inflight=4, cap=4)
+    assert err.to_dict() == {
+        "error": "job cap reached",
+        "inflight": 4,
+        "cap": 4,
+        "hint": "wait for an inflight job to complete or cancel one via cancel_tool_job(job_id)",
+    }
