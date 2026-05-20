@@ -18,7 +18,11 @@ import sys
 # the Phase 8 D-14 test `test_env_var_bad_value_raises` would silently pass.
 # This preserves the exact Phase 8 reload semantics that the monolithic
 # sessions.py provided.
-for _submod in ("mcp_gateway.sessions._base", "mcp_gateway.sessions.r2"):
+for _submod in (
+    "mcp_gateway.sessions._base",
+    "mcp_gateway.sessions.r2",
+    "mcp_gateway.sessions.gdb",
+):
     _m = sys.modules.get(_submod)
     if _m is not None:
         importlib.reload(_m)
@@ -44,9 +48,13 @@ from .r2 import (
     _DANGEROUS_R2_CMD_RE,
     check_dangerous_cmd,
 )
-# Plan 03 will add `from .gdb import GdbSession, GDB_CMD_TIMEOUT_S, GDB_OPEN_TIMEOUT_S`.
-# Until Plan 03 lands, gdb path is unreachable and `kind="gdb"` raises a
-# deferred ImportError inside SessionRegistry.open's gdb branch.
+# Phase 11 Plan 03 addition: gdb-MI3 session driver.
+from .gdb import (
+    GdbSession,
+    GDB_OPEN_TIMEOUT_S,
+    GDB_CMD_TIMEOUT_S,
+    validate_mi_command,
+)
 
 __all__ = [
     # _base
@@ -57,4 +65,7 @@ __all__ = [
     "strip_ansi", "truncate_for_response", "make_sentinel",
     # r2
     "R2Session", "_DANGEROUS_R2_CMD_RE", "check_dangerous_cmd",
+    # gdb (Phase 11 Plan 03)
+    "GdbSession", "GDB_OPEN_TIMEOUT_S", "GDB_CMD_TIMEOUT_S",
+    "validate_mi_command",
 ]

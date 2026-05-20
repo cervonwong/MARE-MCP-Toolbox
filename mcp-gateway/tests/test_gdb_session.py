@@ -204,10 +204,14 @@ def test_gdb_env_validates_bad_values(monkeypatch):
     sys.modules.pop("mcp_gateway.sessions.gdb", None)
     with pytest.raises(RuntimeError):
         import mcp_gateway.sessions.gdb  # noqa: F401
-    # Cleanup: reload with sane env so subsequent tests in this process are unaffected
+    # Cleanup: reload with sane env so subsequent tests in this process are unaffected.
+    # We also re-import the sessions PACKAGE so the package-level `GdbSession` binding
+    # tracks the freshly-loaded submodule (otherwise the package keeps a dangling
+    # reference to the pre-reload class).
     monkeypatch.delenv("MCP_GATEWAY_GDB_CMD_TIMEOUT_S", raising=False)
     sys.modules.pop("mcp_gateway.sessions.gdb", None)
-    import mcp_gateway.sessions.gdb  # noqa: F401
+    sys.modules.pop("mcp_gateway.sessions", None)
+    import mcp_gateway.sessions  # noqa: F401
 
 
 # ---------------------------------------------------------------------------
