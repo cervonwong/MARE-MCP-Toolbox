@@ -169,7 +169,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   - [x] 12-02-PLAN.md — Wave 1: 7 W-N workflow files at `references/workflows/W-N-<slug>.md` + new index `references/deep-re-workflows.md` (D-03, D-04, D-05); turns RED workflow-count/index/wrapper-coverage tests GREEN
   - [x] 12-03-PLAN.md — Wave 1: SKILL-04 plumbing — `update_state.py --probe-dynamic` flag + 3 new schema keys (mode/dynamic_mode_enabled/dynamic_capabilities); `init_status_tree.sh` populate_dynamic_caps (gateway-curl + scripts-mode probe_dynamic_tools.sh fallback); `artifact-spec.md` schema doc (D-15, D-16, D-17)
   - [x] 12-04-PLAN.md — Wave 2: SKILL.md rewrite (D-01 IDA-first priority + D-02 get_active_backend pattern + D-04 W-N routing + D-07/D-09 Dual-Mode Operation section + D-18 Dynamic-Mode Skip Behavior section); references/workflow.md + references/deep-analysis-checklist.md sweep (D-06); SKILL.md.sha256 baseline (D-13); turns all 12 tests GREEN
-  - [ ] 12-05-PLAN.md — Wave 0 (gap closure): close Gap 1 (HI-01/HI-02/HI-03 in init_status_tree.sh::populate_dynamic_caps + artifact-spec.md Accept-header echo) + Gap 2 (skill-side scripts/probe_dynamic_tools.sh wrapper so test_scripts_references_resolve goes GREEN); brings phase regression suite from 51/1 to 52/52 (SKILL-03, SKILL-04)
+  - [x] 12-05-PLAN.md — Wave 0 (gap closure): close Gap 1 (HI-01/HI-02/HI-03 in init_status_tree.sh::populate_dynamic_caps + artifact-spec.md Accept-header echo) + Gap 2 (skill-side scripts/probe_dynamic_tools.sh wrapper so test_scripts_references_resolve goes GREEN); brings phase regression suite from 51/1 to 52/52 (SKILL-03, SKILL-04)
 
 ## Progress
 
@@ -186,4 +186,4 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 9. Background Job System       | v1.1      | 0/?   | Not started | -          |
 | 10. Extraction Tier            | v1.1      | 5/5 | Complete    | 2026-05-19 |
 | 11. Dynamic Lab Mode           | v1.1      | 6/6 | Complete    | 2026-05-20 |
-| 12. Orchestrator Skill Update  | v1.1      | 4/5 | Gap closure | 2026-05-20 |
+| 12. Orchestrator Skill Update  | v1.1      | 5/5 | Complete   | 2026-05-20 |

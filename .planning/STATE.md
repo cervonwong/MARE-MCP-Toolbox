@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
-status: verifying
-stopped_at: Completed 12-04-PLAN.md
-last_updated: "2026-05-20T05:29:05.373Z"
+status: executing
+stopped_at: Completed 12-05-PLAN.md
+last_updated: "2026-05-20T06:41:55.567Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 8
   completed_phases: 8
-  total_plans: 39
-  completed_plans: 39
+  total_plans: 40
+  completed_plans: 40
   percent: 100
 ---
 
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 12 (orchestrator-skill-update) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
+Plan: 2 of 5
+Status: Ready to execute
 Last activity: 2026-05-20
 
 Progress: [          ] 0% (0/8 phases complete)
@@ -155,6 +155,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 12-orchestrator-skill-update]: [Phase 12]: Plan 12-03 shell-route populate_dynamic_caps per D-16 + Open Question 1 — curl+jq mirrors Phase 11 probe_dynamic_tools.sh; project root = SKILL_DIR/../../../.. (4 levels); ptrace_scope marker is = not : in probe output; jq dep guarded for scripts-mode fallback
 - [Phase 12-orchestrator-skill-update]: [Phase 12]: Plan 12-03 D-15 additive schema — update_state.py read-modify-write preserves existing CURRENT_STATE.json values; --probe-dynamic flag is the D-17 re-probe entry point; bearer token from MCP_GATEWAY_TOKEN env ONLY (T-12-02), zero literal tokens in shipped code
 - [Phase 12-orchestrator-skill-update]: [Phase 12]: Plan 12-04 H2 'Dual-Mode Operation' renamed to 'Operating Modes' to match REQUIRED_H2 regex (test_skill_md_has_required_h2_sections); pseudo-code placeholder 'run_X' replaced with '<tool_name>' to dodge tool-registry regex collision; Backend Priority section split into 3 paragraphs to land dual-mode invariant ±3-line window
+- [Phase 12-orchestrator-skill-update]: Plan 12-05: Skill-side probe_dynamic_tools.sh wrapper (option b) chosen over W-7 doc absolute-path (option a) or test resolver change (option c) - least invasive, no test changes, creates natural skill-side affordance
+- [Phase 12-orchestrator-skill-update]: Plan 12-05: qemu_archs detection moved OUT of probe-output parsing and INTO direct command -v loop because scripts/probe_dynamic_tools.sh only emits a count summary (no per-arch tokens)
+- [Phase 12-orchestrator-skill-update]: Plan 12-05: MCP Streamable HTTP (2025-03-26) Accept header + awk single-pass SSE strip applied to both init_status_tree.sh and artifact-spec.md Re-probe example; idempotent on plain JSON
 
 ### Pending Todos
 
@@ -223,9 +226,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 12 P02 | 10min | 2 tasks | 8 files |
 | Phase 12-orchestrator-skill-update P03 | 5m26s | 3 tasks | 3 files |
 | Phase 12-orchestrator-skill-update P04 | 17min | 3 tasks | 4 files |
+| Phase 12-orchestrator-skill-update P05 | 145s | 1 tasks | 3 files |
 
 ## Session Continuity
 
-Last session: 2026-05-20T05:29:05.369Z
-Stopped at: Completed 12-04-PLAN.md
+Last session: 2026-05-20T06:41:55.563Z
+Stopped at: Completed 12-05-PLAN.md
 Resume file: None
