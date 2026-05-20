@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: Phase 13 context gathered
-last_updated: "2026-05-20T08:00:53.190Z"
+stopped_at: Completed 13-01-PLAN.md (atomic SessionRegistry cap enforcement)
+last_updated: "2026-05-20T09:32:14.313Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 9
   completed_phases: 8
-  total_plans: 40
-  completed_plans: 40
-  percent: 100
+  total_plans: 44
+  completed_plans: 41
+  percent: 93
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion scoped)
 
 **Core value:** Automated malware triage and deep analysis via AI agents with full access to professional RE tooling — accessible both from inside the container and from external MCP clients.
-**Current focus:** Phase 12 — orchestrator-skill-update
+**Current focus:** Phase 13 — harden-concurrency-caps-and-r2-sandboxing
 
 ## Current Position
 
 Milestone: v1.1 Remote RE Tool Expansion
-Phase: 12
-Plan: Not started
+Phase: 13 (harden-concurrency-caps-and-r2-sandboxing) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
 Last activity: 2026-05-20
 
@@ -158,6 +158,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 12-orchestrator-skill-update]: Plan 12-05: Skill-side probe_dynamic_tools.sh wrapper (option b) chosen over W-7 doc absolute-path (option a) or test resolver change (option c) - least invasive, no test changes, creates natural skill-side affordance
 - [Phase 12-orchestrator-skill-update]: Plan 12-05: qemu_archs detection moved OUT of probe-output parsing and INTO direct command -v loop because scripts/probe_dynamic_tools.sh only emits a count summary (no per-arch tokens)
 - [Phase 12-orchestrator-skill-update]: Plan 12-05: MCP Streamable HTTP (2025-03-26) Accept header + awk single-pass SSE strip applied to both init_status_tree.sh and artifact-spec.md Re-probe example; idempotent on plain JSON
+- [Phase 13]: Phase 13 Plan 01: Atomic probe-and-acquire under registry._lock chosen over wait_for(acquire, timeout=0) for the BoundedSemaphore cap-enforcement primitive -- bridges locked()-probe + acquire() into a single atomic step (Pitfall 3 fix); matches existing registry._lock + cap-check pattern shape
+- [Phase 13]: Phase 13 Plan 01: _slot_released bool flag on BaseSession as the LAST dataclass field (default False) -- preserves dataclass-inheritance rule for R2Session / GdbSession subclass-added fields; release-site guard prevents double-release on close() + reaper + shutdown overlap
+- [Phase 13]: Phase 13 Plan 01: Test harness defends against accidental killpg(0) -- stub sessions use sentinel pgid=-99999 + autouse os.killpg monkeypatch that refuses pgid<=0. Without this, close()'s killpg sent SIGKILL to the test runner's own process group (silent exit-137).
 
 ### Roadmap Evolution
 
@@ -232,9 +235,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 12-orchestrator-skill-update P03 | 5m26s | 3 tasks | 3 files |
 | Phase 12-orchestrator-skill-update P04 | 17min | 3 tasks | 4 files |
 | Phase 12-orchestrator-skill-update P05 | 145s | 1 tasks | 3 files |
+| Phase 13 P01 | 459s | 3 tasks | 5 files |
 
 ## Session Continuity
 
-Last session: 2026-05-20T08:00:53.184Z
-Stopped at: Phase 13 context gathered
-Resume file: .planning/phases/13-harden-concurrency-caps-and-r2-sandboxing/13-CONTEXT.md
+Last session: 2026-05-20T09:32:14.298Z
+Stopped at: Completed 13-01-PLAN.md (atomic SessionRegistry cap enforcement)
+Resume file: None
