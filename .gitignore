@@ -47,3 +47,8 @@ venv/
 templates/**/node_modules/
 templates/**/dist/
 templates/**/.env
+
+# Phase 11 fixture binaries (built by tests/fixtures/build_fixtures.sh)
+mcp-gateway/tests/fixtures/dns_lookup
+mcp-gateway/tests/fixtures/setsid_escape
+mcp-gateway/tests/fixtures/hello_arm.bin

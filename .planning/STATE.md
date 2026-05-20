@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
-status: executing
-stopped_at: Completed 11-05-PLAN.md (dynamic-mode operator surface — run_docker.sh --dynamic flag + compose env passthrough + probe script + shell-wrap tests)
-last_updated: "2026-05-20T01:24:56.663Z"
+status: verifying
+stopped_at: Completed 11-06-PLAN.md (integration + sign-off — Phase 11 ready for /gsd-verify-work)
+last_updated: "2026-05-20T01:37:08.093Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 8
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 35
-  completed_plans: 34
-  percent: 97
+  completed_plans: 35
+  percent: 100
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 11 (dynamic-lab-mode-env-gated) — EXECUTING
 Plan: 6 of 6
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-20
 
 Progress: [          ] 0% (0/8 phases complete)
@@ -144,6 +144,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 11-dynamic-lab-mode-env-gated]: Plan 05: --dynamic flag compositional with --remote; EX_USAGE (64) hard-fail when used standalone with actionable retry hint
 - [Phase 11-dynamic-lab-mode-env-gated]: Plan 05: MCP_GATEWAY_DYNAMIC_TOOLS env passthrough via env-name-only in compose.yaml; ${env:-$DYNAMIC_TOOLS} fallback in run_docker.sh -- explicit env wins, flag wins otherwise
 - [Phase 11-dynamic-lab-mode-env-gated]: Plan 05: Dockerfile keeps qemu-user AND adds qemu-user-static (complementary packages); util-linux added defense-in-depth even though Kali base provides it
+- [Phase 11-dynamic-lab-mode-env-gated]: Plan 06: Lifespan probe runs UNCONDITIONALLY (env-gate only affects WARN log dispatch); dynamic.CAPABILITIES populated even when MCP_GATEWAY_DYNAMIC_TOOLS=0 so get_dynamic_capabilities() is always responsive (D-DYN-CAP-PROBE-01 invariant)
+- [Phase 11-dynamic-lab-mode-env-gated]: Plan 06: Generated fixture binaries (dns_lookup, setsid_escape, hello_arm.bin) added to .gitignore; build_fixtures.sh is the source of truth, mirrors Phase 7 best-effort fallback pattern (static-link first, dynamic fallback)
+- [Phase 11-dynamic-lab-mode-env-gated]: Plan 06: VALIDATION.md signed off green -- nyquist_compliant=true, wave_0_complete=true, status=validated, Approval=green; 19 per-task rows flipped ✅; 13-invariant Phase 11 Sign-Off block added
 
 ### Pending Todos
 
@@ -207,9 +210,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 11-dynamic-lab-mode-env-gated P03 | 6min | 2 tasks | 3 files |
 | Phase 11-dynamic-lab-mode-env-gated P04 | 15min | 2 tasks | 5 files |
 | Phase 11-dynamic-lab-mode-env-gated P05 | 8min | 4 tasks | 5 files |
+| Phase 11-dynamic-lab-mode-env-gated P06 | 8min | 3 tasks | 7 files |
 
 ## Session Continuity
 
-Last session: 2026-05-20T01:24:56.654Z
-Stopped at: Completed 11-05-PLAN.md (dynamic-mode operator surface — run_docker.sh --dynamic flag + compose env passthrough + probe script + shell-wrap tests)
+Last session: 2026-05-20T01:37:08.089Z
+Stopped at: Completed 11-06-PLAN.md (integration + sign-off — Phase 11 ready for /gsd-verify-work)
 Resume file: None

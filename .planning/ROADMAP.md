@@ -27,7 +27,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 - [ ] **Phase 8: Session-Scoped r2** — Persistent r2 analysis sessions with idle reaper, session cap, and dangerous-command refusal
 - [ ] **Phase 9: Background Job System** — `start_tool_job`/`get_tool_job`/`cancel_tool_job` for long-running tools that exceed the 60 s MCP request cap
 - [x] **Phase 10: Extraction Tier** — `run_unblob`, `run_binwalk`, UPX wrappers, child-file enumeration, and `promote_extracted_sample` (completed 2026-05-19)
-- [ ] **Phase 11: Dynamic Lab Mode (env-gated)** — `run_strace`/`run_ltrace`/`run_qemu_user` + session-scoped gdb, default-off via `MCP_GATEWAY_DYNAMIC_TOOLS=1`
+- [x] **Phase 11: Dynamic Lab Mode (env-gated)** — `run_strace`/`run_ltrace`/`run_qemu_user` + session-scoped gdb, default-off via `MCP_GATEWAY_DYNAMIC_TOOLS=1` (completed 2026-05-20)
 - [ ] **Phase 12: Orchestrator Skill Update** — Update `malware-analysis-orchestrator` to encode v1.1 tool surface, fix backend priority drift, and preserve dual-mode operation
 
 ## Phase Details
@@ -153,7 +153,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   - [x] 11-03-PLAN.md — Wave 2: sessions/gdb.py gdb-MI3 driver (GdbSession, MI prefix allowlist + deny regex, sentinel framing, mandatory lockdown init batch) (D-04..D-10)
   - [x] 11-04-PLAN.md — Wave 2: tools/dynamic.py MCP surface (7 @mcp.tool() handlers + disclaimer splice + sha256 sample resolution + env-gated registration; EXPECTED_TOOLS parametrized 54/61) (D-DYN-TOOL-01..03, D-DYN-IMPORT-01, D-DYN-TEST-COUNT)
   - [x] 11-05-PLAN.md — Wave 3: operator surface — run_docker.sh --dynamic flag + EX_USAGE check, compose.yaml env passthrough, Dockerfile qemu-user-static + util-linux, scripts/probe_dynamic_tools.sh helper (D-DYN-FLAG-01..03)
-  - [ ] 11-06-PLAN.md — Wave 3: integration gate — app.py lifespan probe wiring + WARN logging, end-to-end JOBS tests (ENETUNREACH netns + setsid reap + qemu round-trip), README dynamic-mode section, VALIDATION.md sign-off (D-DYN-CAP-PROBE-01, D-DYN-PROBE-LOG)
+  - [x] 11-06-PLAN.md — Wave 3: integration gate — app.py lifespan probe wiring + WARN logging, end-to-end JOBS tests (ENETUNREACH netns + setsid reap + qemu round-trip), README dynamic-mode section, VALIDATION.md sign-off (D-DYN-CAP-PROBE-01, D-DYN-PROBE-LOG)
 
 ### Phase 12: Orchestrator Skill Update
 **Goal**: The `malware-analysis-orchestrator` skill encodes the v1.1 tool surface, fixes stale v1.0 assumptions, and preserves dual-mode operation (gateway + local-script fallback)
@@ -180,5 +180,5 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 8. Session-Scoped r2           | v1.1      | 0/5   | Not started | -          |
 | 9. Background Job System       | v1.1      | 0/?   | Not started | -          |
 | 10. Extraction Tier            | v1.1      | 5/5 | Complete    | 2026-05-19 |
-| 11. Dynamic Lab Mode           | v1.1      | 5/6 | In Progress|  |
+| 11. Dynamic Lab Mode           | v1.1      | 6/6 | Complete   | 2026-05-20 |
 | 12. Orchestrator Skill Update  | v1.1      | 0/?   | Not started | -          |
