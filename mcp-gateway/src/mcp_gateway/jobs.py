@@ -192,6 +192,10 @@ class Job:
     _terminal_result: Optional[dict] = None
     # Pitfall 2: retain drive task reference so GC does not drop it
     _drive_task: Optional[asyncio.Task] = None
+    # Phase 13 D-02: tracks whether the cap slot has been returned for this job.
+    # Single release sink is _mark_terminal; submit()'s except-branch releases
+    # for pre-spawn failures (drive task never created -> _mark_terminal never runs).
+    _slot_released: bool = False
 
 
 # ----------------------------------------------------------------------------
@@ -516,6 +520,11 @@ class BackgroundJobRegistry:
         self._inflight: dict[str, Job] = {}
         self._completed: "collections.OrderedDict[str, Job]" = collections.OrderedDict()
         self._lock: asyncio.Lock = asyncio.Lock()
+        # Phase 13 D-01: cap-enforcement primitive (replaces racy len(_inflight) >= _max check).
+        # Requires Python 3.10+ asyncio.Semaphore cancellation-safety (bpo-90155 fix).
+        # BoundedSemaphore raises ValueError on over-release -- fails loud on cleanup bugs.
+        # The semaphore is the gate; self._inflight is the truth (D-04).
+        self._sem: asyncio.BoundedSemaphore = asyncio.BoundedSemaphore(max_inflight)
 
     async def __aenter__(self) -> "BackgroundJobRegistry":
         log.info(
@@ -546,41 +555,62 @@ class BackgroundJobRegistry:
         effective_timeout_s: float,
     ) -> Job:
         """Register a new Job + start its drive task. Raises JobCapReached when cap hit."""
+        # Phase 13 D-01/D-03: atomic cap check + slot reservation under self._lock.
+        # The lock bridges the locked()-probe and acquire() into a single atomic
+        # gate (Pitfall 3 fix). D-04: cap-reject error payload reads from
+        # self._inflight (the dict is the truth; the semaphore is the gate).
         async with self._lock:
-            if len(self._inflight) >= self._max_inflight:
+            if self._sem.locked():
                 raise JobCapReached(inflight=len(self._inflight), cap=self._max_inflight)
+            await self._sem.acquire()
             # D-05 step 6: 16-hex job_id
             job_id = secrets.token_hex(8)
             while job_id in self._inflight or job_id in self._completed:
                 job_id = secrets.token_hex(8)
 
-        case_dir_path = Path(case_dir_resolved)
-        ensure_subdir(case_dir_path, "tool-logs")
-        argv = spec.build_argv(case_dir_path, kwargs)
-        log_abs = tool_log_path(case_dir_path, spec.slug)
-        log_rel = str(log_abs.relative_to(case_dir_path))
+        # Pre-spawn setup. Wrapped in try/except BaseException so any failure
+        # before the drive task is created releases the slot (drive task ->
+        # _mark_terminal is the normal release path, but if the drive task is
+        # never created, _mark_terminal never runs).
+        try:
+            case_dir_path = Path(case_dir_resolved)
+            ensure_subdir(case_dir_path, "tool-logs")
+            argv = spec.build_argv(case_dir_path, kwargs)
+            log_abs = tool_log_path(case_dir_path, spec.slug)
+            log_rel = str(log_abs.relative_to(case_dir_path))
 
-        job = Job(
-            job_id=job_id,
-            tool=spec.name,
-            spec=spec,
-            kwargs=dict(kwargs),
-            case_dir=case_dir_resolved,
-            argv=list(argv),
-            effective_timeout_s=effective_timeout_s,
-            log_path_abs=log_abs,
-            log_path_rel=log_rel,
-        )
+            job = Job(
+                job_id=job_id,
+                tool=spec.name,
+                spec=spec,
+                kwargs=dict(kwargs),
+                case_dir=case_dir_resolved,
+                argv=list(argv),
+                effective_timeout_s=effective_timeout_s,
+                log_path_abs=log_abs,
+                log_path_rel=log_rel,
+            )
 
-        async with self._lock:
-            self._inflight[job_id] = job
+            async with self._lock:
+                self._inflight[job_id] = job
 
-        # Pitfall 2: retain task on the Job so GC does not drop it
-        job._drive_task = asyncio.create_task(
-            self._spawn_and_drive(job),
-            name=f"job-drive-{job_id}",
-        )
-        return job
+            # From this point on, _spawn_and_drive runs and eventually reaches
+            # _mark_terminal which is the single release sink. Do NOT release
+            # here -- doing so would double-release with _mark_terminal.
+            # Pitfall 2: retain task on the Job so GC does not drop it
+            job._drive_task = asyncio.create_task(
+                self._spawn_and_drive(job),
+                name=f"job-drive-{job_id}",
+            )
+            return job
+        except BaseException:
+            # Phase 13 D-02: pre-spawn failure (Path / ensure_subdir / build_argv /
+            # tool_log_path / Job-constructor / dict-insert raised BEFORE
+            # asyncio.create_task). The drive task is never created so
+            # _mark_terminal never runs; release the slot here. Includes
+            # CancelledError (BaseException, not Exception).
+            self._sem.release()
+            raise
 
     def get(self, job_id: str) -> Job:
         if job_id in self._inflight:
@@ -717,6 +747,20 @@ class BackgroundJobRegistry:
                     "[jobs] FIFO-evicted completed job %s (cap=%d; log file preserved on disk)",
                     evicted_id, self._max_completed,
                 )
+
+        # Phase 13 D-02: release the cap slot exactly once per job lifecycle.
+        # _mark_terminal is the single sink for all 7 terminal-state transitions
+        # in _spawn_and_drive (succeeded/failed/cancelled/killed_timeout/
+        # killed_log_cap/outer-CancelledError/outer-Exception). Pitfall 4 flag
+        # guards against double-release across any future refactor that calls
+        # _mark_terminal twice.
+        if not getattr(job, "_slot_released", False):
+            try:
+                self._sem.release()
+                job._slot_released = True
+            except ValueError:
+                log.exception("[jobs] semaphore over-release on _mark_terminal(%s)", job.job_id)
+                job._slot_released = True
 
     def _build_snapshot(self, job: Job) -> dict:
         """Build the D-19 25-key snapshot (12 Phase 6 base + 13 Phase 9 extensions).
