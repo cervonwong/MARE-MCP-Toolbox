@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: Completed 12-02-PLAN.md
-last_updated: "2026-05-20T03:18:51.846Z"
+stopped_at: Completed 12-03-PLAN.md
+last_updated: "2026-05-20T03:27:22.353Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 39
-  completed_plans: 37
-  percent: 95
+  completed_plans: 38
+  percent: 97
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 12 (orchestrator-skill-update) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-05-20
 
@@ -152,6 +152,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 12]: Plan 12-02: Used table-form template verbatim from D-05 / Pattern 2; backend priority phrased IDA > BN > Ghidra > r2 in every W-N header (forward-correct ahead of Plan 04 SKILL.md rewrite)
 - [Phase 12]: Plan 12-02: Closed safe-slug list for dynamic-mode skip placeholders (W-5: strace-all/ltrace-libc/gdb-open-bt; W-7: qemu-<arch>-run) -- T-12-03 mitigation against arbitrary-path injection
 - [Phase 12]: Plan 12-02: W-2/W-3 extended with 'Notes' bullets to meet plan must_haves min_lines invariants (50/45) -- Rule-1 fix added fallback clause to W-2 r2-job bullet to preserve dual_mode_invariant
+- [Phase 12-orchestrator-skill-update]: [Phase 12]: Plan 12-03 shell-route populate_dynamic_caps per D-16 + Open Question 1 — curl+jq mirrors Phase 11 probe_dynamic_tools.sh; project root = SKILL_DIR/../../../.. (4 levels); ptrace_scope marker is = not : in probe output; jq dep guarded for scripts-mode fallback
+- [Phase 12-orchestrator-skill-update]: [Phase 12]: Plan 12-03 D-15 additive schema — update_state.py read-modify-write preserves existing CURRENT_STATE.json values; --probe-dynamic flag is the D-17 re-probe entry point; bearer token from MCP_GATEWAY_TOKEN env ONLY (T-12-02), zero literal tokens in shipped code
 
 ### Pending Todos
 
@@ -218,9 +220,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 11-dynamic-lab-mode-env-gated P06 | 8min | 3 tasks | 7 files |
 | Phase 12 P01 | 259s | 1 tasks | 2 files |
 | Phase 12 P02 | 10min | 2 tasks | 8 files |
+| Phase 12-orchestrator-skill-update P03 | 5m26s | 3 tasks | 3 files |
 
 ## Session Continuity
 
-Last session: 2026-05-20T03:18:40.538Z
-Stopped at: Completed 12-02-PLAN.md
+Last session: 2026-05-20T03:27:12.926Z
+Stopped at: Completed 12-03-PLAN.md
 Resume file: None

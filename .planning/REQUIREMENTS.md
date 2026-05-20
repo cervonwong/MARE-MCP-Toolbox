@@ -85,7 +85,7 @@
 - [ ] **SKILL-01**: Updated `workspace/.claude/skills/malware-analysis-orchestrator/` reflects backend priority `IDA > BN > Ghidra` (correcting v1.0 documentation drift)
 - [x] **SKILL-02**: Skill encodes the deep RE checklist mapping findings → tools (W-1 packed-binary triage, W-2 ELF deep-dive, W-3 PE deep-dive, W-4 ROP hunt, W-5 dynamic API trace, W-6 firmware unpack, W-7 cross-arch IoT triage); each maps to v1.1 typed wrappers and `run_shell` fallbacks
 - [x] **SKILL-03**: Skill preserves dual-mode operation: every step has an MCP path (gateway tools) and a local-script path (`scripts/...`), with a decision rule based on `tools/list` content; a regression test snapshots SKILL.md and fails CI on unconditional `mcp__mare__*` references with no fallback
-- [ ] **SKILL-04**: Skill marks dynamic mode status in `CURRENT_STATE.json` so subsequent analysis steps know whether dynamic tools are available; dynamic-mode-only steps are skipped (with a noted reason) when the mode is off
+- [x] **SKILL-04**: Skill marks dynamic mode status in `CURRENT_STATE.json` so subsequent analysis steps know whether dynamic tools are available; dynamic-mode-only steps are skipped (with a noted reason) when the mode is off
 
 ---
 
