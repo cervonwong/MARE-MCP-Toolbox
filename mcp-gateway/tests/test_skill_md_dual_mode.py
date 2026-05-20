@@ -273,3 +273,178 @@ def test_skill_documents_dynamic_skip_behavior():
     assert re.search(r"skipped[ \-_]steps", haystack, re.IGNORECASE), (
         "no 'skipped steps' INDEX.md subsection documented (D-18)"
     )
+
+
+# ---- Frontmatter contract (Anthropic API enforces description limits) -------
+
+
+def _extract_frontmatter(path: Path) -> dict[str, str]:
+    """Return frontmatter as {key: raw_value} string map. Empty dict if no block."""
+    text = path.read_text(encoding="utf-8")
+    m = re.match(r"---\n(.*?)\n---", text, re.DOTALL)
+    if not m:
+        return {}
+    out: dict[str, str] = {}
+    for line in m.group(1).splitlines():
+        km = re.match(r"^(\w[\w-]*):\s*(.*)$", line)
+        if km:
+            out[km.group(1)] = km.group(2).strip().strip("\"'")
+    return out
+
+
+def test_frontmatter_description_within_anthropic_limit():
+    """Anthropic Agent Skills enforce description <= 1024 chars."""
+    fm = _extract_frontmatter(SKILL_MD)
+    desc = fm.get("description", "")
+    assert desc, "frontmatter missing `description` key"
+    assert len(desc) <= 1024, (
+        f"frontmatter description is {len(desc)} chars; Anthropic limit is 1024. "
+        f"Trim before publishing."
+    )
+
+
+def test_frontmatter_description_ends_with_period():
+    """Sentence hygiene: description is a complete sentence."""
+    fm = _extract_frontmatter(SKILL_MD)
+    desc = fm.get("description", "")
+    assert desc.endswith("."), (
+        f"frontmatter description should end with `.`; got: ...{desc[-40:]!r}"
+    )
+
+
+# ---- Structural protection: required H2 sections + Decision Tree routes -----
+
+REQUIRED_H2 = (
+    # (heading regex tolerant of v1.1 wording, friendly-name for error msg)
+    (r"^##\s+.*Backend Priorit", "Backend Priority"),
+    (r"^##\s+.*Operating Modes?", "Operating Modes"),
+    (r"^##\s+.*Workflow Decision Tree", "Workflow Decision Tree"),
+    (r"^##\s+.*Dynamic.*Mode", "Dynamic Mode"),
+)
+
+
+def test_skill_md_has_required_h2_sections():
+    """SKILL.md must keep its load-bearing H2 sections after any rewrite (RED until 12-04)."""
+    text = SKILL_MD.read_text(encoding="utf-8")
+    missing = [
+        friendly
+        for pattern, friendly in REQUIRED_H2
+        if not re.search(pattern, text, re.MULTILINE | re.IGNORECASE)
+    ]
+    assert not missing, (
+        f"SKILL.md missing required H2 sections: {missing}. "
+        f"These protect against accidental deletion during edits."
+    )
+
+
+def test_decision_tree_routes_to_all_wn():
+    """The Workflow Decision Tree must link to W-1..W-7 (RED until 12-04 lands routing)."""
+    text = SKILL_MD.read_text(encoding="utf-8")
+    # Slice from the Decision Tree H2 to the next H2 (or EOF).
+    start = re.search(r"^##\s+.*Workflow Decision Tree.*$", text, re.MULTILINE | re.IGNORECASE)
+    if not start:
+        pytest.fail("no `## Workflow Decision Tree` heading found in SKILL.md")
+    tail = text[start.end():]
+    end = re.search(r"^##\s+", tail, re.MULTILINE)
+    section = tail[: end.start()] if end else tail
+    missing = [f"W-{n}" for n in range(1, 8) if not re.search(rf"W-{n}\b", section)]
+    assert not missing, (
+        f"Decision Tree section does not route to: {missing}. "
+        f"Every W-N file must be reachable from the routing logic."
+    )
+
+
+# ---- Cross-reference integrity ---------------------------------------------
+
+
+def _enumerate_gateway_tools() -> set[str]:
+    """Scan mcp-gateway source for every registered tool name.
+
+    Covers both registration patterns used in the codebase:
+      1. `@mcp.tool()` decorator immediately above a `def`
+      2. Explicit `mcp.tool()(<name>)` registration inside `register(mcp)`
+    """
+    tools: set[str] = set()
+    src_root = REPO_ROOT / "mcp-gateway/src/mcp_gateway"
+    if not src_root.is_dir():
+        return tools
+    for path in src_root.rglob("*.py"):
+        try:
+            src = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        lines = src.splitlines()
+        for i, line in enumerate(lines):
+            if "@mcp.tool()" in line:
+                for j in range(i + 1, min(i + 5, len(lines))):
+                    m = re.match(r"\s*(?:async\s+)?def\s+(\w+)\s*\(", lines[j])
+                    if m:
+                        tools.add(m.group(1))
+                        break
+        for m in re.finditer(r"mcp\.tool\(\)\((\w+)\)", src):
+            tools.add(m.group(1))
+    return tools
+
+
+TOOL_TOKEN_RE = re.compile(r"mcp__mare[-_]toolbox__([a-z0-9_]+)")
+
+
+def test_tool_tokens_exist_in_gateway_registry():
+    """Every `mcp__mare-toolbox__<name>` in skill docs must resolve to a real registered tool."""
+    registry = _enumerate_gateway_tools()
+    if not registry:
+        pytest.skip("could not enumerate gateway tool registry (mcp-gateway src not found)")
+    used: set[str] = set()
+    for path in ALL_SKILL_FILES:
+        if not path.is_file():
+            continue
+        for m in TOOL_TOKEN_RE.finditer(path.read_text(encoding="utf-8")):
+            used.add(m.group(1))
+    unknown = sorted(used - registry)
+    assert not unknown, (
+        f"Skill docs reference tool tokens that do not exist in the gateway registry:\n  "
+        f"{unknown}\nKnown tools (sample): {sorted(registry)[:5]}..."
+    )
+
+
+SCRIPT_REF_RE = re.compile(r"scripts/([\w\-]+\.(?:sh|py))")
+
+
+def test_scripts_references_resolve():
+    """Every `scripts/<foo>.{sh,py}` referenced in skill docs must exist on disk."""
+    scripts_dir = SKILL_DIR / "scripts"
+    if not scripts_dir.is_dir():
+        pytest.skip(f"scripts dir missing: {scripts_dir}")
+    available = {p.name for p in scripts_dir.iterdir() if p.is_file()}
+    missing: list[tuple[str, str]] = []
+    for path in ALL_SKILL_FILES:
+        if not path.is_file():
+            continue
+        for m in SCRIPT_REF_RE.finditer(path.read_text(encoding="utf-8")):
+            name = m.group(1)
+            if name not in available:
+                missing.append((path.name, name))
+    assert not missing, (
+        f"Skill docs reference scripts that do not exist:\n  "
+        + "\n  ".join(f"{doc}: scripts/{name}" for doc, name in missing)
+    )
+
+
+# ---- Stub-marker hygiene ----------------------------------------------------
+
+STUB_MARKER_RE = re.compile(r"\b(TODO|TBD|FIXME|XXX)\b")
+
+
+@pytest.mark.parametrize("doc", ALL_SKILL_FILES or [SKILL_MD], ids=lambda p: p.name)
+def test_no_stub_markers_in_published_surface(doc: Path):
+    """Published skill surface must not contain TODO/TBD/FIXME/XXX markers."""
+    if not doc.is_file():
+        pytest.skip(f"file not present: {doc}")
+    offenses: list[tuple[int, str]] = []
+    for i, line in enumerate(doc.read_text(encoding="utf-8").splitlines(), start=1):
+        if STUB_MARKER_RE.search(line):
+            offenses.append((i, line.strip()))
+    assert not offenses, (
+        f"\nStub markers in {doc.name}:\n"
+        + "\n".join(f"  L{ln}: {snip}" for ln, snip in offenses)
+    )
