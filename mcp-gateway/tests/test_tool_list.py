@@ -96,37 +96,53 @@ def _set_env(monkeypatch, env_value):
         monkeypatch.setenv("MCP_GATEWAY_DYNAMIC_TOOLS", env_value)
 
 
-def _reload_tools_package():
-    """Reload mcp_gateway.tools so the env-gated conditional import re-evaluates."""
-    # Drop tools.dynamic so re-import re-evaluates the env gate
-    sys.modules.pop("mcp_gateway.tools.dynamic", None)
-    import mcp_gateway.tools as gw_tools
-    importlib.reload(gw_tools)
-    return gw_tools
+def _full_reset_modules():
+    """Drop every gateway module that could carry stale spec/registry state, then
+    delete the corresponding parent-package attributes so subsequent
+    `from mcp_gateway import X` triggers a fresh import.
+
+    Required because `register_job_tool` rejects re-registration with a new
+    spec object (different identity, same name -> RuntimeError); reload-based
+    isolation collapses without a full reset.
+    """
+    targets = [
+        "mcp_gateway.tools",
+        "mcp_gateway.tools.dynamic",
+        "mcp_gateway.dynamic",
+        "mcp_gateway.jobs",
+        "mcp_gateway.extraction",
+    ]
+    targets.extend([k for k in list(sys.modules) if k.startswith("mcp_gateway.tools.")])
+    for k in targets:
+        sys.modules.pop(k, None)
+    import mcp_gateway as _pkg
+    for attr in ("tools", "dynamic", "jobs", "extraction"):
+        if hasattr(_pkg, attr):
+            try:
+                delattr(_pkg, attr)
+            except AttributeError:
+                pass
 
 
 @pytest.fixture
 def make_mcp():
-    """Restore sys.modules after each test so we don't contaminate downstream tests."""
-    saved = {
-        k: v for k, v in list(sys.modules.items())
-        if k == "mcp_gateway.tools" or k.startswith("mcp_gateway.tools.")
-    }
+    """Reset gateway modules fresh per call so env-gated import is honored.
 
+    Yields a builder `_build(env_value)` that performs the reset, re-imports
+    tools, and returns a registered FastMCP instance.
+
+    No teardown reset is performed -- subsequent tests that need a clean
+    state must reset themselves (the in-process registries rebuild on the next
+    fresh import driven by their own fixtures).
+    """
     def _build(env_value):
-        gw_tools = _reload_tools_package()
+        _full_reset_modules()
+        import mcp_gateway.tools as gw_tools
         m = FastMCP("t", stateless_http=True)
         gw_tools.register_all_tools(m)
         return m
 
     yield _build
-
-    # Restore
-    for k in list(sys.modules.keys()):
-        if k == "mcp_gateway.tools" or k.startswith("mcp_gateway.tools."):
-            del sys.modules[k]
-    for k, v in saved.items():
-        sys.modules[k] = v
 
 
 async def _list_tool_names(mcp: FastMCP) -> set[str]:

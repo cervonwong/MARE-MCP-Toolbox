@@ -61,6 +61,17 @@ def register_all_tools(mcp: FastMCP) -> None:
     r2_sessions.register(mcp)  # Phase 8 D-05
     jobs.register(mcp)         # Phase 9 D-05 -- 4 tools: start/get/cancel/list_tool_jobs
     extract.register(mcp)      # Phase 10 D-20 -- 7 tools: run_binwalk, run_unblob, run_upx_{test,list,unpack}, list_extracted_files, promote_extracted_sample
+    # Phase 11 D-DYN-IMPORT-01: env-gated conditional registration of dynamic-mode surface.
+    # When MCP_GATEWAY_DYNAMIC_TOOLS=1, tools/dynamic.py is imported (which transitively
+    # imports mcp_gateway.dynamic, registering 3 JobToolSpecs via register_job_tool at
+    # module import time). When unset, neither the 7 tools nor the 3 specs leak.
+    # Placed AFTER jobs.register/extract.register so dynamic JobToolSpecs enter a
+    # populated JOB_TOOL_REGISTRY, and BEFORE backend_passthrough so the merged
+    # tools/list handler sees the gateway-native surface first.
+    import os as _os
+    if _os.environ.get("MCP_GATEWAY_DYNAMIC_TOOLS") == "1":
+        from . import dynamic as dynamic_tools
+        dynamic_tools.register(mcp)
     backend_passthrough.register(mcp)
     # collision_check has no register(); its assert_no_collisions(mcp) is invoked
     # from app.py::lifespan AFTER PinnedBackend's __aenter__ populates tool_cache.

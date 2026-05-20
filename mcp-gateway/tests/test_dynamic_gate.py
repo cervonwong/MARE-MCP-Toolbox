@@ -4,9 +4,12 @@ Verifies the load-bearing invariant: when MCP_GATEWAY_DYNAMIC_TOOLS != "1" at
 startup, neither the 7 MCP tools nor the 3 JobToolSpec entries (strace/ltrace/
 qemu_user) leak into the live registry.
 
-These tests reload mcp_gateway.tools (and dependent modules) per-test so the
-env-gate's import-time effect is exercised. They save & restore sys.modules
-to avoid cross-contaminating other test modules.
+These tests fully reset gateway-package modules before each assertion because:
+  - `register_job_tool(SPEC)` rejects re-registration with a new spec object
+    (different identity, same name -> RuntimeError) — so we must avoid
+    double-registration by starting from a clean slate.
+  - `from mcp_gateway import dynamic` resolves via parent-package __dict__,
+    bypassing sys.modules misses — so we must also clear parent-package attrs.
 """
 from __future__ import annotations
 
@@ -25,79 +28,76 @@ EXPECTED_TOOLS_DYNAMIC = {
 }
 
 
-@pytest.fixture
-def reload_tools(monkeypatch):
-    """Reload mcp_gateway.tools (and drop tools.dynamic) per test; restore after.
-
-    The yield value is a callable that performs the reload + returns the reloaded
-    tools module (so the caller can read register_all_tools fresh).
+def _full_reset_modules():
+    """Drop every gateway module that could carry stale spec/registry state, then
+    delete the corresponding parent-package attributes so subsequent
+    `from mcp_gateway import X` triggers a fresh import.
     """
-    saved_modules = {
-        k: v for k, v in list(sys.modules.items())
-        if k == "mcp_gateway.tools" or k.startswith("mcp_gateway.tools.")
-    }
-    # Drop tools.dynamic so the conditional import path is re-evaluated.
-    for k in list(sys.modules.keys()):
-        if k == "mcp_gateway.tools.dynamic":
-            del sys.modules[k]
+    targets = [
+        "mcp_gateway.tools",
+        "mcp_gateway.tools.dynamic",
+        "mcp_gateway.dynamic",
+        "mcp_gateway.jobs",
+        "mcp_gateway.extraction",
+    ]
+    # Also clear any tools.* submodules so register_all_tools re-imports them.
+    targets.extend([k for k in list(sys.modules) if k.startswith("mcp_gateway.tools.")])
+    for k in targets:
+        sys.modules.pop(k, None)
+    import mcp_gateway as _pkg
+    for attr in ("tools", "dynamic", "jobs", "extraction"):
+        if hasattr(_pkg, attr):
+            try:
+                delattr(_pkg, attr)
+            except AttributeError:
+                pass
 
-    def _reload():
+
+@pytest.fixture
+def fresh_register():
+    """Yield a builder that resets gateway modules, reloads tools, builds an
+    MCP server, and registers all tools. Each call yields a fresh setup.
+    """
+    def _build():
+        _full_reset_modules()
         import mcp_gateway.tools as gw_tools
-        importlib.reload(gw_tools)
-        return gw_tools
+        m = FastMCP("t", stateless_http=True)
+        gw_tools.register_all_tools(m)
+        return gw_tools, m
 
-    yield _reload
+    yield _build
 
-    # Restore: drop everything we touched + put back the saved snapshot
-    for k in list(sys.modules.keys()):
-        if k == "mcp_gateway.tools" or k.startswith("mcp_gateway.tools."):
-            del sys.modules[k]
-    for k, v in saved_modules.items():
-        sys.modules[k] = v
+    # No teardown reset -- subsequent test modules that depend on stable
+    # imports (e.g., test_dynamic_tools.py's module-level `from mcp_gateway
+    # import dynamic`) keep working against whichever module instance is
+    # currently in sys.modules. Tests that need clean state reset at entry.
 
 
-def test_tools_dynamic_not_imported_when_env_unset(monkeypatch, reload_tools):
+def test_tools_dynamic_not_imported_when_env_unset(monkeypatch, fresh_register):
     monkeypatch.delenv("MCP_GATEWAY_DYNAMIC_TOOLS", raising=False)
-    # Drop tools.dynamic if it was previously loaded
-    sys.modules.pop("mcp_gateway.tools.dynamic", None)
+    gw_tools, m = fresh_register()
 
-    gw_tools = reload_tools()
-    m = FastMCP("t", stateless_http=True)
-    gw_tools.register_all_tools(m)
-
-    assert "mcp_gateway.tools.dynamic" not in sys.modules
+    assert "mcp_gateway.tools.dynamic" not in sys.modules, \
+        "tools.dynamic was imported despite env unset"
     registered = set(m._tool_manager._tools.keys())
-    assert not (EXPECTED_TOOLS_DYNAMIC & registered), \
-        f"dynamic tools leaked when env unset: {EXPECTED_TOOLS_DYNAMIC & registered}"
+    leaked = EXPECTED_TOOLS_DYNAMIC & registered
+    assert not leaked, f"dynamic tools leaked when env unset: {leaked}"
 
 
-def test_tools_dynamic_imported_when_env_set(monkeypatch, reload_tools):
+def test_tools_dynamic_imported_when_env_set(monkeypatch, fresh_register):
     monkeypatch.setenv("MCP_GATEWAY_DYNAMIC_TOOLS", "1")
-    sys.modules.pop("mcp_gateway.tools.dynamic", None)
+    gw_tools, m = fresh_register()
 
-    gw_tools = reload_tools()
-    m = FastMCP("t", stateless_http=True)
-    gw_tools.register_all_tools(m)
-
-    assert "mcp_gateway.tools.dynamic" in sys.modules
+    assert "mcp_gateway.tools.dynamic" in sys.modules, \
+        "tools.dynamic was NOT imported despite env set"
     registered = set(m._tool_manager._tools.keys())
     missing = EXPECTED_TOOLS_DYNAMIC - registered
     assert not missing, f"dynamic tools not registered with env set: {missing}"
 
 
-def test_job_tool_registry_lacks_dynamic_when_env_unset(monkeypatch, reload_tools):
+def test_job_tool_registry_lacks_dynamic_when_env_unset(monkeypatch, fresh_register):
     monkeypatch.delenv("MCP_GATEWAY_DYNAMIC_TOOLS", raising=False)
-    # Drop mcp_gateway.dynamic too -- it has the register_job_tool calls at import.
-    sys.modules.pop("mcp_gateway.tools.dynamic", None)
-    sys.modules.pop("mcp_gateway.dynamic", None)
-    # Drop jobs so JOB_TOOL_REGISTRY resets
-    sys.modules.pop("mcp_gateway.jobs", None)
-
-    # Re-import jobs first (it owns the registry), then re-import tools
-    import mcp_gateway.jobs as jobs_mod  # noqa: F401
-    gw_tools = reload_tools()
-    m = FastMCP("t", stateless_http=True)
-    gw_tools.register_all_tools(m)
+    gw_tools, m = fresh_register()
 
     from mcp_gateway.jobs import JOB_TOOL_REGISTRY
     for name in ("strace", "ltrace", "qemu_user"):
@@ -105,13 +105,9 @@ def test_job_tool_registry_lacks_dynamic_when_env_unset(monkeypatch, reload_tool
             f"job spec {name!r} leaked into JOB_TOOL_REGISTRY when env unset"
 
 
-def test_job_tool_registry_has_dynamic_when_env_set(monkeypatch, reload_tools):
+def test_job_tool_registry_has_dynamic_when_env_set(monkeypatch, fresh_register):
     monkeypatch.setenv("MCP_GATEWAY_DYNAMIC_TOOLS", "1")
-    sys.modules.pop("mcp_gateway.tools.dynamic", None)
-
-    gw_tools = reload_tools()
-    m = FastMCP("t", stateless_http=True)
-    gw_tools.register_all_tools(m)
+    gw_tools, m = fresh_register()
 
     from mcp_gateway.jobs import JOB_TOOL_REGISTRY
     for name in ("strace", "ltrace", "qemu_user"):

@@ -15,7 +15,9 @@ Covers:
 from __future__ import annotations
 
 import dataclasses
+import importlib
 import inspect
+import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -23,9 +25,43 @@ import pytest
 
 from mcp.server.fastmcp import FastMCP
 
-from mcp_gateway import dynamic as dynamic_mod
 from mcp_gateway import session_state
-from mcp_gateway.dynamic import DynamicCapabilities
+
+
+def _get_dynamic_mod():
+    """Return the CURRENT mcp_gateway.dynamic module instance.
+
+    Other test files (test_dynamic_gate.py, test_tool_list.py) may have
+    reset/repopulated sys.modules between tests, so we look up the live
+    instance per call rather than binding a stale module-level reference.
+    """
+    if "mcp_gateway.dynamic" in sys.modules:
+        return sys.modules["mcp_gateway.dynamic"]
+    return importlib.import_module("mcp_gateway.dynamic")
+
+
+# ProxyModule: any attribute access (get/set) goes against the CURRENT
+# mcp_gateway.dynamic instance. Makes the tests resilient to other test files
+# resetting sys.modules between tests.
+class _DynamicProxy:
+    def __getattr__(self, name):
+        return getattr(_get_dynamic_mod(), name)
+
+    def __setattr__(self, name, value):
+        setattr(_get_dynamic_mod(), name, value)
+
+
+dynamic_mod = _DynamicProxy()
+
+
+def _DynamicCapabilities():
+    return _get_dynamic_mod().DynamicCapabilities
+
+
+# Module-level alias for type hints / fixture sigs. We resolve eagerly because
+# the class object is structurally equivalent across reloads; usages that
+# need the LIVE class call `_DynamicCapabilities()` instead.
+DynamicCapabilities = _get_dynamic_mod().DynamicCapabilities
 
 
 # ---------------------------------------------------------------------------
