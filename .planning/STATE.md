@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: Completed 12-05-PLAN.md
-last_updated: "2026-05-20T06:50:39.973Z"
+stopped_at: Phase 13 context gathered
+last_updated: "2026-05-20T08:00:53.190Z"
 last_activity: 2026-05-20
 progress:
-  total_phases: 8
+  total_phases: 9
   completed_phases: 8
   total_plans: 40
   completed_plans: 40
@@ -159,6 +159,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 12-orchestrator-skill-update]: Plan 12-05: qemu_archs detection moved OUT of probe-output parsing and INTO direct command -v loop because scripts/probe_dynamic_tools.sh only emits a count summary (no per-arch tokens)
 - [Phase 12-orchestrator-skill-update]: Plan 12-05: MCP Streamable HTTP (2025-03-26) Accept header + awk single-pass SSE strip applied to both init_status_tree.sh and artifact-spec.md Re-probe example; idempotent on plain JSON
 
+### Roadmap Evolution
+
+- Phase 13 added: Harden concurrency caps and r2 sandboxing (TOCTOU fix on r2/gdb/job semaphores + r2 cfg.sandbox replaces regex blacklist) — 2026-05-20
+
 ### Pending Todos
 
 - Plan Phase 5 (F-1 Image-Hash Fix) via `/gsd-plan-phase 5`
@@ -231,6 +235,6 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-05-20T06:41:55.563Z
-Stopped at: Completed 12-05-PLAN.md
-Resume file: None
+Last session: 2026-05-20T08:00:53.184Z
+Stopped at: Phase 13 context gathered
+Resume file: .planning/phases/13-harden-concurrency-caps-and-r2-sandboxing/13-CONTEXT.md
