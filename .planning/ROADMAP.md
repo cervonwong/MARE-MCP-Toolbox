@@ -166,7 +166,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   4. The skill marks dynamic mode status in `CURRENT_STATE.json` so subsequent analysis steps know whether dynamic tools are available; dynamic-mode-only steps are skipped (with a noted reason) when the mode is off
 **Plans**: 4 plans
   - [x] 12-01-PLAN.md — Wave 0: RED-state regression test scaffolding `test_skill_md_dual_mode.py` covering D-11..D-14 (backend priority, W-N count, dual-mode invariant, soft sha256 snapshot, dynamic-mode plumbing); deliberately fails until Plans 02/03/04 land
-  - [ ] 12-02-PLAN.md — Wave 1: 7 W-N workflow files at `references/workflows/W-N-<slug>.md` + new index `references/deep-re-workflows.md` (D-03, D-04, D-05); turns RED workflow-count/index/wrapper-coverage tests GREEN
+  - [x] 12-02-PLAN.md — Wave 1: 7 W-N workflow files at `references/workflows/W-N-<slug>.md` + new index `references/deep-re-workflows.md` (D-03, D-04, D-05); turns RED workflow-count/index/wrapper-coverage tests GREEN
   - [ ] 12-03-PLAN.md — Wave 1: SKILL-04 plumbing — `update_state.py --probe-dynamic` flag + 3 new schema keys (mode/dynamic_mode_enabled/dynamic_capabilities); `init_status_tree.sh` populate_dynamic_caps (gateway-curl + scripts-mode probe_dynamic_tools.sh fallback); `artifact-spec.md` schema doc (D-15, D-16, D-17)
   - [ ] 12-04-PLAN.md — Wave 2: SKILL.md rewrite (D-01 IDA-first priority + D-02 get_active_backend pattern + D-04 W-N routing + D-07/D-09 Dual-Mode Operation section + D-18 Dynamic-Mode Skip Behavior section); references/workflow.md + references/deep-analysis-checklist.md sweep (D-06); SKILL.md.sha256 baseline (D-13); turns all 12 tests GREEN
 
@@ -185,4 +185,4 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 9. Background Job System       | v1.1      | 0/?   | Not started | -          |
 | 10. Extraction Tier            | v1.1      | 5/5 | Complete    | 2026-05-19 |
 | 11. Dynamic Lab Mode           | v1.1      | 6/6 | Complete    | 2026-05-20 |
-| 12. Orchestrator Skill Update  | v1.1      | 1/4 | In Progress|  |
+| 12. Orchestrator Skill Update  | v1.1      | 2/4 | In Progress|  |

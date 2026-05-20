@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: Completed 12-01-PLAN.md
-last_updated: "2026-05-20T03:10:12.420Z"
+stopped_at: Completed 12-02-PLAN.md
+last_updated: "2026-05-20T03:18:51.846Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 39
-  completed_plans: 36
-  percent: 92
+  completed_plans: 37
+  percent: 95
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 12 (orchestrator-skill-update) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-05-20
 
@@ -149,6 +149,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 11-dynamic-lab-mode-env-gated]: Plan 06: VALIDATION.md signed off green -- nyquist_compliant=true, wave_0_complete=true, status=validated, Approval=green; 19 per-task rows flipped ✅; 13-invariant Phase 11 Sign-Off block added
 - [Phase 12]: Phase 12 Plan 01: PyYAML fallback path (manual regex frontmatter parse) added because mcp-gateway venv lacks pyyaml; CONTEXT.md domain forbids adding it
 - [Phase 12]: Phase 12 Plan 01: test_no_legacy_bn_first_priority rewritten as markdown-tolerant regex (Binary Ninja MCP server\*{0,2}\s*--\s*primary tool) to match SKILL.md:141 bold form; Rule-1 deviation
+- [Phase 12]: Plan 12-02: Used table-form template verbatim from D-05 / Pattern 2; backend priority phrased IDA > BN > Ghidra > r2 in every W-N header (forward-correct ahead of Plan 04 SKILL.md rewrite)
+- [Phase 12]: Plan 12-02: Closed safe-slug list for dynamic-mode skip placeholders (W-5: strace-all/ltrace-libc/gdb-open-bt; W-7: qemu-<arch>-run) -- T-12-03 mitigation against arbitrary-path injection
+- [Phase 12]: Plan 12-02: W-2/W-3 extended with 'Notes' bullets to meet plan must_haves min_lines invariants (50/45) -- Rule-1 fix added fallback clause to W-2 r2-job bullet to preserve dual_mode_invariant
 
 ### Pending Todos
 
@@ -214,9 +217,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 11-dynamic-lab-mode-env-gated P05 | 8min | 4 tasks | 5 files |
 | Phase 11-dynamic-lab-mode-env-gated P06 | 8min | 3 tasks | 7 files |
 | Phase 12 P01 | 259s | 1 tasks | 2 files |
+| Phase 12 P02 | 10min | 2 tasks | 8 files |
 
 ## Session Continuity
 
-Last session: 2026-05-20T03:10:12.412Z
-Stopped at: Completed 12-01-PLAN.md
+Last session: 2026-05-20T03:18:40.538Z
+Stopped at: Completed 12-02-PLAN.md
 Resume file: None
