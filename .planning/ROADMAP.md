@@ -193,10 +193,10 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 **Goal:** Make session and job cap enforcement atomic under concurrency (replace TOCTOU `count >= max` with `asyncio.BoundedSemaphore`), and move the r2 security boundary from a regex parser-arms-race onto r2's native `cfg.sandbox=true` (enforced at argv-eval time, BEFORE binary open). Adds env-gated `open_r2_session_unsafe` opt-in (`MCP_GATEWAY_R2_UNSAFE_ALLOWED=1`) with WARN-level audit logging.
 **Requirements**: HARDEN-01, HARDEN-02, HARDEN-03, HARDEN-04, HARDEN-05, HARDEN-06, HARDEN-07, SESS-CAP-01, JOBS-CAP-01
 **Depends on:** Phase 12
-**Plans:** 1/4 plans executed
+**Plans:** 2/4 plans executed
 
 Plans:
 - [x] 13-01-PLAN.md — SessionRegistry BoundedSemaphore (atomic cap for r2 + gdb combined; release-in-close + spawn-failure cleanup; HARDEN-01 + HARDEN-07 + SESS-CAP-01)
-- [ ] 13-02-PLAN.md — BackgroundJobRegistry BoundedSemaphore (atomic cap; single release sink in _mark_terminal across all 7 terminal-state paths; HARDEN-02 + HARDEN-07 + JOBS-CAP-01)
+- [x] 13-02-PLAN.md — BackgroundJobRegistry BoundedSemaphore (atomic cap; single release sink in _mark_terminal across all 7 terminal-state paths; HARDEN-02 + HARDEN-07 + JOBS-CAP-01)
 - [ ] 13-03-PLAN.md — r2 sandbox argv (`-e cfg.sandbox=true` BEFORE sample path) + `sandbox` kwarg on `_open_r2` + frozen regex docstring reframing + Wave 0 r2 version probe (HARDEN-03 + HARDEN-04 + HARDEN-05)
 - [ ] 13-04-PLAN.md — env-gated `open_r2_session_unsafe` tool (`MCP_GATEWAY_R2_UNSAFE_ALLOWED=1`) + WARN-log + shared combined cap via Q6 (HARDEN-06)
