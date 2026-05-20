@@ -18,8 +18,16 @@ Phase 9 D-05 adds 4 more (background jobs):
 Phase 10 D-01 adds 7 more (extraction tier):
   - run_binwalk, run_unblob, run_upx_test, run_upx_list, run_upx_unpack,
     list_extracted_files, promote_extracted_sample
-Total after Phase 10: 54. The 15-25 range from v1.0 GW-02 is superseded; the
-Phase 10 invariant is 35-60 (absorbs Phase 11's conditional dynamic tools).
+Total after Phase 10: 54.
+
+Phase 11 Plan 04 adds 7 MORE conditionally (env-gated, OFF by default):
+  - run_strace, run_ltrace, run_qemu_user, open_gdb_session, gdb_exec,
+    close_gdb_session, get_dynamic_capabilities
+Total with MCP_GATEWAY_DYNAMIC_TOOLS=1: 61.
+
+D-DYN-TEST-COUNT: This file parametrizes the tool-count and EXPECTED_TOOLS
+assertions on MCP_GATEWAY_DYNAMIC_TOOLS so BOTH counts (54 baseline / 61 with
+dynamic) are regression-locked.
 
 IMPORTANT -- FastMCP internals vs public API:
   The preferred way to list tool names is via the public MCP client API:
@@ -34,13 +42,15 @@ IMPORTANT -- FastMCP internals vs public API:
 """
 from __future__ import annotations
 
+import importlib
+import sys
+
 import pytest
 from mcp.server.fastmcp import FastMCP
 from mcp.shared.memory import create_connected_server_and_client_session
 
-from mcp_gateway.tools import register_all_tools
 
-EXPECTED_TOOLS = {
+EXPECTED_TOOLS_BASELINE = {
     # v1.0 curated surface (22 tools) --------------------------------
     # Composite (3)
     "run_triage", "run_deep_analysis", "generate_report",
@@ -70,12 +80,53 @@ EXPECTED_TOOLS = {
     "list_extracted_files", "promote_extracted_sample",
 }
 
+# Phase 11 D-DYN-TEST-COUNT: when MCP_GATEWAY_DYNAMIC_TOOLS=1, the env-gated
+# dynamic-mode tools are added on top of the baseline (54 -> 61).
+EXPECTED_TOOLS_DYNAMIC = EXPECTED_TOOLS_BASELINE | {
+    "run_strace", "run_ltrace", "run_qemu_user",
+    "open_gdb_session", "gdb_exec", "close_gdb_session",
+    "get_dynamic_capabilities",
+}
+
+
+def _set_env(monkeypatch, env_value):
+    if env_value is None:
+        monkeypatch.delenv("MCP_GATEWAY_DYNAMIC_TOOLS", raising=False)
+    else:
+        monkeypatch.setenv("MCP_GATEWAY_DYNAMIC_TOOLS", env_value)
+
+
+def _reload_tools_package():
+    """Reload mcp_gateway.tools so the env-gated conditional import re-evaluates."""
+    # Drop tools.dynamic so re-import re-evaluates the env gate
+    sys.modules.pop("mcp_gateway.tools.dynamic", None)
+    import mcp_gateway.tools as gw_tools
+    importlib.reload(gw_tools)
+    return gw_tools
+
 
 @pytest.fixture
-def registered():
-    m = FastMCP("t", stateless_http=True)
-    register_all_tools(m)
-    return m
+def make_mcp():
+    """Restore sys.modules after each test so we don't contaminate downstream tests."""
+    saved = {
+        k: v for k, v in list(sys.modules.items())
+        if k == "mcp_gateway.tools" or k.startswith("mcp_gateway.tools.")
+    }
+
+    def _build(env_value):
+        gw_tools = _reload_tools_package()
+        m = FastMCP("t", stateless_http=True)
+        gw_tools.register_all_tools(m)
+        return m
+
+    yield _build
+
+    # Restore
+    for k in list(sys.modules.keys()):
+        if k == "mcp_gateway.tools" or k.startswith("mcp_gateway.tools."):
+            del sys.modules[k]
+    for k, v in saved.items():
+        sys.modules[k] = v
 
 
 async def _list_tool_names(mcp: FastMCP) -> set[str]:
@@ -85,27 +136,60 @@ async def _list_tool_names(mcp: FastMCP) -> set[str]:
         return {t.name for t in resp.tools}
 
 
-async def test_all_expected_tools_present(registered):
-    names = await _list_tool_names(registered)
-    assert EXPECTED_TOOLS.issubset(names), f"missing: {EXPECTED_TOOLS - names}"
+# ---------------------------------------------------------------------------
+# D-DYN-TEST-COUNT: parametrize on env. Baseline 54 (env unset) / Dynamic 61
+# ---------------------------------------------------------------------------
 
 
-async def test_tool_count_in_range(registered):
-    names = await _list_tool_names(registered)
+@pytest.mark.parametrize(
+    "env_value,expected",
+    [(None, EXPECTED_TOOLS_BASELINE), ("1", EXPECTED_TOOLS_DYNAMIC)],
+)
+async def test_all_expected_tools_present(monkeypatch, make_mcp, env_value, expected):
+    _set_env(monkeypatch, env_value)
+    m = make_mcp(env_value)
+    names = await _list_tool_names(m)
+    assert expected.issubset(names), f"missing: {expected - names}"
+
+
+@pytest.mark.parametrize(
+    "env_value,expected_count",
+    [(None, 54), ("1", 61)],
+)
+async def test_tool_count_in_range(monkeypatch, make_mcp, env_value, expected_count):
+    """Phase 11 D-DYN-TEST-COUNT: exact-count assertion (not a range).
+
+    Baseline 54 when MCP_GATEWAY_DYNAMIC_TOOLS unset; 61 when set to '1'.
+    """
+    _set_env(monkeypatch, env_value)
+    m = make_mcp(env_value)
+    names = await _list_tool_names(m)
     n = len(names)
-    # Phase 10 D-01 expands to 54 (47 + 7); range 35-60 absorbs Phase 11's
-    # conditional dynamic tools (env-gated, default-off).
-    assert 35 <= n <= 60, f"tool count {n} violates Phase 10 D-01 invariant (35-60)"
+    assert n == expected_count, (
+        f"tool count {n} != expected {expected_count} for env_value={env_value!r} "
+        f"(Phase 11 D-DYN-TEST-COUNT invariant)"
+    )
 
 
-async def test_no_unexpected_tools(registered):
-    names = await _list_tool_names(registered)
-    extras = names - EXPECTED_TOOLS
-    assert not extras, f"unexpected tools registered: {extras}"
+@pytest.mark.parametrize(
+    "env_value,expected",
+    [(None, EXPECTED_TOOLS_BASELINE), ("1", EXPECTED_TOOLS_DYNAMIC)],
+)
+async def test_no_unexpected_tools(monkeypatch, make_mcp, env_value, expected):
+    _set_env(monkeypatch, env_value)
+    m = make_mcp(env_value)
+    names = await _list_tool_names(m)
+    extras = names - expected
+    assert not extras, f"unexpected tools registered (env_value={env_value!r}): {extras}"
 
 
-async def test_atomic_tools_map_to_scripts(registered):
-    """Every shell/py script in orchestrator scripts/ has an atomic tool wrapper."""
+async def test_atomic_tools_map_to_scripts(monkeypatch, make_mcp):
+    """Every shell/py script in orchestrator scripts/ has an atomic tool wrapper.
+
+    Independent of MCP_GATEWAY_DYNAMIC_TOOLS — atomic tools are in baseline.
+    """
+    _set_env(monkeypatch, None)
+    m = make_mcp(None)
     # The mapping is (script_basename -> tool_name); update when scripts are added/renamed.
     mapping = {
         "init_status_tree.sh": "init_case",
@@ -118,17 +202,25 @@ async def test_atomic_tools_map_to_scripts(registered):
         "update_state.py": "update_state",
         "resolve_case.sh": "resolve_case",
     }
-    names = await _list_tool_names(registered)
+    names = await _list_tool_names(m)
     for script, tool in mapping.items():
         assert tool in names, f"atomic tool {tool!r} for script {script!r} not registered"
 
 
-def test_tool_count_private_sanity(registered):
+@pytest.mark.parametrize(
+    "env_value,expected_count",
+    [(None, 54), ("1", 61)],
+)
+def test_tool_count_private_sanity(monkeypatch, make_mcp, env_value, expected_count):
     """Quick sanity check via FastMCP internal -- guards `mcp>=1.27,<1.28` pin.
-    If this breaks on SDK upgrade, rewrite ALL tests in this file using
-    `create_connected_server_and_client_session` (the public API path above).
+
+    Phase 11 D-DYN-TEST-COUNT parametrized.
     """
+    _set_env(monkeypatch, env_value)
+    m = make_mcp(env_value)
     # FastMCP internal -- if upgraded past 1.27, rewrite using create_connected_server_and_client_session.call_tool(name, args)
-    n = len(registered._tool_manager._tools)
-    # Phase 10 D-01 expanded the range to 35-60 (absorbs Phase 11's conditional dynamic tools).
-    assert 35 <= n <= 60, f"private-attr sanity: tool count {n} violates Phase 10 D-01 (35-60)"
+    n = len(m._tool_manager._tools)
+    assert n == expected_count, (
+        f"private-attr sanity: tool count {n} != expected {expected_count} "
+        f"for env_value={env_value!r} (Phase 11 D-DYN-TEST-COUNT)"
+    )
