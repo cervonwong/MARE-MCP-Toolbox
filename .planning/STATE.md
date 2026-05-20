@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: Completed 11-01-PLAN.md (sessions/ package refactor)
-last_updated: "2026-05-20T00:32:34.800Z"
+stopped_at: Completed 11-02-PLAN.md (dynamic primitive layer)
+last_updated: "2026-05-20T00:44:32.549Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 35
-  completed_plans: 30
-  percent: 86
+  completed_plans: 31
+  percent: 89
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 11 (dynamic-lab-mode-env-gated) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-05-20
 
@@ -131,6 +131,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 11-dynamic-lab-mode-env-gated]: Plan 01: sessions/ package re-export __init__.py force-reloads _base + r2 on package reload (4-line block) to preserve Phase 8 D-14 importlib.reload semantics -- Rule-1 deviation surfaced by test_env_var_bad_value_raises during Task 2 verification
 - [Phase 11-dynamic-lab-mode-env-gated]: Plan 01: BaseSession dataclass + R2Session subclass with tail-defaulted fields (sample_sha256='', sample_path=Path()) -- no kw_only=True needed; symmetric structure ready for Plan 03 GdbSession
 - [Phase 11-dynamic-lab-mode-env-gated]: Plan 01: kind kwarg on SessionRegistry.open defaults to 'r2' for backward compat; gdb branch uses deferred  so Plan 03 lands the gdb driver later without breaking this plan
+- [Phase 11-dynamic-lab-mode-env-gated]: Plan 02: JobToolSpec extended with optional post_terminal_hook field (default None) -- all Phase 9/10 specs construct unchanged; hook invoked at TOP of _mark_terminal (before snapshot/eviction) with exception-swallow
+- [Phase 11-dynamic-lab-mode-env-gated]: Plan 02: Local _dyn_tool_log_path helper inside dynamic.py instead of extending artifacts_io.tool_log_path with subdir/ext kwargs (LEAF discipline preserved; no cascading edits to Phase 6/7/8/9/10 callers)
+- [Phase 11-dynamic-lab-mode-env-gated]: Plan 02: Reaper race-safety widened to (ProcessLookupError, PermissionError, OSError) on both os.getpgid and os.kill -- child exiting mid-walk is benign, reaper never raises out of hook
 
 ### Pending Todos
 
@@ -190,9 +193,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 10 P04 | 4min30s | 1 tasks | 1 files |
 | Phase 10 P05 | 10min | 3 tasks | 16 files |
 | Phase 11-dynamic-lab-mode-env-gated P01 | 6min | 2 tasks | 6 files |
+| Phase 11-dynamic-lab-mode-env-gated P02 | 8min | 2 tasks | 5 files |
 
 ## Session Continuity
 
-Last session: 2026-05-20T00:32:34.796Z
-Stopped at: Completed 11-01-PLAN.md (sessions/ package refactor)
+Last session: 2026-05-20T00:44:23.089Z
+Stopped at: Completed 11-02-PLAN.md (dynamic primitive layer)
 Resume file: None
