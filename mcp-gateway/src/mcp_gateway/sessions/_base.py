@@ -130,6 +130,12 @@ class BaseSession:
     closed: bool = False
     close_reason: Optional[str] = None
     kind: Literal["r2", "gdb"] = "r2"
+    # Phase 13 D-02 (Pitfall 4/5): idempotency guard for the BoundedSemaphore
+    # release in SessionRegistry.close(). Released-on-spawn-failure paths set
+    # this True so the eventual close() call is a no-op on the semaphore.
+    # MUST be the LAST field (default value preserves dataclass-inheritance rule
+    # for R2Session / GdbSession subclass-added fields).
+    _slot_released: bool = False
 
 
 # ----------------------------------------------------------------------------
@@ -180,6 +186,12 @@ class SessionRegistry:
         # session-kind. R2Session / GdbSession are both BaseSession subclasses.
         self._sessions: dict[str, BaseSession] = {}
         self._lock = asyncio.Lock()
+        # Phase 13 D-01: cap-enforcement primitive (replaces racy count_open() >= _max check).
+        # Requires Python 3.10+ asyncio.Semaphore cancellation-safety (bpo-90155 fix).
+        # BoundedSemaphore raises ValueError on over-release -- fails loud on cleanup bugs.
+        # The semaphore is the GATE; self._sessions is the TRUTH (D-04 invariant):
+        # count_open() / list() still read from the dict, never from the semaphore counter.
+        self._sem: asyncio.BoundedSemaphore = asyncio.BoundedSemaphore(max_sessions)
         self._reaper_task: Optional[asyncio.Task] = None
 
     async def __aenter__(self) -> "SessionRegistry":
@@ -301,6 +313,19 @@ class SessionRegistry:
                 )
         except OSError:
             log.exception("[sessions] failed to write transcript footer for %s", session_id)
+        # Phase 13 D-02: release the slot AT MOST ONCE per session lifecycle.
+        # The two idempotent early-return branches above (sess is None / sess.closed)
+        # never reach this point, so they cannot accidentally double-release.
+        # The _slot_released flag (Pitfall 4/5) belt-and-braces against double-release
+        # if close() is called twice rapidly or refactored in future. Spawn-failure
+        # paths in r2.py / gdb.py set the flag True so subsequent close() is a no-op.
+        if not getattr(sess, "_slot_released", False):
+            try:
+                self._sem.release()
+                sess._slot_released = True
+            except ValueError:
+                log.exception("[sessions] semaphore over-release on close(%s)", session_id)
+                sess._slot_released = True  # never retry
         log.info("[sessions] closed %s (reason=%s duration=%.2fs)", session_id, reason, duration)
         return {
             "ok": True,
