@@ -187,6 +187,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | 260511-cwf | Fix remote MCP security defaults: localhost host bind, exact Origin validation, and case_dir confinement | 2026-05-11 | f556fda | [260511-cwf-fix-remote-mcp-security-defaults-localho](./quick/260511-cwf-fix-remote-mcp-security-defaults-localho/) |
 | 260511-evu | Make the Mastra starter provide a browser GUI in addition to the existing CLI, and verify by opening the GUI | 2026-05-11 | uncommitted | [260511-evu-make-the-mastra-starter-provide-a-browse](./quick/260511-evu-make-the-mastra-starter-provide-a-browse/) |
 | 260511-fam | Switch the Mastra starter GUI to the default Mastra Studio dashboard with a registered MARE agent and tools | 2026-05-11 | uncommitted | [260511-fam-switch-the-mastra-starter-gui-to-the-def](./quick/260511-fam-switch-the-mastra-starter-gui-to-the-def/) |
+| 260520-sync-codex-malware-skill | Sync Codex malware-analysis-orchestrator skill with the v1.1 Claude source and add drift tests | 2026-05-20 | uncommitted | [260520-sync-codex-malware-skill](./quick/260520-sync-codex-malware-skill/) |
 | Phase 05-f-1-image-hash-fix P01 | 2min | 1 tasks | 1 files |
 | Phase 05-f-1-image-hash-fix P02 | 100s | 2 tasks | 2 files |
 | Phase 05-f-1-image-hash-fix P03 | 87s | 1 tasks | 1 files |

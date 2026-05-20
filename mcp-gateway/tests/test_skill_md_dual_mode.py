@@ -27,6 +27,7 @@ except ImportError:  # pragma: no cover
 # Pitfall 4 mitigation: locate REPO_ROOT by .planning marker, not parents[2].
 REPO_ROOT = next(p for p in Path(__file__).resolve().parents if (p / ".planning").is_dir())
 SKILL_DIR = REPO_ROOT / "workspace/.claude/skills/malware-analysis-orchestrator"
+CODEX_SKILL_DIR = REPO_ROOT / "workspace/.codex/skills/malware-analysis-orchestrator"
 SKILL_MD = SKILL_DIR / "SKILL.md"
 WORKFLOWS_DIR = SKILL_DIR / "references/workflows"
 WORKFLOW_FILES = sorted(WORKFLOWS_DIR.glob("W-*.md")) if WORKFLOWS_DIR.is_dir() else []
@@ -51,6 +52,18 @@ WN_WRAPPER_PATTERNS = {
     "W-6": r"run_binwalk|run_unblob|list_extracted_files|promote_extracted_sample",
     "W-7": r"run_rabin2|run_qemu_user",
 }
+
+CODEX_V1_1_RELATIVE_PATHS = [
+    "references/deep-re-workflows.md",
+    "references/workflows/W-1-packed-binary-triage.md",
+    "references/workflows/W-2-elf-deep-dive.md",
+    "references/workflows/W-3-pe-deep-dive.md",
+    "references/workflows/W-4-rop-gadget-hunt.md",
+    "references/workflows/W-5-dynamic-api-trace.md",
+    "references/workflows/W-6-firmware-unpack.md",
+    "references/workflows/W-7-cross-arch-iot.md",
+    "scripts/probe_dynamic_tools.sh",
+]
 
 
 def check_dual_mode(path: Path) -> list[tuple[int, str]]:
@@ -128,6 +141,44 @@ def test_no_legacy_bn_first_priority():
         f"legacy BN-first phrasing still present in SKILL.md "
         f"(matched: {m.group(0)!r} at offset {m.start()})"
     )
+
+
+# ---- Codex copy synchronization ---------------------------------------
+
+
+@pytest.mark.parametrize("relpath", CODEX_V1_1_RELATIVE_PATHS)
+def test_codex_skill_has_v1_1_artifacts(relpath: str):
+    """Project instruction: shared Claude/Codex skill copies stay synchronized."""
+    assert (CODEX_SKILL_DIR / relpath).is_file(), f"Codex skill missing {relpath}"
+
+
+def test_codex_skill_backend_priority_matches_v1_1():
+    """Codex SKILL.md must not keep stale BN-first v1.0 backend guidance."""
+    text = (CODEX_SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
+    assert "IDA Pro MCP > Binary Ninja MCP > Ghidra MCP > r2" in text
+    assert "Binary Ninja MCP server** -- primary" not in text
+
+
+def test_codex_artifact_spec_has_dynamic_schema():
+    """Codex artifact spec must include Phase 12 dynamic-mode state fields."""
+    text = (CODEX_SKILL_DIR / "references/artifact-spec.md").read_text(encoding="utf-8")
+    for token in (
+        '"mode"',
+        "dynamic_mode_enabled",
+        "dynamic_capabilities",
+        "Accept: application/json, text/event-stream",
+    ):
+        assert token in text
+
+
+def test_codex_dynamic_scripts_match_phase12_surface():
+    """Codex scripts must carry the dynamic capability probe/update surface."""
+    init_text = (CODEX_SKILL_DIR / "scripts/init_status_tree.sh").read_text(encoding="utf-8")
+    state_text = (CODEX_SKILL_DIR / "scripts/update_state.py").read_text(encoding="utf-8")
+    assert "populate_dynamic_caps" in init_text
+    assert "Accept: application/json, text/event-stream" in init_text
+    assert "--probe-dynamic" in state_text
+    assert "dynamic_capabilities" in state_text
 
 
 # ---- SKILL-02: W-N files + index --------------------------------------
