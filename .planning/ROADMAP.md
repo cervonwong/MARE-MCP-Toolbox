@@ -37,9 +37,36 @@ Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
 
 </details>
 
-### 📋 Next Milestone (Planned)
+### 📋 v1.2 — Multi-Tenant Gateway + Spec Catch-up (Planned, Not Yet Started)
 
-Next milestone not yet scoped. Run `/gsd-new-milestone` to begin.
+**Status:** Scope stub. Run `/gsd-new-milestone v1.2` to formally open the milestone, then `/gsd-plan-phase` per requirement cluster.
+
+**Theme:** Catch up on MCP-spec features deferred from v1.0/v1.1 (Prompts, progress notifications, per-session keying) and harden long-tail operational concerns surfaced by v1.1 retrospectives.
+
+**Carry-forward requirements** (sourced from `milestones/v1.0-REQUIREMENTS.md` v2 carry-forward block and `milestones/v1.1-REQUIREMENTS.md` Future Requirements list — these are the orphans v1.2 must home):
+
+Advanced Gateway (from v1.0 archive):
+- **GW-V2-01** — MCP Prompts expose orchestrator workflow as prompt templates (full triage, deep analysis)
+- **GW-V2-02** — Dynamic notifications push analysis progress to connected clients
+- **GW-V2-03** — Multi-session support: per-`Mcp-Session-Id` keying of sessions and jobs so multiple clients run independent analyses concurrently (also tracked in v1.1 Future Requirements)
+- **GW-V2-04** — Database/session lifecycle management with configurable timeouts and cleanup
+
+Advanced Disassemblers (from v1.0 archive):
+- **DIS-V2-01** — Unified disassembler abstraction layer (normalize tool names/params across IDA/BN/Ghidra)
+- **DIS-V2-02** — Backend comparison mode (run same analysis on multiple disassemblers + diff results)
+
+Deferred operational concerns (from v1.1 Future Requirements, `milestones/v1.1-REQUIREMENTS.md` lines 139-146):
+- Background job persistence across gateway restart
+- Mount-namespace isolation for `run_shell` (if `CAP_SYS_ADMIN` becomes acceptable)
+- Per-call `tool-logs/` rotation policy
+- Sandboxed-network dynamic mode (INetSim/FakeDNS opt-in)
+- Convergence of v1.0 `subprocess_runner.run_script` and v1.1 `ReToolRunner` into one runner
+- Memory snapshot tooling (Volatility)
+- Coverage-guided dynamic / fuzzing hooks
+
+**Not in scope** (out-of-scope items from v1.0/v1.1 archives remain out-of-scope unless explicitly re-evaluated): custom web UI, OAuth 2.1, ARM64 IDA, raw CLI passthrough.
+
+**Next step:** `/gsd-new-milestone v1.2` to formalise this stub into a proper REQUIREMENTS.md + ROADMAP.md split.
 
 ## Progress
 
