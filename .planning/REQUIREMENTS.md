@@ -93,9 +93,9 @@ Added 2026-05-21 by Phase 13 implementation; brought into REQUIREMENTS.md by Pha
 
 - [x] **HARDEN-01**: SessionRegistry cap is enforced atomically — N+1 concurrent `open_r2_session` / `open_gdb_session` callers against cap=N never both proceed past it, and any spawn-time failure (Cancel/OSError/RuntimeError) releases the acquired slot
 - [x] **HARDEN-02**: BackgroundJobRegistry cap is enforced atomically — N+1 concurrent `submit()` calls against cap=N produce exactly one `JobCapReached`, and all reachable terminal-state paths release the slot exactly once via `_mark_terminal`
-- [ ] **HARDEN-03**: r2 sessions are spawned with `[-e, cfg.sandbox=true]` BEFORE the positional sample path when `sandbox=True`, and a live `e cfg.sandbox` query inside the open session returns `true` at runtime
-- [ ] **HARDEN-04**: No `cfg.sandbox.grain` argv flag is emitted by the r2 session builder — the default `grain=all` posture is preserved across both `sandbox=True` and `sandbox=False` paths
-- [ ] **HARDEN-05**: The `_DANGEROUS_R2_CMD_RE` pattern remains byte-identical to Phase 8 and its docstring is reframed as a defence-in-depth marker with `DO NOT EXTEND` + `PHASE 13 SECURITY BOUNDARY DELINEATION` language (security boundary lives on `cfg.sandbox`, not the regex)
+- [x] **HARDEN-03**: r2 sessions are spawned with `[-e, cfg.sandbox=true]` BEFORE the positional sample path when `sandbox=True`, and a live `e cfg.sandbox` query inside the open session returns `true` at runtime
+- [x] **HARDEN-04**: No `cfg.sandbox.grain` argv flag is emitted by the r2 session builder — the default `grain=all` posture is preserved across both `sandbox=True` and `sandbox=False` paths
+- [x] **HARDEN-05**: The `_DANGEROUS_R2_CMD_RE` pattern remains byte-identical to Phase 8 and its docstring is reframed as a defence-in-depth marker with `DO NOT EXTEND` + `PHASE 13 SECURITY BOUNDARY DELINEATION` language (security boundary lives on `cfg.sandbox`, not the regex)
 - [x] **HARDEN-06**: `open_r2_session_unsafe` is registered iff `MCP_GATEWAY_R2_UNSAFE_ALLOWED=1`; it is absent from `tools/list` when the env var is unset; opens emit a WARN-level audit log
 - [x] **HARDEN-07**: `SessionCapReached.to_dict()` and `JobCapReached.to_dict()` are byte-identical to their pre-Phase-13 shapes (4-key dicts, frozen via snapshot tests)
 - [x] **SESS-CAP-01**: Session slot lifecycle holds end-to-end — acquire-before-spawn, release-on-close, release-on-spawn-failure, release-on-reaper-idle-close, release-on-shutdown-active-close — without raising semaphore `ValueError`
@@ -196,15 +196,15 @@ Mapping from each v1.1 REQ-ID to its assigned phase. Plan column populated durin
 | SKILL-02  | Phase 12 | TBD  | Pending  |
 | SKILL-03  | Phase 12 | TBD  | Pending  |
 | SKILL-04  | Phase 12 | TBD  | Pending  |
-| HARDEN-01 | Phase 14 | TBD  | Pending  |
-| HARDEN-02 | Phase 14 | TBD  | Pending  |
-| HARDEN-03 | Phase 14 | TBD  | Pending  |
-| HARDEN-04 | Phase 14 | TBD  | Pending  |
-| HARDEN-05 | Phase 14 | TBD  | Pending  |
-| HARDEN-06 | Phase 14 | TBD  | Pending  |
-| HARDEN-07 | Phase 14 | TBD  | Pending  |
-| SESS-CAP-01 | Phase 14 | TBD | Pending |
-| JOBS-CAP-01 | Phase 14 | TBD | Pending |
+| HARDEN-01 | Phase 13 | 13-01-PLAN.md             | [x]      |
+| HARDEN-02 | Phase 13 | 13-02-PLAN.md             | [x]      |
+| HARDEN-03 | Phase 13 | 13-03-PLAN.md             | [x]      |
+| HARDEN-04 | Phase 13 | 13-03-PLAN.md             | [x]      |
+| HARDEN-05 | Phase 13 | 13-03-PLAN.md             | [x]      |
+| HARDEN-06 | Phase 13 | 13-04-PLAN.md             | [x]      |
+| HARDEN-07 | Phase 13 | 13-01-PLAN.md, 13-02-PLAN.md | [x]   |
+| SESS-CAP-01 | Phase 13 | 13-01-PLAN.md           | [x]      |
+| JOBS-CAP-01 | Phase 13 | 13-02-PLAN.md           | [x]      |
 
 **Coverage:** 61/61 v1.1 requirements mapped (100%). Phase-13 hardening rows (HARDEN-01..07, SESS-CAP-01, JOBS-CAP-01) were verified at the code/test level by `13-VERIFICATION.md`; Phase 14 owns their traceability + live-container HARDEN-03 round-trip.
 
