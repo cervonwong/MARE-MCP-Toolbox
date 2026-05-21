@@ -197,8 +197,22 @@ async def _open_r2(
         # in argv. The sandbox latch lives in the post-spawn init_batch below.
         # The argv `-e` flags here carry ONLY non-security configuration (scr.*,
         # cfg.user=mare) — these are safe to apply pre-open.
+        #
+        # FLAG HISTORY (HOT-FIX 2026-05-21, r2-cmd-timeout debug session):
+        # Phase 8 used "-q0" here, MIS-DOCUMENTED as a single combined "quiet/no-init"
+        # flag. `r2 -h` actually defines them as two separate flags:
+        #   -q   quiet mode (no prompt) and quit after -i
+        #   -0   print \x00 after init and every command
+        # The `-0` byte-separator caused every line of r2's stdout to be prefixed
+        # with \x00, which broke `R2Session.exec_one`'s exact `line == sentinel_line`
+        # comparison (sentinel emitted as b"\x00MARE_SENTINEL_...\n", compared to
+        # b"MARE_SENTINEL_...\n"). The init batch was unaffected because it uses
+        # readuntil(sentinel_bytes), a substring match that tolerates the \x00 prefix.
+        # We keep `-q` (the original intent) and DROP `-0` (the unintended side-effect);
+        # the explicit `?e <sentinel>` framing is already a stronger command-delimiter
+        # than r2's built-in null-byte separator.
         argv: list[str] = [
-            "r2", "-2", "-q0",
+            "r2", "-2", "-q",
             "-e", "scr.interactive=false",
             "-e", "scr.color=0",
             "-e", "scr.html=0",

@@ -185,6 +185,39 @@ async def test_argv_no_grain_override(monkeypatch, tmp_path, sandbox):
     )
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("sandbox", [True, False])
+async def test_argv_no_null_byte_separator_flag(monkeypatch, tmp_path, sandbox):
+    """HOT-FIX 2026-05-21 (r2-cmd-timeout): argv MUST NOT contain `-0` or `-q0`.
+
+    `r2 -h` defines `-0` as "print \\x00 after init and every command". When
+    present, every line on r2's stdout (including the per-command sentinel
+    emitted by `?e <sentinel>`) is prefixed with a NUL byte, which breaks
+    R2Session.exec_one's `line == sentinel_line` equality check and causes
+    a 30-second timeout on the FIRST r2_cmd call. The argv must use `-q`
+    (quiet) alone; the explicit sentinel framing already delimits commands.
+    """
+    _patch_subprocess(monkeypatch)
+    sample = tmp_path / "x.bin"
+    sample.write_bytes(b"\x7fELF")
+    async with SessionRegistry(max_sessions=2, idle_s=10, reaper_interval_s=10) as reg:
+        with pytest.raises(_CapturedArgv) as ei:
+            await _open_r2(
+                reg, case_dir=tmp_path, sample_sha256="a" * 64,
+                sample_path=sample, init_commands=None,
+                open_timeout_s=5.0, sandbox=sandbox,
+            )
+    argv = ei.value.argv
+    assert "-0" not in argv, (
+        f"`-0` (NUL-byte separator) MUST NOT appear in argv — it breaks "
+        f"exec_one's sentinel match. Got argv={argv}"
+    )
+    assert "-q0" not in argv, (
+        f"`-q0` MUST NOT appear in argv — r2 parses it as `-q` + `-0` and "
+        f"the `-0` half breaks exec_one's sentinel match. Got argv={argv}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # POSITIVE init-batch assertions — captured via the stdin-buffering fake proc.
 # ---------------------------------------------------------------------------
