@@ -2,17 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
-status: verifying
+status: executing
 stopped_at: Completed 13-04-PLAN.md (env-gated open_r2_session_unsafe + WARN-log + Q6 shared cap)
-last_updated: "2026-05-21T01:29:30.489Z"
-last_activity: 2026-05-21
+last_updated: "2026-05-21T03:02:13.841Z"
+last_activity: 2026-05-21 -- Phase 14 execution started
 progress:
   total_phases: 9
   completed_phases: 9
   total_plans: 44
   completed_plans: 44
   percent: 100
-last_quick_task: 260521-d6l
 ---
 
 # Project State
@@ -22,15 +21,15 @@ last_quick_task: 260521-d6l
 See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion scoped)
 
 **Core value:** Automated malware triage and deep analysis via AI agents with full access to professional RE tooling — accessible both from inside the container and from external MCP clients.
-**Current focus:** Phase 13 — harden-concurrency-caps-and-r2-sandboxing
+**Current focus:** Phase 14 — close-v1.1-gaps
 
 ## Current Position
 
 Milestone: v1.1 Remote RE Tool Expansion
-Phase: 13 (harden-concurrency-caps-and-r2-sandboxing) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
-Last activity: 2026-05-21 - Completed quick task 260521-d6l: Phase 13 hot-fix r2 sandbox latching via stdin instead of argv
+Phase: 14 (close-v1.1-gaps) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 14
+Last activity: 2026-05-21 -- Phase 14 execution started
 
 Progress: [          ] 0% (0/8 phases complete)
 

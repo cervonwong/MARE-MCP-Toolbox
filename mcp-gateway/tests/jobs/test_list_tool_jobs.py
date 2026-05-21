@@ -27,7 +27,14 @@ async def test_specs_default_hides_underscore(attached_registry):
     assert "include_internal" in result
     assert result["include_internal"] is False
     names = [s["name"] for s in result["specs"]]
-    assert names == ["capa"]
+    # Contract: underscore-prefixed names are hidden by default. Assert the
+    # hiding behaviour holds and that the public anchor (capa) is present,
+    # without locking the full public surface — later phases (10/11) added
+    # unblob, binwalk_extract, strace, ltrace, qemu_user.
+    assert names, "default _specs listing must contain at least one entry"
+    assert all(not n.startswith("_") for n in names), \
+        f"underscore-prefixed names leaked into default listing: {names}"
+    assert "capa" in names
 
 
 @pytest.mark.asyncio
@@ -35,7 +42,10 @@ async def test_specs_with_include_internal_shows_all(attached_registry):
     """Q5: include_internal=True surfaces underscore-prefixed names."""
     result = await tjobs.list_tool_jobs(state="_specs", include_internal=True)
     names = sorted(s["name"] for s in result["specs"])
-    assert names == ["_log_burst_probe", "_sleep_probe", "capa"]
+    # Contract: include_internal=True surfaces the underscore-prefixed probe
+    # specs alongside the public ones. Assert presence of the always-present
+    # internals + public anchor without locking the full registry.
+    assert {"_log_burst_probe", "_sleep_probe", "capa"}.issubset(set(names))
 
 
 @pytest.mark.asyncio

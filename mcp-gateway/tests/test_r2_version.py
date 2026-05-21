@@ -25,9 +25,12 @@ def test_r2_version_parseable():
     assert result.returncode == 0, (
         f"r2 -V failed: rc={result.returncode}, stderr={result.stderr!r}"
     )
-    first_line = (result.stdout.splitlines() or [""])[0]
-    assert "radare2" in first_line.lower(), (
-        f"r2 -V first line did not contain 'radare2': {first_line!r}"
+    # Kali r2 6.0.5 prints "<version>  r2" / "<version>  r_anal" / ...; older
+    # builds print "radare2 <version>". Accept either by scanning all lines for
+    # a known r2 module token.
+    stdout_low = result.stdout.lower()
+    assert any(tok in stdout_low for tok in ("radare2", "r_anal", " r2\n", " r2 ")), (
+        f"r2 -V output did not contain a recognizable r2 token: {result.stdout!r}"
     )
 
 

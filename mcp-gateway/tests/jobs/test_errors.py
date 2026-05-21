@@ -69,7 +69,15 @@ async def test_unknown_tool_shape(case_dir_fixture, attached_registry):
     )
     assert result["error"] == "unknown job tool"
     assert result["tool"] == "unknown_tool"
-    assert sorted(result["known"]) == ["_log_burst_probe", "_sleep_probe", "capa"]
+    known = result["known"]
+    assert isinstance(known, list) and known
+    assert all(isinstance(n, str) for n in known)
+    # Contract: the known list mirrors JOB_TOOL_REGISTRY, which is populated by
+    # Phase 9 (_sleep_probe, _log_burst_probe, capa), Phase 10 (unblob,
+    # binwalk_extract), and Phase 11 (strace, ltrace, qemu_user). Assert on the
+    # always-present anchors rather than locking the full set, so subsequent
+    # phases that add JobToolSpecs don't re-break this test.
+    assert {"_log_burst_probe", "_sleep_probe", "capa"}.issubset(set(known))
     assert isinstance(result["hint"], str) and result["hint"]
 
 
