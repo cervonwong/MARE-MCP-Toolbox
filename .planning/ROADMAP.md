@@ -190,7 +190,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 11. Dynamic Lab Mode           | v1.1      | 6/6 | Complete    | 2026-05-20 |
 | 12. Orchestrator Skill Update  | v1.1      | 5/5 | Complete    | 2026-05-20 |
 | 13. Hardening + r2 Sandboxing  | v1.1      | 4/4 | Complete    | 2026-05-20 |
-| 14. Close v1.1 Gaps            | v1.1      | 0/? | Not started | -          |
+| 14. Close v1.1 Gaps            | v1.1      | 0/4 | Planning    | -          |
 
 ### Phase 13: Harden concurrency caps and r2 sandboxing
 
@@ -222,4 +222,8 @@ Plans:
   8. VALIDATION.md frontmatter `nyquist_compliant: true` is set for Phases 5, 6, 12, 13 once their VERIFICATION.md confirms it
   9. All 15 pending human-verification items from the audit are executed in a rebuilt container and recorded with timestamps + transcripts in each phase's VERIFICATION.md (Phase 7 ×3, Phase 8 ×2, Phase 10 ×4, Phase 11 ×5, Phase 13 ×1 — including the live `e cfg.sandbox` round-trip that closes HARDEN-03)
   10. A re-run of `/gsd-audit-milestone` returns `status: passed` with no gaps
-**Plans**: TBD (to be created by `/gsd-plan-phase 14`)
+**Plans**: 4 plans (3 in wave 1 parallel + 1 in wave 2 with live UAT)
+  - [ ] 14-01-PLAN.md — Test-suite fixes (D-01 r2_sessions module-attribute catch, D-02 sessions package-attribute re-bind, D-04 ACL test container-only skipif, D-03 full-suite acceptance gate)
+  - [ ] 14-02-PLAN.md — REQUIREMENTS.md sync (D-05 + D-06 + D-07 + D-08; 14 checkbox flips + 14 traceability row updates)
+  - [ ] 14-03-PLAN.md — ROADMAP / STATE / VALIDATION sync (D-09 progress table + dates, D-10 STATE body, D-11 nyquist flags for phases 5/6/12/13)
+  - [ ] 14-04-PLAN.md — Live container UAT + audit re-run gate (D-12/D-13 15 items across phases 7/8/10/11/13 + D-14 /gsd-audit-milestone success oracle)
