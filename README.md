@@ -98,7 +98,31 @@ Full per-tool docs (arguments, determinism notes, the IDA Pro native surface): [
 
 ## Connect Claude Code (host)
 
-A pre-built config template ships at [`templates/claude-code/.mcp.json`](templates/claude-code/.mcp.json):
+After `./run_docker.sh --remote`, the gateway is reachable at
+`http://localhost:8080/mcp` (Streamable HTTP, bearer auth). There are two
+ways to wire it into a host-side Claude Code install — pick whichever matches
+your scope (per-project vs. all projects).
+
+### Option A — `claude mcp add` (recommended; user scope, no JSON editing)
+
+```bash
+export MARE_GATEWAY_TOKEN=$(cat /path/to/MARE-MCP-Toolbox/workspace/.mcp-gateway-token)
+# or paste from `./run_docker.sh --print-config`
+
+claude mcp add --scope user --transport http mare-toolbox \
+  http://localhost:8080/mcp \
+  --header "Authorization: Bearer ${MARE_GATEWAY_TOKEN}"
+```
+
+This writes the server into `~/.claude.json` so every Claude Code project
+inherits it. Replace `--scope user` with `--scope local` (default — current
+project only, private to you) or `--scope project` (writes a checked-in
+`.mcp.json`, shared with collaborators).
+
+### Option B — project-scoped `.mcp.json` (checked in, shared with team)
+
+A pre-built template ships at
+[`templates/claude-code/.mcp.json`](templates/claude-code/.mcp.json):
 
 ```json
 {
@@ -114,12 +138,34 @@ A pre-built config template ships at [`templates/claude-code/.mcp.json`](templat
 }
 ```
 
-Drop it into your project root (or merge into `~/.claude/.mcp.json` for user scope), export the token, and Claude Code will pick up the gateway:
+Drop the file into your project root and export the env vars before launching
+Claude Code:
 
 ```bash
-export MARE_GATEWAY_TOKEN=$(cat workspace/.mcp-gateway-token)
-# or paste from `./run_docker.sh --print-config`
+export MARE_GATEWAY_TOKEN=$(cat /path/to/MARE-MCP-Toolbox/workspace/.mcp-gateway-token)
+# Optional: override URL if you run on a different host/port.
+# export MARE_GATEWAY_URL=http://10.0.0.5:8081/mcp
 ```
+
+Claude Code expands `${VAR}` / `${VAR:-default}` in `.mcp.json` at startup, so
+the token never has to live in version control. Claude Code prompts once per
+machine to approve project-scoped servers.
+
+### Verify the connection
+
+```bash
+# Unauthenticated health check (returns "ok")
+curl -s http://localhost:8080/healthz
+
+# Authenticated tool listing — proves bearer works
+claude mcp list                 # should show mare-toolbox as "connected"
+# Inside a Claude Code session: /mcp   (lists servers + their tools)
+```
+
+If the URL is non-default (different host/port, LAN-exposed, or behind a
+reverse proxy), point Claude Code at the right address with
+`MARE_GATEWAY_URL=http://host:port/mcp` before launching, or pass the explicit
+URL to `claude mcp add`.
 
 ## Connect mastra.ai
 
