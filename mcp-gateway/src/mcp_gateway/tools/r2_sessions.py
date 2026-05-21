@@ -44,7 +44,7 @@ from mcp_gateway.sessions import (
     strip_ansi,
     truncate_for_response,
 )
-from mcp_gateway.tools.case_dirs import resolve_case_dir
+from mcp_gateway.tools import case_dirs as _case_dirs
 from mcp_gateway.tools.samples import resolve_sample
 
 log = logging.getLogger("mcp_gateway.tools.r2_sessions")
@@ -164,7 +164,7 @@ async def open_r2_session(
 
     # Phase 7 resolvers return `str` (verified: case_dirs.py:10, samples.py:34).
     # Phase 8 must compute the sha256 explicitly from the resolved sample bytes.
-    resolved_case = Path(resolve_case_dir(case_dir))
+    resolved_case = Path(_case_dirs.resolve_case_dir(case_dir))
     sample_path = Path(resolve_sample(sample))
     sample_sha = hashlib.sha256(sample_path.read_bytes()).hexdigest()
 
@@ -450,7 +450,7 @@ async def open_r2_session_unsafe(
     {_FULL_DISCLAIMER}
     """
     registry = _require_registry()
-    resolved_case = Path(resolve_case_dir(case_dir))
+    resolved_case = Path(_case_dirs.resolve_case_dir(case_dir))
     sample_path = Path(resolve_sample(sample))
     sample_sha = hashlib.sha256(sample_path.read_bytes()).hexdigest()
 

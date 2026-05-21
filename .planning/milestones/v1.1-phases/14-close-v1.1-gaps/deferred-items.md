@@ -22,6 +22,15 @@ Out-of-scope discoveries logged during plan execution. Each entry should record 
 - **Why deferred:** Pure test-fixture gap; production code passes the validator under normal MCP-driven calls (verified live by HARDEN-03 sandbox UAT item — see 13-VERIFICATION.md). The Phase 14 D-01/D-02 reproducer set (the 8 tests that triggered Phase 14) all pass GREEN, so v1.1 closure invariant holds. Fixing this requires touching `r2_sessions.py` to `import case_dirs as _case_dirs` (access by attribute), which is a Phase 13 contract change out of scope for v1.1 archive.
 - **Severity:** low — production correctness is unaffected; only test-suite ergonomics inside the container.
 - **Suggested follow-up:** v1.2 cleanup — switch `r2_sessions.py` (and other tools that import `resolve_case_dir`) to `from . import case_dirs as _case_dirs` and access via `_case_dirs.resolve_case_dir(...)`, then drop the host-only skip pattern on the affected r2 tests so they GREEN in-container.
+- **Status:** RESOLVED 2026-05-21 in quick task 260521-mhh — switched r2_sessions.py to `from mcp_gateway.tools import case_dirs as _case_dirs` and access via `_case_dirs.resolve_case_dir(...)`. The conftest `opened_sid` monkeypatch on `_case_dirs_mod.resolve_case_dir` now propagates correctly. Sibling tests `test_unsafe_passes_sandbox_false`, `test_unsafe_open_warn_log`, and `test_unsafe_shares_combined_cap` updated to patch `r2_sessions._case_dirs.resolve_case_dir`. In-container `pytest tests/test_r2_sessions.py` expected to flip the 12 previously-erroring tests GREEN (verification deferred to next container rebuild).
+
+### Untouched case_dirs consumers (7 tools still bind resolve_case_dir by name)
+
+- **Discovered during:** Quick task 260521-mhh Task 3 (scoping the r2_sessions refactor).
+- **What:** Seven other tool modules import `resolve_case_dir` by name (the same binding shape that broke r2_sessions tests under the conftest monkeypatch): `artifacts.py`, `workflows.py`, `shell.py`, `re_artifacts.py`, `re_static.py`, `jobs.py`, `extract.py`. They are NOT currently exercised by any test that needs to bypass the STATUS_ROOT validator, so the bug is latent — but any future test that wants to monkeypatch `resolve_case_dir` against one of these tools will hit the same wall.
+- **Why deferred:** Pre-emptive refactor without a failing test driving it is out of scope for the v1.1 cleanup batch. The fix is mechanical (same pattern as r2_sessions.py: `from . import case_dirs as _case_dirs` + N call-site renames).
+- **Severity:** low — latent until someone writes a test that monkeypatches `resolve_case_dir` against one of these modules.
+- **Suggested follow-up:** v1.2 cleanup quick task. ~40-60 lines of mechanical diff across 7 files.
 - **Status:** open.
 
 ### test_skill_md_dual_mode.py StopIteration in-container
