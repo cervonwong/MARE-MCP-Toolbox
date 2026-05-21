@@ -227,3 +227,31 @@ def test_session_cap_reached_dict_shape():
         "open_count": 8,
         "existing": [{"session_id": "x"}],
     }
+
+
+# ============================================================================
+# Phase 13 HARDEN-05: _DANGEROUS_R2_CMD_RE frozen pattern + reframed docstring
+# ============================================================================
+def test_dangerous_regex_frozen():
+    """HARDEN-05: _DANGEROUS_R2_CMD_RE pattern is byte-identical to Phase 8."""
+    from mcp_gateway.sessions.r2 import _DANGEROUS_R2_CMD_RE
+    expected = r"(?:^|;|\||\n)\s*(?:#!|R!|!)"
+    assert _DANGEROUS_R2_CMD_RE.pattern == expected, (
+        f"_DANGEROUS_R2_CMD_RE pattern drifted from Phase 8 frozen form.\n"
+        f"  expected: {expected!r}\n  actual:   {_DANGEROUS_R2_CMD_RE.pattern!r}\n"
+        "Per CONTEXT.md D-09, this regex is frozen -- do not extend or modify."
+    )
+
+
+def test_dangerous_regex_docstring_reframed():
+    """HARDEN-05: r2.py module source contains Phase 13 reframing markers."""
+    import inspect
+    from mcp_gateway.sessions import r2 as r2m
+    src = inspect.getsource(r2m)
+    assert "DO NOT EXTEND THIS REGEX" in src, (
+        "Phase 13 D-09 reframing marker missing -- the regex must be documented "
+        "as a UX layer over the cfg.sandbox security boundary."
+    )
+    assert "PHASE 13 SECURITY BOUNDARY DELINEATION" in src, (
+        "Phase 13 D-09 module-level framing block missing."
+    )
