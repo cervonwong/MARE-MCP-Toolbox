@@ -88,6 +88,12 @@ EXPECTED_TOOLS_DYNAMIC = EXPECTED_TOOLS_BASELINE | {
     "get_dynamic_capabilities",
 }
 
+# Phase 13 HARDEN-06: env-gated unsafe-r2 tool.
+# When MCP_GATEWAY_R2_UNSAFE_ALLOWED=1, open_r2_session_unsafe is added on top
+# of whichever baseline/dynamic surface is currently active. Tool-count delta: +1.
+EXPECTED_TOOLS_BASELINE_UNSAFE = EXPECTED_TOOLS_BASELINE | {"open_r2_session_unsafe"}
+EXPECTED_TOOLS_DYNAMIC_UNSAFE = EXPECTED_TOOLS_DYNAMIC | {"open_r2_session_unsafe"}
+
 
 def _set_env(monkeypatch, env_value):
     if env_value is None:
@@ -239,4 +245,58 @@ def test_tool_count_private_sanity(monkeypatch, make_mcp, env_value, expected_co
     assert n == expected_count, (
         f"private-attr sanity: tool count {n} != expected {expected_count} "
         f"for env_value={env_value!r} (Phase 11 D-DYN-TEST-COUNT)"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Phase 13 HARDEN-06 tests — env-gated open_r2_session_unsafe axis
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("dynamic_env,unsafe_env,expected", [
+    (None, None, EXPECTED_TOOLS_BASELINE),
+    (None, "1", EXPECTED_TOOLS_BASELINE_UNSAFE),
+    ("1", None, EXPECTED_TOOLS_DYNAMIC),
+    ("1", "1", EXPECTED_TOOLS_DYNAMIC_UNSAFE),
+])
+async def test_tool_list_with_unsafe_axis(dynamic_env, unsafe_env, expected, monkeypatch, make_mcp):
+    """HARDEN-06: open_r2_session_unsafe registered iff MCP_GATEWAY_R2_UNSAFE_ALLOWED=1."""
+    # Set dynamic env (matches existing pattern)
+    _set_env(monkeypatch, dynamic_env)
+    # Set unsafe env (new axis)
+    if unsafe_env is None:
+        monkeypatch.delenv("MCP_GATEWAY_R2_UNSAFE_ALLOWED", raising=False)
+    else:
+        monkeypatch.setenv("MCP_GATEWAY_R2_UNSAFE_ALLOWED", unsafe_env)
+    m = make_mcp(dynamic_env)
+    names = await _list_tool_names(m)
+    # Exact-set assertion: registered set must equal expected.
+    assert names == expected, (
+        f"tool-list mismatch:\n"
+        f"  dynamic={dynamic_env!r} unsafe={unsafe_env!r}\n"
+        f"  expected count={len(expected)}, got count={len(names)}\n"
+        f"  missing from registered: {expected - names}\n"
+        f"  extra in registered:     {names - expected}"
+    )
+
+
+async def test_unsafe_r2_absent_baseline(monkeypatch, make_mcp):
+    """HARDEN-06: unsafe tool is ABSENT when env unset (default secure posture)."""
+    _set_env(monkeypatch, None)
+    monkeypatch.delenv("MCP_GATEWAY_R2_UNSAFE_ALLOWED", raising=False)
+    m = make_mcp(None)
+    names = await _list_tool_names(m)
+    assert "open_r2_session_unsafe" not in names, (
+        "open_r2_session_unsafe MUST NOT be registered when MCP_GATEWAY_R2_UNSAFE_ALLOWED is unset"
+    )
+
+
+async def test_unsafe_r2_present_with_env(monkeypatch, make_mcp):
+    """HARDEN-06: unsafe tool IS present when env=1."""
+    _set_env(monkeypatch, None)
+    monkeypatch.setenv("MCP_GATEWAY_R2_UNSAFE_ALLOWED", "1")
+    m = make_mcp(None)
+    names = await _list_tool_names(m)
+    assert "open_r2_session_unsafe" in names, (
+        "open_r2_session_unsafe MUST be registered when MCP_GATEWAY_R2_UNSAFE_ALLOWED=1"
     )

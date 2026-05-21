@@ -363,3 +363,182 @@ async def test_per_command_log_filename_shape(opened_sid):
     basename = os.path.basename(rel)
     assert re.match(r"^\d{8}T\d{6}Z-r2_cmd-[0-9a-f]{4}\.txt$", basename), \
         f"log filename does not match Phase 6 D-09 shape: {basename!r}"
+
+
+# ============================================================================
+# Phase 13 HARDEN-06 tests — open_r2_session_unsafe
+# ============================================================================
+
+import asyncio as _asyncio
+import datetime as _datetime
+import secrets as _secrets
+import time as _time
+from pathlib import Path as _Path
+
+
+class _CapturedArgvForUnsafe(Exception):
+    def __init__(self, argv):
+        self.argv = argv
+
+
+@pytest.mark.asyncio
+async def test_unsafe_passes_sandbox_false(tmp_path, monkeypatch):
+    """HARDEN-06: open_r2_session_unsafe → registry.open(sandbox=False) → _open_r2 spawn argv has NO cfg.sandbox=true token."""
+    from mcp_gateway import session_state
+    from mcp_gateway.sessions._base import SessionRegistry
+
+    # Build a sample
+    sample = tmp_path / "sample.bin"
+    sample.write_bytes(b"\x7fELF" + b"\x00" * 32)
+
+    # Monkeypatch resolve_case_dir + resolve_sample to accept our tmp paths
+    monkeypatch.setattr(r2_sessions, "resolve_case_dir", lambda x: str(tmp_path))
+    monkeypatch.setattr(r2_sessions, "resolve_sample", lambda x: str(sample))
+
+    # Capture argv via monkeypatch on asyncio.create_subprocess_exec.
+    # The _open_r2 driver lives in sessions.r2; patch the asyncio module
+    # symbol it uses (sessions.r2.asyncio.create_subprocess_exec).
+    from mcp_gateway.sessions import r2 as r2mod
+
+    async def _fake_spawn(*argv, **kw):
+        raise _CapturedArgvForUnsafe(list(argv))
+
+    monkeypatch.setattr(r2mod.asyncio, "create_subprocess_exec", _fake_spawn)
+
+    async with SessionRegistry(max_sessions=2, idle_s=10, reaper_interval_s=10) as reg:
+        monkeypatch.setattr(session_state, "SESSION_REGISTRY", reg)
+        with pytest.raises(_CapturedArgvForUnsafe) as ei:
+            await r2_sessions.open_r2_session_unsafe(
+                str(tmp_path), "deadbeef",
+                init_commands=None, open_timeout=5.0,
+            )
+    argv = ei.value.argv
+    joined = " ".join(argv)
+    assert "cfg.sandbox=true" not in joined, (
+        f"unsafe path must NOT inject cfg.sandbox=true; argv={argv}"
+    )
+
+
+@pytest.mark.slow
+@pytest.mark.asyncio
+async def test_unsafe_open_warn_log(tmp_path, monkeypatch, caplog):
+    """HARDEN-06 / D-11: every unsafe-open emits a WARNING log line with the required fields."""
+    _require_r2_or_skip()
+    _require_fixture_elf()
+
+    from mcp_gateway import session_state
+    from mcp_gateway.sessions._base import SessionRegistry
+
+    case_dir = tmp_path / "case-unsafe"
+    case_dir.mkdir()
+    sample_dest = case_dir / "sample.elf"
+    sample_dest.write_bytes(FIXTURE_ELF.read_bytes())
+
+    monkeypatch.setattr(r2_sessions, "resolve_case_dir", lambda c: str(case_dir))
+    monkeypatch.setattr(r2_sessions, "resolve_sample", lambda s: str(sample_dest))
+
+    async with SessionRegistry(max_sessions=2, idle_s=30, reaper_interval_s=30) as reg:
+        monkeypatch.setattr(session_state, "SESSION_REGISTRY", reg)
+        with caplog.at_level("WARNING", logger="mcp_gateway.tools.r2_sessions"):
+            result = await r2_sessions.open_r2_session_unsafe(
+                str(case_dir), str(sample_dest),
+                init_commands=None, open_timeout=60.0,
+            )
+        # Inspect captured log records
+        warn_records = [r for r in caplog.records
+                        if r.levelname == "WARNING"
+                        and r.name == "mcp_gateway.tools.r2_sessions"]
+        assert warn_records, "no WARNING records captured on mcp_gateway.tools.r2_sessions"
+        # Format the message the same way the logger does
+        msg = " ".join(r.getMessage() for r in warn_records)
+        assert "unsafe session opened" in msg
+        assert "session_id=" in msg
+        assert "sample_sha256=" in msg
+        assert "case_dir=" in msg
+        # Verify warnings field
+        assert result.get("warnings") == ["r2 sandbox is DISABLED for this session"]
+
+
+@pytest.mark.asyncio
+async def test_unsafe_shares_combined_cap(tmp_path, monkeypatch):
+    """HARDEN-06 Q6: unsafe sessions share the combined SessionRegistry cap with safe sessions."""
+    from mcp_gateway import session_state
+    from mcp_gateway.sessions._base import SessionRegistry, make_sentinel
+    from mcp_gateway.sessions import r2 as r2mod
+
+    sample = tmp_path / "sample.bin"
+    sample.write_bytes(b"\x7fELF")
+
+    monkeypatch.setattr(r2_sessions, "resolve_case_dir", lambda x: str(tmp_path))
+    monkeypatch.setattr(r2_sessions, "resolve_sample", lambda x: str(sample))
+
+    # Stub _open_r2 to exercise the registry semaphore without spawning r2.
+    # The stub mirrors the atomic probe-and-acquire pattern from sessions/r2.py.
+    async def _stub_open_r2(registry, *, case_dir, sample_sha256, sample_path,
+                            init_commands, open_timeout_s, sandbox=True):
+        async with registry._lock:
+            if registry._sem.locked():
+                from mcp_gateway.sessions._base import SessionCapReached
+                raise SessionCapReached(registry._max, registry.count_open(), registry.list())
+            await registry._sem.acquire()
+            sid = _secrets.token_urlsafe(12)
+        # Build a minimal R2Session with all required BaseSession fields. Use a
+        # FAKE proc object with pid=0 + a no-op async wait() so close()'s
+        # killpg(0,...) is blocked by the autouse fixture and proc.wait() does
+        # not hang. Transcript path MUST live under case_dir so the tool
+        # response's relative_to(case_dir) call works.
+        class _FakeProc:
+            pid = 0
+            async def wait(self):
+                return 0
+        now_mono = _time.monotonic()
+        now_iso = _datetime.datetime.now(_datetime.timezone.utc).isoformat(timespec="seconds")
+        # case_dir is a Path; make a child path under it for the transcript.
+        _case_path = _Path(case_dir)
+        _case_path.mkdir(parents=True, exist_ok=True)
+        _transcript_dir = _case_path / "r2-sessions"
+        _transcript_dir.mkdir(exist_ok=True)
+        sess = r2mod.R2Session(
+            session_id=sid,
+            case_dir=_case_path,
+            pgid=-99999,  # sentinel pgid (matches Plan 01 test discipline)
+            lock=_asyncio.Lock(),
+            sentinel=make_sentinel(),
+            transcript_path=_transcript_dir / f"{sid}-transcript.log",
+            opened_at=now_mono,
+            opened_iso=now_iso,
+            last_used_at=now_mono,
+            proc=_FakeProc(),
+            sample_sha256=sample_sha256,
+            sample_path=sample_path,
+        )
+        async with registry._lock:
+            registry._sessions[sid] = sess
+        return sess
+
+    monkeypatch.setattr(r2mod, "_open_r2", _stub_open_r2)
+
+    # Autouse killpg guard: refuse non-positive pgids so the stubbed sentinel
+    # pgid=-99999 doesn't SIGKILL anything real on close().
+    real_killpg = os.killpg
+
+    def _safe_killpg(pgid, sig):
+        if pgid <= 0:
+            raise ProcessLookupError(f"refusing killpg({pgid}, {sig}) in test")
+        return real_killpg(pgid, sig)
+
+    monkeypatch.setattr(os, "killpg", _safe_killpg)
+
+    async with SessionRegistry(max_sessions=2, idle_s=30, reaper_interval_s=30) as reg:
+        monkeypatch.setattr(session_state, "SESSION_REGISTRY", reg)
+        r1 = await r2_sessions.open_r2_session(str(tmp_path), "abc",
+                                               init_commands=None, open_timeout=5.0)
+        assert "error" not in r1, r1
+        r2 = await r2_sessions.open_r2_session_unsafe(str(tmp_path), "def",
+                                                      init_commands=None, open_timeout=5.0)
+        assert "error" not in r2, r2
+        # Third call (either safe or unsafe) must hit the cap.
+        r3 = await r2_sessions.open_r2_session_unsafe(str(tmp_path), "ghi",
+                                                      init_commands=None, open_timeout=5.0)
+        assert r3.get("error") == "session cap reached", r3
+        assert reg._sem.locked() is True
