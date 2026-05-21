@@ -37,7 +37,11 @@ Out-of-scope discoveries logged during plan execution. Each entry should record 
   - Run `format_json_non_json_command` candidate command directly against r2 6.0.5 to confirm JSON-permissiveness change; if confirmed, update test assertion (stale) OR pick a truly non-JSON command (e.g. error-only output).
   - Add r2-level instrumentation to `test_hung_cmd_kills_session` to confirm the hang trigger still hangs r2 6.0.5; if not, update the trigger.
   - Increase cancel-grace window OR add explicit `wait_for(killed, timeout=...)` instead of bare 200ms `sleep` to disambiguate killpg-propagation bug vs. test-timing flakiness.
-- **Status:** open.
+- **Status:** RESOLVED 2026-05-21 in three atomic commits:
+  - `f85d722` Convert test_format_json_non_json_command to injection-based unit test — replaces the stale "r2 6.0.5 made `?Vj` JSON-capable" assertion with a monkey-patched `exec_one` that returns deterministic non-JSON bytes, exercising D-10's `parse_error` branch without coupling to r2-version output behaviour.
+  - `802b90b` Convert test_hung_cmd_kills_session to injection-based unit test — replaces the stale `?I prompt` hang trigger (no longer hangs r2 6.0.5 under `scr.interactive=false`) with a monkey-patched `exec_one` that returns `(b'', True)`, exercising the kill+invalidate branch in r2_sessions.py:276-280 deterministically.
+  - `d3c7069` Add CancelledError handler in r2_cmd to prevent orphan r2 subprocesses — REAL PRODUCTION FIX. Adds the missing `except asyncio.CancelledError` block in `r2_cmd` (Phase 8 D-20 step d contract violation). Pattern adapted from runner.py:268-275: synchronous `os.killpg(sess.pgid, signal.SIGKILL)` + shielded `proc.wait()` + fire-and-forget `registry.close(reason="cancelled")` via `asyncio.ensure_future`. The synchronous killpg is what guarantees the r2 process is signalled before the cancel propagates — an `await` inside the except handler is unreliable because the outer task is already cancelling. Test also rewritten to use injected hanging `exec_one` (deterministic) because the original `aaaa` trigger completed in ~6ms on r2 6.0.5, well before the 500ms cancel fired.
+  - Confirmed in-container: `pytest tests/test_r2_sessions.py tests/test_r2_sandbox_integration.py` → 17 passed (no regressions).
 
 ### Untouched case_dirs/samples consumers (~14 tool call-sites still bind resolvers by name)
 

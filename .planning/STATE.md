@@ -5,7 +5,7 @@ milestone_name: Remote RE Tool Expansion
 status: shipped
 stopped_at: "v1.1 milestone shipped 2026-05-21 — all 10 phases archived; ready for /gsd-new-milestone"
 last_updated: "2026-05-21T08:20:00.000Z"
-last_activity: 2026-05-21 - Completed quick task 260521-mhh: v1.1 cleanup batch (README security boundaries, r2_sessions monkeypatch refactor, 47-row traceability sweep, test_skill_md_dual_mode skip guard) + r2_cmd timeout fix (260521-d6l... fbcb88b debug session)
+last_activity: 2026-05-21 - Resolved r2-lifecycle-tests debug session (3 atomic commits f85d722 + 802b90b + d3c7069): converted 2 stale tests to injection-based unit tests + added missing CancelledError handler in r2_cmd (Phase 8 D-20 step d contract). 17/17 in-container r2_sessions + r2_sandbox tests pass.
 progress:
   total_phases: 10
   completed_phases: 10
