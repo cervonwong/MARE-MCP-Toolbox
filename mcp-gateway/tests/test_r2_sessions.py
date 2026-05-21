@@ -297,12 +297,26 @@ async def test_lockdown_init_took_effect(opened_sid):
 # Pitfall 6 — hung command kills session, session_invalidated=True
 # ============================================================================
 @pytest.mark.asyncio
-async def test_hung_cmd_kills_session(opened_sid):
-    """Pitfall 6 + D-20 step d: r2_cmd('?I prompt', timeout=2.0) returns session_invalidated=True
-    within 5s; subsequent list_sessions does NOT include this session."""
-    sid, _reg, _case = opened_sid
-    # `?I` requests an interactive prompt which will hang; with timeout=2.0 the
-    # session must be killed and session_invalidated=True returned within 5s.
+async def test_hung_cmd_kills_session(opened_sid, monkeypatch):
+    """Pitfall 6 + D-20 step d: when exec_one reports timed_out=True the
+    session is killed and r2_cmd returns session_invalidated=True with
+    exit_code=-9; subsequent list_sessions does NOT include this session.
+
+    Injection-based unit test: monkey-patches the live R2Session's exec_one
+    to return (b'', True) deterministically, exercising the kill+invalidate
+    branch in r2_sessions.py without depending on r2-version hang semantics.
+    (r2 6.0.5 no longer hangs on `?I prompt` when scr.interactive=false, so
+    the previous real-subprocess hang trigger went stale.)
+    """
+    sid, reg, _case = opened_sid
+    sess = reg.get(sid)
+
+    async def _fake_exec_one(cmd, *, timeout):
+        # Simulate a hung command: empty bytes + timed_out=True.
+        return (b"", True)
+
+    monkeypatch.setattr(sess, "exec_one", _fake_exec_one)
+
     start = time.monotonic()
     result = await r2_sessions.r2_cmd(sid, "?I prompt", timeout=2.0)
     elapsed = time.monotonic() - start
