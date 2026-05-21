@@ -19,6 +19,7 @@ import hashlib
 import json
 import logging
 import os
+import sys
 import time
 from pathlib import Path
 from typing import Literal, Optional
@@ -29,12 +30,16 @@ from mcp.server.fastmcp import FastMCP
 # access (`sessions.MAX_SESSIONS`) is required so `importlib.reload(sessions)`
 # in Plan 05 tests propagates through. The `from X import Y` form binds Y
 # to this module's namespace at import time -- reload(X) does NOT update Y.
+# Phase 14 D-01: same applies to `sessions.SessionCapReached` -- the bare
+# `from ... import SessionCapReached` binding survives load but escapes
+# `except` after `importlib.reload(mcp_gateway.sessions._base)` swaps the
+# class object. Catch via `sessions.SessionCapReached` to resolve at
+# exception-catch time.
 from mcp_gateway import session_state
 from mcp_gateway import sessions
 from mcp_gateway.artifacts_io import ensure_subdir, tool_log_path
 from mcp_gateway.runner import STDOUT_HEAD_KB
 from mcp_gateway.sessions import (
-    SessionCapReached,
     check_dangerous_cmd,
     strip_ansi,
     truncate_for_response,
@@ -170,6 +175,11 @@ async def open_r2_session(
         check_dangerous_cmd(ic)
 
     # Module-attribute access so importlib.reload(sessions) propagates.
+    # Phase 14 D-01: refetch the package module from sys.modules so that, after
+    # `sys.modules.pop('mcp_gateway.sessions') + reimport` (which the gdb-env
+    # validation test performs), the local `sessions` binding is updated to
+    # the LIVE module rather than the stale, popped-but-still-referenced one.
+    sessions = sys.modules["mcp_gateway.sessions"]
     timeout = open_timeout if open_timeout is not None else sessions.SESSION_OPEN_TIMEOUT_S
 
     try:
@@ -180,7 +190,7 @@ async def open_r2_session(
             init_commands=init_commands,
             open_timeout_s=timeout,
         )
-    except SessionCapReached as e:
+    except sessions.SessionCapReached as e:
         return e.to_dict()
 
     return {
@@ -450,6 +460,8 @@ async def open_r2_session_unsafe(
     for ic in (init_commands or []):
         check_dangerous_cmd(ic)
 
+    # Phase 14 D-01: same refetch trick as open_r2_session above.
+    sessions = sys.modules["mcp_gateway.sessions"]
     timeout = open_timeout if open_timeout is not None else sessions.SESSION_OPEN_TIMEOUT_S
 
     try:
@@ -461,7 +473,7 @@ async def open_r2_session_unsafe(
             open_timeout_s=timeout,
             sandbox=False,
         )
-    except SessionCapReached as e:
+    except sessions.SessionCapReached as e:
         return e.to_dict()
 
     # D-11: WARN-level audit log line. Fields: session_id, sample_sha256[:8],
