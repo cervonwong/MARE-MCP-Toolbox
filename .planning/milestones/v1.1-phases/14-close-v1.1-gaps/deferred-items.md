@@ -31,7 +31,7 @@ Out-of-scope discoveries logged during plan execution. Each entry should record 
 - **Why deferred:** Test was always host-only by intent (it validates the orchestrator skill markdown under `.planning/` / `workspace/skills/`). Container is not its target environment.
 - **Severity:** low.
 - **Suggested follow-up:** Add `@pytest.mark.skipif(not Path("/host/.planning").is_dir(), reason="host-only")` or move the test under a `host_only/` subdirectory excluded from container runs.
-- **Status:** open.
+- **Status:** RESOLVED 2026-05-21 in quick task 260521-mhh — added module-level pytest.skip guard at tests/test_skill_md_dual_mode.py:28 that fires when no parent of the test file contains .planning (container path /opt/mcp-gateway/tests/).
 
 ### MCP r2_cmd 30s timeout on freshly-opened sessions
 

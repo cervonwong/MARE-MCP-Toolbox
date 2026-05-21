@@ -25,7 +25,16 @@ except ImportError:  # pragma: no cover
     yaml = None
 
 # Pitfall 4 mitigation: locate REPO_ROOT by .planning marker, not parents[2].
-REPO_ROOT = next(p for p in Path(__file__).resolve().parents if (p / ".planning").is_dir())
+# Container guard: when no parent contains `.planning` (e.g. inside the Docker
+# image at /opt/mcp-gateway), skip this whole module — the tests validate the
+# orchestrator skill markdown under .planning/ + workspace/skills/ which the
+# container does not ship. Resolves deferred-items.md "test_skill_md_dual_mode.py
+# StopIteration in-container" entry.
+_repo_root_candidates = [p for p in Path(__file__).resolve().parents if (p / ".planning").is_dir()]
+if not _repo_root_candidates:
+    import pytest as _pytest
+    _pytest.skip("no parent dir contains .planning (host-only test; container does not ship workspace/skills)", allow_module_level=True)
+REPO_ROOT = _repo_root_candidates[0]
 SKILL_DIR = REPO_ROOT / "workspace/.claude/skills/malware-analysis-orchestrator"
 CODEX_SKILL_DIR = REPO_ROOT / "workspace/.codex/skills/malware-analysis-orchestrator"
 SKILL_MD = SKILL_DIR / "SKILL.md"
