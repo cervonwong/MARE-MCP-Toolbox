@@ -1,5 +1,26 @@
 # syntax=docker/dockerfile:1.7
 
+# ============================================================================
+# Licensed disassemblers (IDA Pro + Binary Ninja)
+# ============================================================================
+# This image installs IDA Pro and/or Binary Ninja CONDITIONALLY via the
+# INSTALL_IDA_PRO and INSTALL_BINARY_NINJA build args. The vendor archives
+# (idapro.zip / binaryninja.zip) are consumed via named build contexts
+# (`ida-stage` / `binja-stage`) and discarded; license files are NEVER copied
+# into image layers.
+#
+# License persistence is achieved at RUNTIME via host bind mounts (see
+# compose.yaml: IDA_USER_DIR -> /home/agent/.idapro,
+# BINARY_NINJA_USER_DIR -> /home/agent/.binaryninja). The container reads the
+# license from the mounted directory; the image itself stays license-free and
+# redistributable inside your team without re-licensing.
+#
+# First-time IDA batch-mode use requires a separate EULA acceptance flag,
+# handled by the `ida-accept-eula` helper installed below. The acceptance
+# persists in $IDA_USER_DIR/ida.reg on the host, so it is a one-time-per-host
+# step.
+# ============================================================================
+
 # --- IDA Pro builder stage (disposable -- extracts installer, keeps only /opt/ida-pro) ---
 FROM kalilinux/kali-rolling:latest AS ida-builder
 ARG INSTALL_IDA_PRO=0

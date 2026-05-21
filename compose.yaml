@@ -7,6 +7,24 @@ services:
       - SYS_PTRACE
     security_opt:
       - seccomp=unconfined
+    # --- Licensed disassembler seeding (IDA Pro + Binary Ninja) ---
+    # IDA Pro and Binary Ninja licenses are NEVER baked into the image (license
+    # files are sensitive + per-user). They are bind-mounted from the host into
+    # the container at runtime:
+    #
+    #   ${IDA_USER_DIR}            -> /home/agent/.idapro
+    #   ${BINARY_NINJA_USER_DIR}   -> /home/agent/.binaryninja
+    #
+    # Defaults (/tmp/.idapro-docker, /tmp/.binaryninja-docker) are ephemeral.
+    # For persistent license + EULA acceptance across container restarts, set
+    # these to a stable host path in your .env:
+    #
+    #   IDA_USER_DIR=$HOME/.idapro-docker
+    #   BINARY_NINJA_USER_DIR=$HOME/.binaryninja-docker
+    #
+    # First-time IDA batch-mode use requires a separate EULA acceptance via
+    # `ida-accept-eula` inside the container (see Dockerfile helper); the flag
+    # persists in ~/.idapro/ida.reg on the mounted host dir.
     volumes:
       - "${HOST_PWD:-.}:/agent"
       - "${BINARY_NINJA_USER_DIR:-/tmp/.binaryninja-docker}:/home/agent/.binaryninja"
