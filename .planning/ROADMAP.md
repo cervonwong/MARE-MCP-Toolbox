@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 Remote MCP Foundation** — Phases 1-4 (shipped 2026-04-27) — see [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
-- 🚧 **v1.1 Remote RE Tool Expansion** — Phases 5-12 (in progress, scoped 2026-05-12)
+- 🚧 **v1.1 Remote RE Tool Expansion** — Phases 5-14 (in progress, scoped 2026-05-12; gap closure phase 14 added 2026-05-21)
 
 ## Phases
 
@@ -29,6 +29,8 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 - [x] **Phase 10: Extraction Tier** — `run_unblob`, `run_binwalk`, UPX wrappers, child-file enumeration, and `promote_extracted_sample` (completed 2026-05-19)
 - [x] **Phase 11: Dynamic Lab Mode (env-gated)** — `run_strace`/`run_ltrace`/`run_qemu_user` + session-scoped gdb, default-off via `MCP_GATEWAY_DYNAMIC_TOOLS=1` (completed 2026-05-20)
 - [x] **Phase 12: Orchestrator Skill Update** — Update `malware-analysis-orchestrator` to encode v1.1 tool surface, fix backend priority drift, and preserve dual-mode operation (completed 2026-05-20; gap closure 12-05 in flight)
+- [x] **Phase 13: Harden concurrency caps and r2 sandboxing** — Atomic session/job cap enforcement via `asyncio.BoundedSemaphore` and r2 `cfg.sandbox=true` argv (completed 2026-05-20; 9/9 reqs verified at code/test level; live container UAT pending)
+- [ ] **Phase 14: Close v1.1 Milestone Gaps** — Single closure phase that fixes the full-suite test-order failures, syncs all planning-state drift (REQUIREMENTS.md traceability for HARDEN/SESS-CAP/JOBS-CAP, ROADMAP progress table, STATE.md, VALIDATION.md frontmatter), and executes the 15 outstanding container/live UAT items so v1.1 can archive
 
 ## Phase Details
 
@@ -187,6 +189,8 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 10. Extraction Tier            | v1.1      | 5/5 | Complete    | 2026-05-19 |
 | 11. Dynamic Lab Mode           | v1.1      | 6/6 | Complete    | 2026-05-20 |
 | 12. Orchestrator Skill Update  | v1.1      | 5/5 | Complete    | 2026-05-20 |
+| 13. Hardening + r2 Sandboxing  | v1.1      | 4/4 | Complete    | 2026-05-20 |
+| 14. Close v1.1 Gaps            | v1.1      | 0/? | Not started | -          |
 
 ### Phase 13: Harden concurrency caps and r2 sandboxing
 
@@ -200,3 +204,22 @@ Plans:
 - [x] 13-02-PLAN.md — BackgroundJobRegistry BoundedSemaphore (atomic cap; single release sink in _mark_terminal across all 7 terminal-state paths; HARDEN-02 + HARDEN-07 + JOBS-CAP-01)
 - [x] 13-03-PLAN.md — r2 sandbox argv (`-e cfg.sandbox=true` BEFORE sample path) + `sandbox` kwarg on `_open_r2` + frozen regex docstring reframing + Wave 0 r2 version probe (HARDEN-03 + HARDEN-04 + HARDEN-05)
 - [x] 13-04-PLAN.md — env-gated `open_r2_session_unsafe` tool (`MCP_GATEWAY_R2_UNSAFE_ALLOWED=1`) + WARN-log + shared combined cap via Q6 (HARDEN-06)
+
+### Phase 14: Close v1.1 Milestone Gaps
+
+**Goal:** Bring v1.1 to archive-ready: full non-slow pytest suite green in one run, all planning artifacts (REQUIREMENTS.md, ROADMAP.md, STATE.md, VALIDATION.md frontmatter) honestly reflect milestone state, and every outstanding container/live UAT item is recorded against its phase's verification record.
+**Requirements**: HARDEN-01, HARDEN-02, HARDEN-03, HARDEN-04, HARDEN-05, HARDEN-06, HARDEN-07, SESS-CAP-01, JOBS-CAP-01 (traceability + live HARDEN-03 sandbox check), plus state-sync work that re-checks SHELL-03, ARTIF-01..04 (Phase 7 already satisfied them; checkboxes stale)
+**Depends on:** Phase 13
+**Gap Closure:** Closes all gaps from `.planning/v1.1-MILESTONE-AUDIT.md`
+**Success Criteria** (what must be TRUE):
+  1. `cd mcp-gateway && uv run pytest -m 'not slow'` exits 0 with 0 failures in a single non-isolated invocation — the test-order failures (`test_unsafe_shares_combined_cap` + 6× `test_sessions_concurrency`) and the host ACL contract gap (`test_setfacl_on_path`) are resolved
+  2. `mcp_gateway/tools/r2_sessions.py` catches `SessionCapReached` by module attribute (`sessions.SessionCapReached`), not a stale imported class, so it survives `importlib.reload`
+  3. `mcp_gateway/sessions/__init__` exposes `r2` and `gdb` as package attributes after gdb-env reload cleanup paths run (or the affected tests import modules directly with a documented justification)
+  4. `test_acl_available.py` has a clear host/container contract: either it requires `setfacl` on the host with an explicit install note, or it is marked container-only and skipped cleanly on bare hosts
+  5. REQUIREMENTS.md adds HARDEN-01..07, SESS-CAP-01, JOBS-CAP-01 requirement bodies + 9 traceability rows; coverage line reads 61/61; SHELL-03 and ARTIF-01..04 are re-checked as `[x]` reflecting Phase 7 verification
+  6. ROADMAP.md progress table marks Phases 5, 6, 7, 8, 9 as Complete with their actual completion dates (currently still says Not started despite verification artifacts existing)
+  7. STATE.md body text matches its frontmatter (9/9 phases complete pre-Phase-14)
+  8. VALIDATION.md frontmatter `nyquist_compliant: true` is set for Phases 5, 6, 12, 13 once their VERIFICATION.md confirms it
+  9. All 15 pending human-verification items from the audit are executed in a rebuilt container and recorded with timestamps + transcripts in each phase's VERIFICATION.md (Phase 7 ×3, Phase 8 ×2, Phase 10 ×4, Phase 11 ×5, Phase 13 ×1 — including the live `e cfg.sandbox` round-trip that closes HARDEN-03)
+  10. A re-run of `/gsd-audit-milestone` returns `status: passed` with no gaps
+**Plans**: TBD (to be created by `/gsd-plan-phase 14`)
