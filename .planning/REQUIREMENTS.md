@@ -91,15 +91,15 @@
 
 Added 2026-05-21 by Phase 13 implementation; brought into REQUIREMENTS.md by Phase 14 traceability sync.
 
-- [ ] **HARDEN-01**: SessionRegistry cap is enforced atomically — N+1 concurrent `open_r2_session` / `open_gdb_session` callers against cap=N never both proceed past it, and any spawn-time failure (Cancel/OSError/RuntimeError) releases the acquired slot
-- [ ] **HARDEN-02**: BackgroundJobRegistry cap is enforced atomically — N+1 concurrent `submit()` calls against cap=N produce exactly one `JobCapReached`, and all reachable terminal-state paths release the slot exactly once via `_mark_terminal`
+- [x] **HARDEN-01**: SessionRegistry cap is enforced atomically — N+1 concurrent `open_r2_session` / `open_gdb_session` callers against cap=N never both proceed past it, and any spawn-time failure (Cancel/OSError/RuntimeError) releases the acquired slot
+- [x] **HARDEN-02**: BackgroundJobRegistry cap is enforced atomically — N+1 concurrent `submit()` calls against cap=N produce exactly one `JobCapReached`, and all reachable terminal-state paths release the slot exactly once via `_mark_terminal`
 - [ ] **HARDEN-03**: r2 sessions are spawned with `[-e, cfg.sandbox=true]` BEFORE the positional sample path when `sandbox=True`, and a live `e cfg.sandbox` query inside the open session returns `true` at runtime
 - [ ] **HARDEN-04**: No `cfg.sandbox.grain` argv flag is emitted by the r2 session builder — the default `grain=all` posture is preserved across both `sandbox=True` and `sandbox=False` paths
 - [ ] **HARDEN-05**: The `_DANGEROUS_R2_CMD_RE` pattern remains byte-identical to Phase 8 and its docstring is reframed as a defence-in-depth marker with `DO NOT EXTEND` + `PHASE 13 SECURITY BOUNDARY DELINEATION` language (security boundary lives on `cfg.sandbox`, not the regex)
-- [ ] **HARDEN-06**: `open_r2_session_unsafe` is registered iff `MCP_GATEWAY_R2_UNSAFE_ALLOWED=1`; it is absent from `tools/list` when the env var is unset; opens emit a WARN-level audit log
-- [ ] **HARDEN-07**: `SessionCapReached.to_dict()` and `JobCapReached.to_dict()` are byte-identical to their pre-Phase-13 shapes (4-key dicts, frozen via snapshot tests)
-- [ ] **SESS-CAP-01**: Session slot lifecycle holds end-to-end — acquire-before-spawn, release-on-close, release-on-spawn-failure, release-on-reaper-idle-close, release-on-shutdown-active-close — without raising semaphore `ValueError`
-- [ ] **JOBS-CAP-01**: Job slot lifecycle holds end-to-end — acquire-before-submit, single release via `_mark_terminal` across all 7 terminal-state paths, release-on-pre-spawn-failure (e.g., `ensure_subdir` raises)
+- [x] **HARDEN-06**: `open_r2_session_unsafe` is registered iff `MCP_GATEWAY_R2_UNSAFE_ALLOWED=1`; it is absent from `tools/list` when the env var is unset; opens emit a WARN-level audit log
+- [x] **HARDEN-07**: `SessionCapReached.to_dict()` and `JobCapReached.to_dict()` are byte-identical to their pre-Phase-13 shapes (4-key dicts, frozen via snapshot tests)
+- [x] **SESS-CAP-01**: Session slot lifecycle holds end-to-end — acquire-before-spawn, release-on-close, release-on-spawn-failure, release-on-reaper-idle-close, release-on-shutdown-active-close — without raising semaphore `ValueError`
+- [x] **JOBS-CAP-01**: Job slot lifecycle holds end-to-end — acquire-before-submit, single release via `_mark_terminal` across all 7 terminal-state paths, release-on-pre-spawn-failure (e.g., `ensure_subdir` raises)
 
 ---
 
