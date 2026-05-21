@@ -4,8 +4,8 @@ milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: shipped
 stopped_at: "v1.1 milestone shipped 2026-05-21 — all 10 phases archived; ready for /gsd-new-milestone"
-last_updated: "2026-05-21T07:00:00.000Z"
-last_activity: 2026-05-21 - Completed quick task 260521-kqx: DIS-V2-01 audit (verdict B — partial coverage, v1.2 phase scope sketched)
+last_updated: "2026-05-21T08:20:00.000Z"
+last_activity: 2026-05-21 - Completed quick task 260521-mhh: v1.1 cleanup batch (README security boundaries, r2_sessions monkeypatch refactor, 47-row traceability sweep, test_skill_md_dual_mode skip guard) + r2_cmd timeout fix (260521-d6l... fbcb88b debug session)
 progress:
   total_phases: 10
   completed_phases: 10
@@ -212,6 +212,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | 260521-d6l | Phase 13 hot-fix: r2 sandbox latching via stdin instead of argv | 2026-05-21 | d696a72 | [260521-d6l-phase-13-hot-fix-r2-sandbox-latching-via](./quick/260521-d6l-phase-13-hot-fix-r2-sandbox-latching-via/) |
 | 260521-k0d | Doc quick wins: env example, IDA license docs, fix REQUIREMENTS GW-03 priority, IDA tool inventory in README, scope v1.2 milestone | 2026-05-21 | 164a853 | [260521-k0d-doc-quick-wins-env-example-ida-license-d](./quick/260521-k0d-doc-quick-wins-env-example-ida-license-d/) |
 | 260521-kqx | DIS-V2-01 audit: verify tool_map.py covers IDA/BN/Ghidra normalization or identify fragmentation (verdict B — partial, v1.2 phase recommended) | 2026-05-21 | 409b7df | [260521-kqx-dis-v2-01-audit-verify-tool-map-py-cover](./quick/260521-kqx-dis-v2-01-audit-verify-tool-map-py-cover/) |
+| r2-cmd-timeout (debug) | Fix r2 session pipe NUL-byte prefix (`-q0` argv misparse) causing r2_cmd 30s timeout — debugged via /gsd-debug, root cause: `-q0` is two flags `-q` + `-0` (NUL separator) breaking exec_one exact-match sentinel | 2026-05-21 | fbcb88b | [r2-cmd-timeout.resolved.md](./debug/r2-cmd-timeout.resolved.md) |
+| 260521-mhh | v1.1 cleanup batch: README Security boundaries section + r2_sessions resolve_case_dir refactor (test monkeypatch propagates) + 47-row REQUIREMENTS traceability sweep + test_skill_md_dual_mode collection skip guard | 2026-05-21 | be147c5 | [260521-mhh-v1-1-cleanup-batch-readme-security-bound](./quick/260521-mhh-v1-1-cleanup-batch-readme-security-bound/) |
 | Phase 05-f-1-image-hash-fix P01 | 2min | 1 tasks | 1 files |
 | Phase 05-f-1-image-hash-fix P02 | 100s | 2 tasks | 2 files |
 | Phase 05-f-1-image-hash-fix P03 | 87s | 1 tasks | 1 files |
