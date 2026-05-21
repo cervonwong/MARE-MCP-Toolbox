@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
-status: executing
-stopped_at: Completed 13-03-PLAN.md (r2 cfg.sandbox=true argv-eval-time boundary + frozen-regex reframing)
-last_updated: "2026-05-21T00:30:32.683Z"
+status: verifying
+stopped_at: Completed 13-04-PLAN.md (env-gated open_r2_session_unsafe + WARN-log + Q6 shared cap)
+last_updated: "2026-05-21T00:41:27.743Z"
 last_activity: 2026-05-21
 progress:
   total_phases: 9
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 44
-  completed_plans: 43
-  percent: 98
+  completed_plans: 44
+  percent: 100
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 13 (harden-concurrency-caps-and-r2-sandboxing) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-21
 
 Progress: [          ] 0% (0/8 phases complete)
@@ -167,6 +167,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 13]: Phase 13 Plan 03: r2 cfg.sandbox=true argv-eval-time boundary -- -e cfg.sandbox=true inserted BEFORE positional sample path so sandbox activates before binary autoload hooks; sandbox: bool = True kwarg on _open_r2 for Plan 04 unsafe-path
 - [Phase 13]: Phase 13 Plan 03: D-08 RESOLUTION 2026-05-20 -- NO cfg.sandbox.grain argv flag; default grain=all + cfg.sandbox=true blocks r_sandbox_system + upper-dir-open without needing a grain override
 - [Phase 13]: Phase 13 Plan 03: _DANGEROUS_R2_CMD_RE frozen byte-identical (D-09); reframed as UX layer over cfg.sandbox boundary; locked via test_dangerous_regex_frozen + test_dangerous_regex_docstring_reframed (DO NOT EXTEND + PHASE 13 SECURITY BOUNDARY DELINEATION sentinel strings)
+- [Phase 13]: Plan 13-04: open_r2_session_unsafe is a SEPARATE MCP tool (D-10) not a kwarg on open_r2_session — audit visibility from outside container via tools/list
+- [Phase 13]: Plan 13-04: SessionRegistry.open gains sandbox: bool = True kwarg; forwarded to _open_r2 on r2 branch; silently ignored on gdb branch (D-12)
+- [Phase 13]: Plan 13-04: WARN-level log fields (session_id, sample_sha256[:8], case_dir) — minimum needed for audit grep (D-11)
+- [Phase 13]: Plan 13-04: Q6 combined-cap sharing — unsafe path uses same SessionRegistry._sem as safe + gdb; tool-count surface 54/55/61/62 across (dynamic × unsafe) axis
 
 ### Roadmap Evolution
 
@@ -244,9 +248,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 13 P01 | 459s | 3 tasks | 5 files |
 | Phase 13-harden-concurrency-caps-and-r2-sandboxing P02 | 525s | 2 tasks | 4 files |
 | Phase 13 P03 | 421s | 3 tasks | 5 files |
+| Phase 13 P04 | 455s | 2 tasks | 5 files |
 
 ## Session Continuity
 
-Last session: 2026-05-21T00:30:32.665Z
-Stopped at: Completed 13-03-PLAN.md (r2 cfg.sandbox=true argv-eval-time boundary + frozen-regex reframing)
+Last session: 2026-05-21T00:41:15.657Z
+Stopped at: Completed 13-04-PLAN.md (env-gated open_r2_session_unsafe + WARN-log + Q6 shared cap)
 Resume file: None

@@ -41,3 +41,49 @@ changes." This is a pre-existing Phase 11 -> Phase 9 test drift.
     (mirrors `conftest.py::registry_factory`'s dual-reload pattern).
 
 Both would be ~3 LOC. Leaving as a pre-existing crack for a quick-task pass.
+
+## 2. `tests/test_sessions_concurrency.py` pollution-driven failures during full-suite runs
+
+**Affected tests (all pass in isolation; fail when full suite runs sequentially):**
+
+- `test_n_concurrent_opens_exactly_one_rejected`
+- `test_cancel_during_spawn_releases_slot`
+- `test_oserror_during_spawn_releases_slot`
+- `test_runtime_error_during_init_releases_slot`
+- `test_reaper_idle_releases_slot`
+- `test_shutdown_active_releases_or_clean_exit`
+
+**Discovered during:** Plan 13-04 Task 2 regression verification (full
+`pytest -k "not slow"` run on dev host).
+
+**Symptom:** Running the entire mcp-gateway test suite sequentially causes
+these 6 concurrency tests to fail; running `pytest tests/test_sessions_concurrency.py`
+in isolation passes all 6. Indicates test pollution / cross-file module-state
+leak (Plan 01's `BoundedSemaphore` + `_slot_released` flag interacts with
+state left behind by an earlier file's reload-based isolation).
+
+**Verification it is pre-existing:** Reproduces against the parent commit
+prior to Plan 13-04's changes (`stash` shows nothing to stash; pollution is
+not from Plan 04's diff). The tests were added in Plan 01 and have presumably
+been pollution-prone since then on hosts that run the full suite.
+
+**Why deferred:** Not caused by Plan 13-04. SCOPE BOUNDARY rule: "Only
+auto-fix issues DIRECTLY caused by the current task's changes." Plan 04
+adds the env-gated unsafe tool + 7 new tests; none of those touch the
+SessionRegistry semaphore initialisation order.
+
+**Recommended fix (future quick task):** Extend `test_sessions_concurrency.py`
+with a module-level fixture that performs the same `_full_reset_modules()`
+sweep used in `test_tool_list.py` before each test in the file. ~10 LOC.
+
+## 3. `tests/test_r2_sessions.py::test_unsafe_shares_combined_cap` pollution
+
+**Discovered during:** Plan 13-04 Task 2 regression verification.
+
+**Symptom:** Passes in isolation; fails when full suite runs sequentially.
+Same family of cross-file module-state leak as item #2.
+
+**Why deferred:** Same root cause as item #2 (pollution from other test
+files reloading session/jobs modules). The fix in item #2 would resolve
+this test too if the reset fixture covers `r2_sessions` imports.
+
