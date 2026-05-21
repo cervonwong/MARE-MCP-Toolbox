@@ -34,7 +34,7 @@ The stack is Python-centric, matching the existing container ecosystem. No new l
 **Must have (table stakes):**
 - Conditional IDA Pro install at Docker build time (mirrors Binary Ninja pattern)
 - IDA headless MCP server via stdio for local agents
-- Disassembler fallback chain update: BN > IDA > Ghidra
+- Disassembler fallback chain update: IDA > BN > Ghidra (corrected post-research; see v1.0-REQUIREMENTS.md GW-03 line 105 for rationale — Phase 1 D-06 / Phase 2 D-09 / configure-agent-mcp.sh lines 67-119)
 - Streamable HTTP MCP endpoint for remote clients
 - Bearer token authentication on the gateway
 - Core curated tools: triage, strings, imports, YARA, capa, decompile, function list, xrefs
