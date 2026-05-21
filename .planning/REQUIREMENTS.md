@@ -19,7 +19,7 @@
 
 - [x] **SHELL-01**: Agent can execute a bash one-liner via `run_shell(case_dir, cmd)` with cwd pinned to the case directory, output auto-captured, output cap enforced, hard timeout enforced
 - [x] **SHELL-02**: `run_shell` executes as a dedicated non-root `mare-shell` UID with an env-var whitelist that excludes `MCP_GATEWAY_TOKEN`, API keys, and AWS-style credentials
-- [ ] **SHELL-03**: `run_shell` docstring explicitly documents that confinement is structural posture (cwd + UID + timeout + capture), not OS-level isolation, so agents and operators know what `run_shell` is and is not
+- [x] **SHELL-03**: `run_shell` docstring explicitly documents that confinement is structural posture (cwd + UID + timeout + capture), not OS-level isolation, so agents and operators know what `run_shell` is and is not
 
 ### Typed Static Wrappers (STATIC)
 
@@ -36,10 +36,10 @@
 
 ### Artifact Tree & Control Helpers (ARTIF)
 
-- [ ] **ARTIF-01**: Each case directory supports lazily-created subdirs: `tool-logs/`, `extracted/`, `hex/`, `rop/`, `dynamic/`, `qemu/`, `disassembly/`, `decompilation/`, `xrefs/`
-- [ ] **ARTIF-02**: Agent can write/append artifacts via `write_artifact(case_dir, relpath, content)` and `append_artifact(case_dir, relpath, content)`, with `confine_to` enforced
-- [ ] **ARTIF-03**: Agent can enumerate artifacts via `list_artifacts(case_dir, subdir)` and `get_artifact_tree(case_dir)`
-- [ ] **ARTIF-04**: Agent can range-read large tool logs via `get_tool_log(case_dir, log_name, offset, length)` so multi-megabyte logs don't blow the MCP response cap
+- [x] **ARTIF-01**: Each case directory supports lazily-created subdirs: `tool-logs/`, `extracted/`, `hex/`, `rop/`, `dynamic/`, `qemu/`, `disassembly/`, `decompilation/`, `xrefs/`
+- [x] **ARTIF-02**: Agent can write/append artifacts via `write_artifact(case_dir, relpath, content)` and `append_artifact(case_dir, relpath, content)`, with `confine_to` enforced
+- [x] **ARTIF-03**: Agent can enumerate artifacts via `list_artifacts(case_dir, subdir)` and `get_artifact_tree(case_dir)`
+- [x] **ARTIF-04**: Agent can range-read large tool logs via `get_tool_log(case_dir, log_name, offset, length)` so multi-megabyte logs don't blow the MCP response cap
 - [x] **ARTIF-05**: MCP Resources expose `mare://cases/<case>/tool-logs/<file>` for every captured log (consistent with v1.0 Resource scheme)
 
 ### Session-Scoped r2 (SESS)
@@ -150,7 +150,7 @@ Mapping from each v1.1 REQ-ID to its assigned phase. Plan column populated durin
 | FOUND-04  | Phase 6  | TBD  | Pending  |
 | SHELL-01  | Phase 7  | TBD  | Pending  |
 | SHELL-02  | Phase 7  | TBD  | Pending  |
-| SHELL-03  | Phase 7  | TBD  | Pending  |
+| SHELL-03  | Phase 7  | 07-07-PLAN.md                | [x]      |
 | STATIC-01 | Phase 7  | TBD  | Pending  |
 | STATIC-02 | Phase 7  | TBD  | Pending  |
 | STATIC-03 | Phase 7  | TBD  | Pending  |
@@ -161,10 +161,10 @@ Mapping from each v1.1 REQ-ID to its assigned phase. Plan column populated durin
 | STATIC-08 | Phase 7  | TBD  | Pending  |
 | STATIC-09 | Phase 7  | TBD  | Pending  |
 | STATIC-10 | Phase 7  | TBD  | Pending  |
-| ARTIF-01  | Phase 7  | TBD  | Pending  |
-| ARTIF-02  | Phase 7  | TBD  | Pending  |
-| ARTIF-03  | Phase 7  | TBD  | Pending  |
-| ARTIF-04  | Phase 7  | TBD  | Pending  |
+| ARTIF-01  | Phase 7  | 07-01-PLAN.md, 07-05-PLAN.md | [x]      |
+| ARTIF-02  | Phase 7  | 07-05-PLAN.md                | [x]      |
+| ARTIF-03  | Phase 7  | 07-04-PLAN.md, 07-05-PLAN.md | [x]      |
+| ARTIF-04  | Phase 7  | 07-05-PLAN.md                | [x]      |
 | ARTIF-05  | Phase 7  | TBD  | Pending  |
 | SESS-01   | Phase 8  | TBD  | Pending  |
 | SESS-02   | Phase 8  | TBD  | Pending  |
