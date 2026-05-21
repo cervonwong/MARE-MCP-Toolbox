@@ -145,14 +145,20 @@ async def _open_r2(
 ) -> R2Session:
     """Spawn r2, run lockdown init (Phase 8 D-03), then user init_commands.
 
-    Phase 13 D-07: when sandbox=True (default), r2 is spawned with
-    `-e cfg.sandbox=true` argv tokens BEFORE the positional sample path.
-    r2 processes -e flags before opening the binary, so the sandbox is
-    active BEFORE binary autoload hooks / format-handler plugins run.
+    Phase 13 D-07 (HOT-FIX 2026-05-21): when sandbox=True (default),
+    `e cfg.sandbox=true` is written as the FIRST line of the post-spawn stdin
+    init batch, BEFORE the sentinel emit and BEFORE any user-controlled
+    command. argv-time latching was rejected because r2 6.0.5's cfg.sandbox
+    engages at argv-evaluation time and refuses `r_core_file_open` on the
+    binary itself (in-container log.level=4 probe:
+    "ERROR: Cannot open '/bin/ls'"). Post-spawn latching lets the binary
+    open unsandboxed, then sandbox engages before any analyst-driven command
+    runs. When sandbox=False (called only from open_r2_session_unsafe per
+    Plan 04), no cfg.sandbox token appears in argv OR in the init batch.
 
-    When sandbox=False (called only from open_r2_session_unsafe per Plan 04),
-    the sandbox argv tokens are omitted; r2 runs with default cfg.sandbox=false.
-    The lockdown init batch (scr.* settings) still runs.
+    The remaining argv `-e` flags (`scr.*`, `cfg.user=mare`) STAY in argv
+    because they are non-security configuration whose pre-open application
+    is harmless and convenient.
 
     The body is the verbatim Phase 8 SessionRegistry.open logic, extracted so
     the kind-dispatch in `_base.SessionRegistry.open` can defer to it (and to
@@ -185,15 +191,19 @@ async def _open_r2(
         sentinel = make_sentinel()
 
         # Phase 8 D-02: argv-only spawn with start_new_session=True for killpg cleanup.
-        # Phase 13 D-07: when sandbox=True (default), insert `-e cfg.sandbox=true`
-        # BEFORE the positional sample path. r2 processes -e flags pre-open, so the
-        # sandbox is active before binary autoload hooks / format plugins run.
-        # Phase 13 D-08 RESOLUTION (2026-05-20): NO grain-override argv flag.
-        # Default grain=all + cfg.sandbox=true blocks r_sandbox_system (!shell/R!)
-        # and upper-dir-open. cfg.sandbox is a one-way latch (Pitfall 8).
-        argv: list[str] = ["r2", "-2", "-q0"]
-        if sandbox:
-            argv += ["-e", "cfg.sandbox=true"]
+        # Phase 13 D-07 (HOT-FIX 2026-05-21): cfg.sandbox is NOT latched via argv —
+        # see D-21 in 13-CONTEXT.md. r2 6.0.5 engages cfg.sandbox at argv-eval time
+        # AND its file-open guard refuses to open the binary itself when latched
+        # in argv. The sandbox latch lives in the post-spawn init_batch below.
+        # The argv `-e` flags here carry ONLY non-security configuration (scr.*,
+        # cfg.user=mare) — these are safe to apply pre-open.
+        argv: list[str] = [
+            "r2", "-2", "-q0",
+            "-e", "scr.interactive=false",
+            "-e", "scr.color=0",
+            "-e", "scr.html=0",
+            "-e", "cfg.user=mare",
+        ]
         argv.append(str(sample_path))
         proc = await asyncio.create_subprocess_exec(
             *argv,
@@ -205,14 +215,27 @@ async def _open_r2(
         )
         pgid = os.getpgid(proc.pid)
 
-        # Phase 8 D-03: lockdown init batch + sentinel emitter. Send as a single batch.
-        init_batch = (
-            "e scr.interactive=false\n"
-            "e scr.color=0\n"
-            "e scr.html=0\n"
-            "e cfg.user=mare\n"
-            f"?e {sentinel}\n"
-        )
+        # Phase 8 D-03 / Phase 13 D-07 (HOT-FIX 2026-05-21):
+        # When sandbox=True, the FIRST line of the post-spawn stdin init batch
+        # MUST be `e cfg.sandbox=true`. This is the Phase 13 security boundary:
+        # the sandbox latches BEFORE the sentinel emit and BEFORE any
+        # user-controlled command. argv-time latching was rejected because
+        # r2 6.0.5 refuses `r_core_file_open` on the sample itself when
+        # cfg.sandbox is in argv (in-container log.level=4 probe: "ERROR:
+        # Cannot open '/bin/ls'"); see 13-CONTEXT.md D-21.
+        #
+        # Pitfall 8: cfg.sandbox is a ONE-WAY LATCH — once on, `e cfg.sandbox=false`
+        # is silently rejected by r_sandbox_disable. Callers wanting an unsandboxed
+        # session must call open_r2_session_unsafe (Plan 04 / D-10).
+        #
+        # init_commands are validated against _DANGEROUS_R2_CMD_RE BEFORE this
+        # point (line 162-163) AND executed AFTER the sandbox latches inside
+        # `async with sess.lock:` (line 264-277) — the security boundary is
+        # preserved end-to-end: no analyst-driven r2 input ever runs unsandboxed.
+        if sandbox:
+            init_batch = f"e cfg.sandbox=true\n?e {sentinel}\n"
+        else:
+            init_batch = f"?e {sentinel}\n"
         try:
             proc.stdin.write(init_batch.encode())
             await proc.stdin.drain()
