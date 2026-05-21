@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
-status: executing
-stopped_at: "Completed 14-03-PLAN.md (ROADMAP/STATE/VALIDATION sync: 5 ROADMAP rows + checkbox flips, STATE body + Current focus, 4 VALIDATION nyquist flips)"
-last_updated: "2026-05-21T05:28:50.620Z"
+status: shipped
+stopped_at: "v1.1 milestone shipped 2026-05-21 — all 10 phases archived; ready for /gsd-new-milestone"
+last_updated: "2026-05-21T08:00:00.000Z"
 last_activity: 2026-05-21
 progress:
-  total_phases: 9
-  completed_phases: 9
-  total_plans: 44
-  completed_plans: 44
+  total_phases: 10
+  completed_phases: 10
+  total_plans: 48
+  completed_plans: 48
   percent: 100
 ---
 
@@ -18,20 +18,20 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion scoped)
+See: .planning/PROJECT.md (updated 2026-05-21 — v1.1 Remote RE Tool Expansion shipped)
 
 **Core value:** Automated malware triage and deep analysis via AI agents with full access to professional RE tooling — accessible both from inside the container and from external MCP clients.
-**Current focus:** Phase 14 — close-v1.1-gaps
+**Current focus:** v1.1 shipped; next milestone not yet scoped — run `/gsd-new-milestone`
 
 ## Current Position
 
-Milestone: v1.1 Remote RE Tool Expansion
-Phase: 14
-Plan: Not started
-Status: Executing Phase 14
+Milestone: v1.1 Remote RE Tool Expansion — SHIPPED 2026-05-21
+Phase: n/a (between milestones)
+Plan: n/a
+Status: Shipped
 Last activity: 2026-05-21
 
-Progress: [##########] 100% (9/9 implementation phases complete; Phase 14 closure in progress)
+Progress: [##########] 100% (10/10 phases complete; milestone archived to `.planning/milestones/v1.1-*`)
 
 ## Performance Metrics
 
