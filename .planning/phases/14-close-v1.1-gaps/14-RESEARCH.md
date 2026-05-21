@@ -1069,27 +1069,12 @@ All factual claims in this RESEARCH.md were verified against the working tree, e
 
 **No `[ASSUMED]` claims affect locked decisions.** The plan can proceed without further user confirmation.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should the planner ALSO fix `tools/jobs.py` value-bindings for `JobCapReached` etc.?**
-   - What we know: same antipattern exists at `tools/jobs.py:28-34`; no test currently fails because of it; the `tests/jobs/conftest.py` `registry_factory` does reload `mcp_gateway.jobs` (per STATE.md line 235) but the JobCapReached-catch-paths aren't exercised under reload pressure today.
-   - What's unclear: whether a future jobs concurrency test could resurface it.
-   - Recommendation: leave it out of Phase 14 (conservative, scope-honoring). If the planner judges the cost is trivial (~5 LoC), it's a sensible bundle inside the D-01 commit. Flag for user discretion.
-
-2. **Is Docker installed on the executor host that will run Phase 14?**
-   - What we know: dev host audit was run without Docker (host can't run setfacl, r2, gdb, etc.).
-   - What's unclear: whether the Phase 14 executor will have Docker available, OR whether the UAT workstream needs a separate human operator.
-   - Recommendation: planner should make the UAT workstream explicitly conditional on Docker availability, OR designate UAT items as `human_verification` in the Phase 14 VERIFICATION.md if the executor host lacks Docker. The plan should split: "automated workstream completes" vs. "UAT workstream depends on Docker host".
-
-3. **Is the Phase 13 ROADMAP completion date drift worth fixing in D-09?**
-   - What we know: D-09 names phases 5-9 only; Phase 13 already shows `Complete | 2026-05-20`; the real date per VERIFICATION.md is `2026-05-21` (post-hot-fix).
-   - What's unclear: whether the planner should bundle this minor sync.
-   - Recommendation: include as a discretionary correction in the same ROADMAP edit task. Cost: 1 character change.
-
-4. **HARDEN-03 traceability row `Verified` flip — is the live UAT REC enough, or does the in-container `pytest test_r2_sandbox_integration.py` actually need to PASS?**
-   - What we know: D-13 says "record transcripts". D-05 says "live HARDEN-03 sandbox check is closed in D-13".
-   - What's unclear: if the UAT records "FAILED — r2 errors", do we still flip the checkbox? Probably not.
-   - Recommendation: Plan should sequence: (a) record UAT, (b) IF transcript shows success, flip HARDEN-03 checkbox + VALIDATION 13 frontmatter, (c) IF failure, leave checkbox `[ ]` and document the gap in 14-VERIFICATION.md. This matches D-11's precondition pattern.
+1. **Should the planner ALSO fix `tools/jobs.py` value-bindings for `JobCapReached` etc.?** RESOLVED: out of scope — Plan 01 does not bundle. Audit gap set is the closure scope; the latent jobs.py pattern is correct-but-fragile, not currently failing. Track as v1.2 hardening idea (already noted in CONTEXT.md `<deferred>`).
+2. **Is Docker installed on the executor host that will run Phase 14?** RESOLVED: Plan 04 is `autonomous: false` with `checkpoint:human-action` for the rebuild step, so Docker availability is handled at execute-time via human checkpoint rather than at plan-time via conditional branches.
+3. **Is the Phase 13 ROADMAP completion date drift worth fixing in D-09?** RESOLVED: leave alone — D-09 explicitly names phases 5-9 only. Phase 13's 2026-05-20 vs 2026-05-21 single-character drift is not in the audit gap list; out of scope. Re-audit will not flag it.
+4. **HARDEN-03 traceability `Verified` flip ordering — pre- or post-UAT?** RESOLVED (SUPERSEDED BY D-05): the user-locked decision D-05 explicitly states "Each gets a checked `[x]` checkbox since `13-VERIFICATION.md` already marks them satisfied at the automated/code level (live HARDEN-03 sandbox check is closed in D-13 below)". This means Wave 1 (Plan 02) flips the box based on automated-level satisfaction; Wave 2 (Plan 04) closes the live arm by appending transcript evidence to `13-VERIFICATION.md` under the new `## Live UAT Results (Phase 14 closure)` section. If the live UAT fails, the unwind path is: revert the HARDEN-03 checkbox in Plan 02's commit + record the failure in `14-VERIFICATION.md`. User accepted this ordering at PRD-express-path lock-in.
 
 ## Sources
 
