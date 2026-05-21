@@ -11,7 +11,7 @@ Out-of-scope discoveries logged during plan execution. Each entry should record 
 - **Why deferred:** Out of scope for Plan 14-02. The plan's narrative bounds the diff to 14 rows / ≤50 changed lines; flipping 47 more rows would be a much larger, separate sweep. Task 3 acceptance criterion 4 (Pending count == 0) is internally inconsistent with that scope bound.
 - **Severity:** medium — `/gsd-audit-milestone v1.1` (planned in Plan 14-05) may flag these as a traceability gap and demand a follow-up sweep before milestone close.
 - **Suggested follow-up:** Either (a) add a dedicated wave-1 sister plan to 14-02 that performs the 47-row sweep, or (b) handle inline during Plan 14-05 audit-re-run if the auditor reports them. Source-of-truth for each row's Plan and Verified columns is the corresponding phase's `*-VERIFICATION.md` file.
-- **Status:** open.
+- **Status:** RESOLVED 2026-05-21 in quick task 260521-mhh — all 47 rows filled from phase VERIFICATION.md sources; v1.1 traceability now shows 61/61 verified.
 
 ## From Plan 14-04
 
