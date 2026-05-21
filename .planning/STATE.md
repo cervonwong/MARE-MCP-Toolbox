@@ -4,8 +4,8 @@ milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: shipped
 stopped_at: "v1.1 milestone shipped 2026-05-21 — all 10 phases archived; ready for /gsd-new-milestone"
-last_updated: "2026-05-21T08:00:00.000Z"
-last_activity: 2026-05-21
+last_updated: "2026-05-21T06:30:00.000Z"
+last_activity: 2026-05-21 - Completed quick task 260521-k0d: Doc quick wins (env example, IDA license docs, REQUIREMENTS priority fix, IDA tool inventory, v1.2 milestone stub)
 progress:
   total_phases: 10
   completed_phases: 10
@@ -210,6 +210,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | 260511-fam | Switch the Mastra starter GUI to the default Mastra Studio dashboard with a registered MARE agent and tools | 2026-05-11 | uncommitted | [260511-fam-switch-the-mastra-starter-gui-to-the-def](./quick/260511-fam-switch-the-mastra-starter-gui-to-the-def/) |
 | 260520-sync-codex-malware-skill | Sync Codex malware-analysis-orchestrator skill with the v1.1 Claude source and add drift tests | 2026-05-20 | uncommitted | [260520-sync-codex-malware-skill](./quick/260520-sync-codex-malware-skill/) |
 | 260521-d6l | Phase 13 hot-fix: r2 sandbox latching via stdin instead of argv | 2026-05-21 | d696a72 | [260521-d6l-phase-13-hot-fix-r2-sandbox-latching-via](./quick/260521-d6l-phase-13-hot-fix-r2-sandbox-latching-via/) |
+| 260521-k0d | Doc quick wins: env example, IDA license docs, fix REQUIREMENTS GW-03 priority, IDA tool inventory in README, scope v1.2 milestone | 2026-05-21 | 164a853 | [260521-k0d-doc-quick-wins-env-example-ida-license-d](./quick/260521-k0d-doc-quick-wins-env-example-ida-license-d/) |
 | Phase 05-f-1-image-hash-fix P01 | 2min | 1 tasks | 1 files |
 | Phase 05-f-1-image-hash-fix P02 | 100s | 2 tasks | 2 files |
 | Phase 05-f-1-image-hash-fix P03 | 87s | 1 tasks | 1 files |
