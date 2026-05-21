@@ -35,10 +35,31 @@ log = logging.getLogger("mcp_gateway.sessions.r2")
 
 
 # ----------------------------------------------------------------------------
-# D-08 / D-09 (Phase 8): dangerous-command regex. Verbatim from sessions.py:83-99.
-# Full-string scan, not literal-first-char. Anchored at start/`;`/`|`/newline;
-# matches optional whitespace before the prefix. Per-command refusal raises
-# ValueError naming the prefix specifically so operators see actionable errors.
+# D-08 / D-09 (Phase 8 → reframed Phase 13): dangerous-command regex.
+#
+# PHASE 13 SECURITY BOUNDARY DELINEATION (D-09):
+#   THE SECURITY BOUNDARY IS r2's NATIVE cfg.sandbox=true (Phase 13 D-07).
+#   This regex is a UX LAYER that gives operators a clearer error than r2's
+#   sandbox-refused output for the common `!` / `R!` / `#!` shell-escape
+#   prefixes. It runs in the gateway BEFORE bytes hit r2's stdin.
+#
+#   DO NOT EXTEND THIS REGEX. Adding new patterns re-enters the parser
+#   arms race that motivated Phase 13. If a new r2-syntax bypass surfaces,
+#   it will be caught by cfg.sandbox=true's in-process guards
+#   (r_sandbox_system, upper-dir-open blocks); add a positive-control test
+#   for it in tests/test_r2_sandbox_integration.py instead of growing this regex.
+#
+#   Phase 13 Pitfall 8 note: cfg.sandbox is a ONE-WAY LATCH. An init-batch
+#   line `e cfg.sandbox=false` is silently rejected by r_sandbox_disable.
+#   To get an unsandboxed r2 session, callers must spawn a NEW process via
+#   open_r2_session_unsafe (Plan 04 / D-10/D-12).
+#
+#   See Phase 13 CONTEXT.md D-09 + RESEARCH.md Pitfall 1 + 8.
+#
+# PHASE 8 ORIGINAL DESIGN (preserved):
+#   Full-string scan, not literal-first-char. Anchored at start/`;`/`|`/newline;
+#   matches optional whitespace before the prefix. Per-command refusal raises
+#   ValueError naming the prefix specifically so operators see actionable errors.
 # ----------------------------------------------------------------------------
 _DANGEROUS_R2_CMD_RE: re.Pattern[str] = re.compile(
     r"(?:^|;|\||\n)\s*(?:#!|R!|!)"
@@ -46,11 +67,15 @@ _DANGEROUS_R2_CMD_RE: re.Pattern[str] = re.compile(
 
 
 def check_dangerous_cmd(cmd: str) -> None:
-    """Raise ValueError if `cmd` contains a refused shell-escape prefix (D-08, D-09).
+    """Raise ValueError if cmd contains a refused shell-escape prefix.
 
-    Refusal is per-command (one bad command does not invalidate the session).
-    The error message names the rejected prefix specifically so operators see an
-    actionable error.
+    UX layer (Phase 13 D-09): r2's native cfg.sandbox=true is the security
+    boundary; this regex catches obvious mistakes with an actionable error
+    BEFORE bytes hit r2. Per-command refusal is preserved from Phase 8 D-08
+    (one bad command does not invalidate the session).
+
+    DO NOT extend the regex pattern -- see the module-level Phase 13 framing
+    comment for rationale.
     """
     if _DANGEROUS_R2_CMD_RE.search(cmd):
         raise ValueError(
@@ -116,8 +141,18 @@ async def _open_r2(
     sample_path: Path,
     init_commands: Optional[list[str]],
     open_timeout_s: float,
+    sandbox: bool = True,
 ) -> R2Session:
     """Spawn r2, run lockdown init (Phase 8 D-03), then user init_commands.
+
+    Phase 13 D-07: when sandbox=True (default), r2 is spawned with
+    `-e cfg.sandbox=true` argv tokens BEFORE the positional sample path.
+    r2 processes -e flags before opening the binary, so the sandbox is
+    active BEFORE binary autoload hooks / format-handler plugins run.
+
+    When sandbox=False (called only from open_r2_session_unsafe per Plan 04),
+    the sandbox argv tokens are omitted; r2 runs with default cfg.sandbox=false.
+    The lockdown init batch (scr.* settings) still runs.
 
     The body is the verbatim Phase 8 SessionRegistry.open logic, extracted so
     the kind-dispatch in `_base.SessionRegistry.open` can defer to it (and to
@@ -150,8 +185,18 @@ async def _open_r2(
         sentinel = make_sentinel()
 
         # Phase 8 D-02: argv-only spawn with start_new_session=True for killpg cleanup.
+        # Phase 13 D-07: when sandbox=True (default), insert `-e cfg.sandbox=true`
+        # BEFORE the positional sample path. r2 processes -e flags pre-open, so the
+        # sandbox is active before binary autoload hooks / format plugins run.
+        # Phase 13 D-08 RESOLUTION (2026-05-20): NO grain-override argv flag.
+        # Default grain=all + cfg.sandbox=true blocks r_sandbox_system (!shell/R!)
+        # and upper-dir-open. cfg.sandbox is a one-way latch (Pitfall 8).
+        argv: list[str] = ["r2", "-2", "-q0"]
+        if sandbox:
+            argv += ["-e", "cfg.sandbox=true"]
+        argv.append(str(sample_path))
         proc = await asyncio.create_subprocess_exec(
-            "r2", "-2", "-q0", str(sample_path),
+            *argv,
             cwd=str(case_dir),
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
