@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: Completed 13-02-PLAN.md (atomic BackgroundJobRegistry cap enforcement)
-last_updated: "2026-05-20T09:44:19.283Z"
-last_activity: 2026-05-20
+stopped_at: Completed 13-03-PLAN.md (r2 cfg.sandbox=true argv-eval-time boundary + frozen-regex reframing)
+last_updated: "2026-05-21T00:30:32.683Z"
+last_activity: 2026-05-21
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 44
-  completed_plans: 42
-  percent: 95
+  completed_plans: 43
+  percent: 98
 ---
 
 # Project State
@@ -27,9 +27,9 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 13 (harden-concurrency-caps-and-r2-sandboxing) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
-Last activity: 2026-05-20
+Last activity: 2026-05-21
 
 Progress: [          ] 0% (0/8 phases complete)
 
@@ -164,6 +164,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 13-harden-concurrency-caps-and-r2-sandboxing]: Phase 13 Plan 02: BoundedSemaphore on BackgroundJobRegistry as self._sem with atomic probe-and-acquire under registry._lock; single release sink in _mark_terminal covering all 7 terminal-state paths
 - [Phase 13-harden-concurrency-caps-and-r2-sandboxing]: Phase 13 Plan 02: Pre-spawn-failure release via except BaseException branch in submit() catches CancelledError + Path/ensure_subdir/build_argv/tool_log_path/Job-constructor failures BEFORE drive task creation; _slot_released flag guards against double-release
 - [Phase 13-harden-concurrency-caps-and-r2-sandboxing]: Phase 13 Plan 02: Pre-existing 4-test pollution in tests/jobs/ (test_unknown_tool_shape + 3 others) deferred to a future quick-task -- root cause is Phase 11 dynamic-tools registering into JOB_TOOL_REGISTRY when an earlier test imports tools.dynamic; documented in deferred-items.md (SCOPE BOUNDARY rule)
+- [Phase 13]: Phase 13 Plan 03: r2 cfg.sandbox=true argv-eval-time boundary -- -e cfg.sandbox=true inserted BEFORE positional sample path so sandbox activates before binary autoload hooks; sandbox: bool = True kwarg on _open_r2 for Plan 04 unsafe-path
+- [Phase 13]: Phase 13 Plan 03: D-08 RESOLUTION 2026-05-20 -- NO cfg.sandbox.grain argv flag; default grain=all + cfg.sandbox=true blocks r_sandbox_system + upper-dir-open without needing a grain override
+- [Phase 13]: Phase 13 Plan 03: _DANGEROUS_R2_CMD_RE frozen byte-identical (D-09); reframed as UX layer over cfg.sandbox boundary; locked via test_dangerous_regex_frozen + test_dangerous_regex_docstring_reframed (DO NOT EXTEND + PHASE 13 SECURITY BOUNDARY DELINEATION sentinel strings)
 
 ### Roadmap Evolution
 
@@ -240,9 +243,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 12-orchestrator-skill-update P05 | 145s | 1 tasks | 3 files |
 | Phase 13 P01 | 459s | 3 tasks | 5 files |
 | Phase 13-harden-concurrency-caps-and-r2-sandboxing P02 | 525s | 2 tasks | 4 files |
+| Phase 13 P03 | 421s | 3 tasks | 5 files |
 
 ## Session Continuity
 
-Last session: 2026-05-20T09:44:09.001Z
-Stopped at: Completed 13-02-PLAN.md (atomic BackgroundJobRegistry cap enforcement)
+Last session: 2026-05-21T00:30:32.665Z
+Stopped at: Completed 13-03-PLAN.md (r2 cfg.sandbox=true argv-eval-time boundary + frozen-regex reframing)
 Resume file: None
