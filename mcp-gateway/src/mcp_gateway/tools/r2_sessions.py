@@ -45,7 +45,7 @@ from mcp_gateway.sessions import (
     truncate_for_response,
 )
 from mcp_gateway.tools import case_dirs as _case_dirs
-from mcp_gateway.tools.samples import resolve_sample
+from mcp_gateway.tools import samples as _samples
 
 log = logging.getLogger("mcp_gateway.tools.r2_sessions")
 
@@ -165,7 +165,7 @@ async def open_r2_session(
     # Phase 7 resolvers return `str` (verified: case_dirs.py:10, samples.py:34).
     # Phase 8 must compute the sha256 explicitly from the resolved sample bytes.
     resolved_case = Path(_case_dirs.resolve_case_dir(case_dir))
-    sample_path = Path(resolve_sample(sample))
+    sample_path = Path(_samples.resolve_sample(sample))
     sample_sha = hashlib.sha256(sample_path.read_bytes()).hexdigest()
 
     # D-19 step 3: validate init_commands BEFORE registry.open (Pitfall 4).
@@ -451,7 +451,7 @@ async def open_r2_session_unsafe(
     """
     registry = _require_registry()
     resolved_case = Path(_case_dirs.resolve_case_dir(case_dir))
-    sample_path = Path(resolve_sample(sample))
+    sample_path = Path(_samples.resolve_sample(sample))
     sample_sha = hashlib.sha256(sample_path.read_bytes()).hexdigest()
 
     # D-09 frozen regex still runs as the UX layer (defense in depth on the

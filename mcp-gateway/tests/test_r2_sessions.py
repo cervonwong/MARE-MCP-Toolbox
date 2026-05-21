@@ -395,7 +395,7 @@ async def test_unsafe_passes_sandbox_false(tmp_path, monkeypatch):
     # r2_sessions accesses resolve_case_dir via module-attribute (`_case_dirs.resolve_case_dir`)
     # so the patch must target the case_dirs module, not r2_sessions itself.
     monkeypatch.setattr(r2_sessions._case_dirs, "resolve_case_dir", lambda x: str(tmp_path))
-    monkeypatch.setattr(r2_sessions, "resolve_sample", lambda x: str(sample))
+    monkeypatch.setattr(r2_sessions._samples, "resolve_sample", lambda x: str(sample))
 
     # Capture argv via monkeypatch on asyncio.create_subprocess_exec.
     # The _open_r2 driver lives in sessions.r2; patch the asyncio module
@@ -437,7 +437,7 @@ async def test_unsafe_open_warn_log(tmp_path, monkeypatch, caplog):
     sample_dest.write_bytes(FIXTURE_ELF.read_bytes())
 
     monkeypatch.setattr(r2_sessions._case_dirs, "resolve_case_dir", lambda c: str(case_dir))
-    monkeypatch.setattr(r2_sessions, "resolve_sample", lambda s: str(sample_dest))
+    monkeypatch.setattr(r2_sessions._samples, "resolve_sample", lambda s: str(sample_dest))
 
     async with SessionRegistry(max_sessions=2, idle_s=30, reaper_interval_s=30) as reg:
         monkeypatch.setattr(session_state, "SESSION_REGISTRY", reg)
@@ -472,7 +472,7 @@ async def test_unsafe_shares_combined_cap(tmp_path, monkeypatch):
     sample.write_bytes(b"\x7fELF")
 
     monkeypatch.setattr(r2_sessions._case_dirs, "resolve_case_dir", lambda x: str(tmp_path))
-    monkeypatch.setattr(r2_sessions, "resolve_sample", lambda x: str(sample))
+    monkeypatch.setattr(r2_sessions._samples, "resolve_sample", lambda x: str(sample))
 
     # Stub _open_r2 to exercise the registry semaphore without spawning r2.
     # The stub mirrors the atomic probe-and-acquire pattern from sessions/r2.py.
