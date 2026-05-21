@@ -152,12 +152,26 @@ async def test_format_json_iij(opened_sid):
 
 
 # ============================================================================
-# SESS-02 — format=json on a non-JSON command (?V) → parsed_json=None + parse_error
+# SESS-02 — format=json on a non-JSON command → parsed_json=None + parse_error
 # ============================================================================
 @pytest.mark.asyncio
-async def test_format_json_non_json_command(opened_sid):
-    """SESS-02 + D-10: format=json on ?V → parsed_json=None, parse_error set."""
-    sid, _reg, _case = opened_sid
+async def test_format_json_non_json_command(opened_sid, monkeypatch):
+    """SESS-02 + D-10: format=json on non-JSON output → parsed_json=None, parse_error set.
+
+    Injection-based unit test: monkey-patches the live R2Session's exec_one to
+    return deterministic non-JSON bytes, exercising D-10's parse_error branch
+    without coupling to r2-version-specific output behaviour. (r2 6.0.5 made
+    `?Vj` JSON-capable, so the previous real-subprocess assertion went stale.)
+    """
+    sid, reg, _case = opened_sid
+    sess = reg.get(sid)
+
+    async def _fake_exec_one(cmd, *, timeout):
+        # Return plain-text bytes that json.loads cannot parse.
+        return (b"radare2 6.0.5 (not json)\n", False)
+
+    monkeypatch.setattr(sess, "exec_one", _fake_exec_one)
+
     result = await r2_sessions.r2_cmd(sid, "?V", format="json")
     assert result["format"] == "json"
     assert result["parsed_json"] is None
