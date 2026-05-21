@@ -72,6 +72,13 @@ def register_all_tools(mcp: FastMCP) -> None:
     if _os.environ.get("MCP_GATEWAY_DYNAMIC_TOOLS") == "1":
         from . import dynamic as dynamic_tools
         dynamic_tools.register(mcp)
+    # Phase 13 D-10: env-gated unsafe-r2 tool registration.
+    # When MCP_GATEWAY_R2_UNSAFE_ALLOWED=1, open_r2_session_unsafe is registered.
+    # Unsafe tool calls _open_r2 with sandbox=False (Plan 03 driver kwarg);
+    # WARN-level log on every open (Plan 04 D-11). Tool count delta: +1 per
+    # unsafe-allowed env. Total surface: 54/55 baseline; 61/62 with dynamic.
+    if _os.environ.get("MCP_GATEWAY_R2_UNSAFE_ALLOWED") == "1":
+        r2_sessions.register_unsafe(mcp)
     backend_passthrough.register(mcp)
     # collision_check has no register(); its assert_no_collisions(mcp) is invoked
     # from app.py::lifespan AFTER PinnedBackend's __aenter__ populates tool_cache.

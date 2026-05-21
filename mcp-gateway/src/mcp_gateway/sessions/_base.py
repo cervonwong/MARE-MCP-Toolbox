@@ -238,12 +238,18 @@ class SessionRegistry:
         init_commands: Optional[list[str]],
         open_timeout_s: float,
         kind: Literal["r2", "gdb"] = "r2",
+        sandbox: bool = True,
     ) -> BaseSession:
         """Spawn a session of the requested kind (D-02: r2 or gdb).
 
         Default `kind="r2"` keeps Phase 8/9/10 callers (which never pass `kind`)
         working unchanged. Plan 03's gdb path is reached only when `kind="gdb"`
         and Plan 03 has landed `sessions/gdb.py`.
+
+        Phase 13 D-12: `sandbox` kwarg is forwarded to `_open_r2` (default True
+        preserves safe behavior). For `kind="gdb"`, `sandbox` is silently
+        ignored -- gdb has no cfg.sandbox-equivalent and its security boundary
+        is the MI allowlist + deny regex (Phase 11 D-07).
         """
         if kind == "r2":
             from .r2 import _open_r2
@@ -254,9 +260,11 @@ class SessionRegistry:
                 sample_path=sample_path,
                 init_commands=init_commands,
                 open_timeout_s=open_timeout_s,
+                sandbox=sandbox,
             )
         elif kind == "gdb":
             from .gdb import _open_gdb  # provided by Plan 03; ImportError until then
+            # sandbox kwarg is silently ignored for gdb (no cfg.sandbox-equivalent).
             return await _open_gdb(
                 self,
                 case_dir=case_dir,

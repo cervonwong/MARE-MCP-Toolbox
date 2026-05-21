@@ -393,6 +393,111 @@ list_sessions.__doc__ = (list_sessions.__doc__ or "").replace(
 
 
 # ----------------------------------------------------------------------------
+# Phase 13 D-10/D-11/D-12: env-gated unsafe-r2 tool.
+# Registered iff MCP_GATEWAY_R2_UNSAFE_ALLOWED=1 at gateway startup.
+# Spawns r2 WITHOUT cfg.sandbox=true (Plan 03 sandbox=False driver kwarg).
+# WARN-level log on every open (D-11) for audit-trail visibility.
+# ----------------------------------------------------------------------------
+async def open_r2_session_unsafe(
+    case_dir: str,
+    sample: str,
+    *,
+    init_commands: Optional[list[str]] = None,
+    open_timeout: Optional[float] = None,
+) -> dict:
+    """Open an UNSANDBOXED r2 analysis session (use only when writes/plugins are required).
+
+    UNSAFE: r2's cfg.sandbox is DISABLED for this session. r2 commands can
+    run !shell escapes, open arbitrary files (including outside case_dir),
+    exec external processes, and write project files. Use the sandboxed
+    `open_r2_session` for triage and analysis; only reach for this tool
+    when you genuinely need r2 to write project files, load plugins, or
+    run external scripts.
+
+    Registered iff `MCP_GATEWAY_R2_UNSAFE_ALLOWED=1` at gateway startup.
+    Every open is logged at WARNING level.
+
+    Arguments mirror `open_r2_session`:
+        case_dir: case directory (validated via resolve_case_dir).
+        sample: sample reference -- sha256 or case-dir-relative path.
+        init_commands: optional list of r2 commands run AFTER the lockdown
+            init batch. The gateway's `_DANGEROUS_R2_CMD_RE` UX-layer regex
+            still applies (rejects '!' / 'R!' / '#!' prefixes) but the r2
+            sandbox is OFF inside the session, so other escape paths are
+            NOT blocked.
+        open_timeout: combined timeout (seconds) for spawn + lockdown +
+            init_commands. Defaults to MCP_GATEWAY_SESSION_OPEN_TIMEOUT_S.
+
+    Returns: dict with session_id, transcript_path, opened_at, max_sessions,
+    open_count, init_command_count, sample_sha256, sample_path, case_dir,
+    warnings=['r2 sandbox is DISABLED for this session']. On cap-exceeded:
+    returns the SessionCapReached error dict (shared cap with safe sessions).
+
+    Cap sharing (Q6): unsafe sessions share the SAME combined SessionRegistry
+    cap (MCP_GATEWAY_MAX_SESSIONS=8 by default) as safe r2 sessions + gdb
+    sessions. Closing any session frees one cap slot.
+
+    {_FULL_DISCLAIMER}
+    """
+    registry = _require_registry()
+    resolved_case = Path(resolve_case_dir(case_dir))
+    sample_path = Path(resolve_sample(sample))
+    sample_sha = hashlib.sha256(sample_path.read_bytes()).hexdigest()
+
+    # D-09 frozen regex still runs as the UX layer (defense in depth on the
+    # UNSAFE path -- the regex blocks the obvious '!' shell-escape commands
+    # even though cfg.sandbox is off inside the session).
+    for ic in (init_commands or []):
+        check_dangerous_cmd(ic)
+
+    timeout = open_timeout if open_timeout is not None else sessions.SESSION_OPEN_TIMEOUT_S
+
+    try:
+        sess = await registry.open(
+            case_dir=resolved_case,
+            sample_sha256=sample_sha,
+            sample_path=sample_path,
+            init_commands=init_commands,
+            open_timeout_s=timeout,
+            sandbox=False,
+        )
+    except SessionCapReached as e:
+        return e.to_dict()
+
+    # D-11: WARN-level audit log line. Fields: session_id, sample_sha256[:8],
+    # case_dir. Uses logger.warning (Pitfall 9: log.warn is deprecated).
+    log.warning(
+        "[r2_sessions] unsafe session opened: session_id=%s sample_sha256=%s case_dir=%s",
+        sess.session_id, sess.sample_sha256[:8], str(sess.case_dir),
+    )
+
+    return {
+        "session_id": sess.session_id,
+        "case_dir": str(sess.case_dir),
+        "sample_sha256": sess.sample_sha256,
+        "sample_path": str(sess.sample_path),
+        "transcript_path": str(sess.transcript_path.relative_to(sess.case_dir)),
+        "opened_at": sess.opened_iso,
+        "max_sessions": sessions.MAX_SESSIONS,
+        "open_count": len(registry.list()),
+        "init_command_count": len(init_commands or []),
+        "warnings": ["r2 sandbox is DISABLED for this session"],
+    }
+
+
+# Splice the FULL disclaimer into open_r2_session_unsafe.__doc__ post-definition
+# (matches the open_r2_session pattern at line 205-207).
+open_r2_session_unsafe.__doc__ = (open_r2_session_unsafe.__doc__ or "").replace(
+    "{_FULL_DISCLAIMER}", _SESS_05_DISCLAIMER_FULL
+)
+
+
+def register_unsafe(mcp: FastMCP) -> None:
+    """Register the env-gated unsafe-r2 tool. Called iff MCP_GATEWAY_R2_UNSAFE_ALLOWED=1."""
+    mcp.tool()(open_r2_session_unsafe)
+
+
+# ----------------------------------------------------------------------------
 # Phase 7 register-wrapper pattern (verified in tools/shell.py).
 # ----------------------------------------------------------------------------
 def register(mcp: FastMCP) -> None:
