@@ -69,3 +69,23 @@ __all__ = [
     "GdbSession", "GDB_OPEN_TIMEOUT_S", "GDB_CMD_TIMEOUT_S",
     "validate_mi_command",
 ]
+
+# Phase 14 D-02: ensure `mcp_gateway.sessions.r2` and `mcp_gateway.sessions.gdb`
+# remain accessible as PACKAGE ATTRIBUTES (e.g. `mcp_gateway.sessions.r2`)
+# after the reload sweep above runs. The explicit `from .r2 import ...` /
+# `from .gdb import ...` statements bind symbols from those submodules but do
+# not guarantee the submodule itself stays bound as a package attribute when
+# `importlib.reload(mcp_gateway.sessions._base)` is invoked from tests
+# (test_gdb_env_validates_bad_values pops `mcp_gateway.sessions` from
+# sys.modules in its cleanup, then re-imports; the re-import path triggers
+# this __init__ which previously did NOT re-establish r2/gdb attrs).
+#
+# `monkeypatch.setattr("mcp_gateway.sessions.r2._open_r2", ...)` in
+# tests/test_sessions_concurrency.py relies on this attribute being
+# present. The two assignments below restore Phase 8 behaviour explicitly.
+import sys as _sys
+
+if "mcp_gateway.sessions.r2" in _sys.modules:
+    _sys.modules[__name__].r2 = _sys.modules["mcp_gateway.sessions.r2"]
+if "mcp_gateway.sessions.gdb" in _sys.modules:
+    _sys.modules[__name__].gdb = _sys.modules["mcp_gateway.sessions.gdb"]
