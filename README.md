@@ -556,15 +556,61 @@ Environment variables read by the gateway (all optional):
     └── .mcp-gateway-token     # Auto-written; bearer token for remote mode
 ```
 
-## Security notes
+## Security boundaries
 
-- The gateway requires a bearer token on every `/mcp` and `/upload` request; `/healthz` is unauthenticated.
+The gateway exposes professional RE tooling over MCP. Treat every boundary below as a posture you actively maintain, not a sandbox you can lean on. The container itself runs with elevated capabilities (`SYS_PTRACE`, `seccomp=unconfined`) so debuggers and tracers work — that means the *external* boundary (bearer token + Origin check + localhost bind by default) is the strongest line of defense.
+
+### Network & Auth boundary
+
+- All `/mcp*` and `/upload` requests require `Authorization: Bearer <token>`; only `/healthz` is unauthenticated.
+- The token is generated per `--remote` start and written to `workspace/.mcp-gateway-token` (mode `0600`).
 - An Origin DNS-rebind middleware rejects cross-origin requests that don't match the bind host.
-- Default bind is `127.0.0.1:8080` (localhost only). Set `MCP_GATEWAY_HOST_BIND=0.0.0.0` only when you intentionally need LAN access, and consider a reverse proxy with TLS.
-- The container runs with elevated capabilities (`SYS_PTRACE`, `seccomp=unconfined`) for analysis tools — do NOT expose it to the public internet without a reverse proxy you trust.
-- `run_shell` runs as a non-root `mare-shell` UID with `--clear-groups --no-new-privs --inh-caps=-all`, but confinement is **posture**, not isolation. A determined attacker controlling the agent can still read the container's world-readable filesystem. Mount-namespace isolation and network egress controls are deferred to v1.2.
-- Disassembler licenses (IDA, Binary Ninja) live ONLY on the host bind mount; never baked into images.
-- `open_r2_session_unsafe` is opt-in via env var and audited via WARN log; treat it as a deliberate operator escape hatch.
+- Default bind is `127.0.0.1:8080` (localhost only). LAN exposure requires explicitly setting `MCP_GATEWAY_HOST_BIND=0.0.0.0`; pair with a reverse proxy + TLS before crossing a trust boundary.
+- No outbound network egress from `run_shell` or any static-wrapper subprocess — they don't dial out on behalf of the agent. The container shares the host network namespace, so the agent CAN reach the host LAN if it writes one of its own subprocesses, but the gateway tools themselves don't initiate connections.
+- **Dynamic-mode network policy:** when `--dynamic` is set, `run_strace` / `run_ltrace` / `run_qemu_user` / `open_gdb_session` each run their subprocess under `unshare --net --ipc --uts --` (per-call netns, no inherited host network). Network is unavailable inside dynamic tools by design; sandboxed-network mode (INetSim / FakeDNS) is v1.2.
+
+### Shell & subprocess boundary
+
+`run_shell` executes a bash one-liner with:
+
+- cwd PINNED to the active `case_dir` (resolved via `confine_to` — rejects NUL bytes, `..` traversal, and symlink escape)
+- a dedicated non-root `mare-shell` UID via `setpriv --reuid --regid --clear-groups --no-new-privs --inh-caps=-all`
+- env stripped of `MCP_GATEWAY_TOKEN`, API keys, and AWS credentials
+- a command-size cap (`MCP_GATEWAY_RUN_SHELL_MAX_CMD_BYTES` = 32 KiB) and an output preview cap (`MCP_GATEWAY_RUNNER_STDOUT_HEAD_KB`)
+- a hard wallclock timeout (`MCP_GATEWAY_RUNNER_DEFAULT_TIMEOUT_S` = 55 s)
+- process-group SIGKILL on timeout or cancel
+
+**Confinement is POSTURE, not isolation.** A determined attacker controlling the agent can still read the container's world-readable filesystem from inside `run_shell`. Mount-namespace isolation would require `CAP_SYS_ADMIN` and is deferred to v1.2.
+
+The same `ReToolRunner` chokepoint applies to every static wrapper (`run_file`, `run_die`, `run_readelf`, `run_objdump`, `run_nm`, `run_rabin2`, `run_capstone_disasm`, `run_ropper`, `run_xxd`, `run_jq`, `run_yq`), every job-driven tool (`capa`, `unblob`, `binwalk_extract`, `strace`, `ltrace`, `qemu_user`), and every session subprocess (`r2`, `gdb`). All argv-only spawn via `asyncio.create_subprocess_exec` with `start_new_session=True`; no `shell=True` anywhere.
+
+### r2 sandbox boundary
+
+- `open_r2_session` spawns r2 with `-e cfg.sandbox=true` injected via stdin BEFORE the sample is opened (r2's native one-way latch — cannot be disabled mid-session).
+- `_DANGEROUS_R2_CMD_RE` regex blocks `!` / `R!` / `#!` shell-escape prefixes at the wrapper layer as defense-in-depth. The SECURITY BOUNDARY lives on `cfg.sandbox`, not the regex — see HARDEN-05.
+- `open_r2_session_unsafe` (env-gated via `MCP_GATEWAY_R2_UNSAFE_ALLOWED=1`) spawns WITHOUT `cfg.sandbox`; every open emits a WARN-level audit log line; it shares the combined session cap.
+
+### gdb MI3 boundary (dynamic mode only)
+
+- `gdb_exec` is restricted to a 49-entry MI prefix allowlist (`-info-`, `-data-evaluate-expression`, `-stack-list-frames`, etc.).
+- A deny regex blocks `python` / `pi` / `-interpreter-exec console` / `source` / `shell` / `!` / `-target-select` / `attach` and 7 other vectors.
+- gdb argv NEVER includes `-iex` / `-ex` / `-x`.
+
+### Audit & capture boundary
+
+- Every subprocess invocation captures full stdout/stderr to `case_dir/tool-logs/<UTC>-<slug>-<rand4>.txt`; only a head-truncated preview is returned over MCP.
+- r2/gdb sessions write a per-command transcript line to `case_dir/r2-sessions/<sid>-transcript.log` and `case_dir/dynamic/gdb-<sid>-transcript.log` respectively.
+- Job log size is capped at `MCP_GATEWAY_MAX_JOB_LOG_MB` = 256 MB; over-cap jobs are killed with `status=killed_log_cap`.
+- In-flight jobs are killed on gateway shutdown (in-memory registry; no persistence by design).
+
+### Container capabilities (informational)
+
+- The container runs with `CAP_SYS_PTRACE` and `seccomp=unconfined` so analysis tools (gdb, strace, qemu-user, idalib) can attach to debuggees and emit syscalls.
+- **Do NOT expose the gateway port to the public internet without a reverse proxy you trust.** The default `127.0.0.1` bind exists for this reason.
+
+### Disassembler licensing
+
+- IDA Pro and Binary Ninja licenses live ONLY on the host bind mount; never baked into image layers (multi-stage build pattern in `Dockerfile`).
 
 ## License & licensing constraints
 
