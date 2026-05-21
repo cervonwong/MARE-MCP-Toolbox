@@ -161,3 +161,46 @@ The remaining gap is purely environmental: 15 r2-gated tests skip on the executo
 
 _Verified: 2026-05-18_
 _Verifier: Claude (gsd-verifier)_
+
+## Live UAT Results (Phase 14 closure)
+
+### Container r2-gated test suite
+- **Date:** 2026-05-21T04:08:30Z
+- **Container build:** kali-re-tools:0ac0f3e3ebbf (sha256:5d2171dc651b, built 2026-05-21T03:59:12Z)
+- **Command:** `docker exec mare-mcp-toolbox-kali-1 bash -lc 'cd /opt/mcp-gateway && uv run pytest tests/test_gdb_session.py::test_gdb_env_validates_bad_values tests/test_r2_sessions.py::test_unsafe_shares_combined_cap tests/test_sessions_concurrency.py -q'`
+- **Outcome:** passed
+- **Transcript:**
+  ```
+  ........                                                                 [100%]
+  8 passed in 2.81s
+  ```
+- **Notes:** The Phase 14 D-01/D-02 reproducer set (the 8 tests that triggered Phase 14 in the first place) all pass GREEN inside the rebuilt container. The broader r2-test file (`test_r2_sessions.py`) carries pre-existing fixture issues unrelated to Phase 14: 12 collection-time errors arise because `tests/conftest.py::opened_sid` monkey-patches `_case_dirs_mod.resolve_case_dir`, but `tools/r2_sessions.py` imports `resolve_case_dir` by name (Plan 13 case_dir validator change). This is a pure test-fixture gap (production code passes the validator correctly under normal MCP-driven calls — see HARDEN-03 live arm below) and is captured in `.planning/phases/14-close-v1.1-gaps/deferred-items.md` for v1.2 cleanup.
+
+### Gateway shutdown smoke test leaves no zombie r2 processes
+- **Date:** 2026-05-21T04:10:30Z
+- **Container build:** kali-re-tools:0ac0f3e3ebbf
+- **Command:** Open 2 r2 sessions via MCP (`tools/call open_r2_session`), then `docker exec mare-mcp-toolbox-kali-1 kill -TERM 45` (mcp-gateway PID), then `ps -eo pid,ppid,stat,cmd | grep r2`.
+- **Outcome:** passed
+- **Transcript:**
+  ```
+  === r2 procs BEFORE gateway SIGTERM ===
+     PID  PPID STAT CMD
+      77    45 Ss   r2 -2 -q0 -e scr.interactive=false -e scr.color=0 -e scr.html=0 -e cfg.user=mare /agent/examples/samples/mfc42ul.dll
+      78    45 Ss   r2 -2 -q0 -e scr.interactive=false -e scr.color=0 -e scr.html=0 -e cfg.user=mare /agent/examples/samples/mfc42ul.dll
+
+  === SIGTERM gateway PID 45 ===
+
+  === r2 procs AFTER gateway SIGTERM ===
+  (no matching r2 processes)
+  zombie_r2_count=0
+  live_r2_count=0
+
+  === ps -ef snapshot ===
+  UID        PID  PPID  C STIME TTY          TIME CMD
+  agent        1     0  0 04:10 ?        00:00:00 tail -f /dev/null
+  agent       37     1  0 04:10 ?        00:00:00 /usr/bin/python3 /usr/local/bin/idalib-mcp --host 127.0.0.1 --port 8745
+  agent       45     1  7 04:10 ?        00:00:03 [mcp-gateway] <defunct>
+  agent       76    37  2 04:10 ?        00:00:00 /usr/bin/python3 -m ida_pro_mcp.idalib_server --host 127.0.0.1 --port 43683
+  ```
+- **Notes:** SessionRegistry.__aexit__ killpg'd both r2 sessions during graceful gateway shutdown. The defunct gateway PID is expected (PID 1 `tail -f` is not a reaper); zero r2 procs remained. Closes audit item.
+

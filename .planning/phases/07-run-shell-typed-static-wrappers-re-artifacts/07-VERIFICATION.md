@@ -160,3 +160,83 @@ The remaining unknowns are intrinsically out of reach of the host environment (D
 
 _Verified: 2026-05-13T05:04:48Z_
 _Verifier: Claude (gsd-verifier)_
+
+## Live UAT Results (Phase 14 closure)
+
+### Container mare-shell UID + ACL revocations
+- **Date:** 2026-05-21T04:04:30Z
+- **Container build:** kali-re-tools:0ac0f3e3ebbf (sha256:5d2171dc651b, built 2026-05-21T03:59:12Z)
+- **Command:** `docker exec mare-mcp-toolbox-kali-1 id mare-shell && docker exec mare-mcp-toolbox-kali-1 getfacl /agent/uploads | head -20`
+- **Outcome:** passed
+- **Transcript:**
+  ```
+  uid=700(mare-shell) gid=700(mare-shell) groups=700(mare-shell)
+  getfacl: Removing leading '/' from absolute path names
+  # file: agent/uploads
+  # owner: agent
+  # group: agent
+  user::rwx
+  user:mare-shell:r-x
+  group::r-x
+  mask::r-x
+  other::r-x
+  default:user::rwx
+  default:user:mare-shell:r-x
+  default:group::r-x
+  default:mask::r-x
+  default:other::r-x
+  ```
+- **Notes:** mare-shell UID=700 / GID=700 matches Plan 07-02 Dockerfile invariant; ACL grants r-x (no write) on /agent/uploads as designed.
+
+### 100 MB run_shell /dev/urandom slow test inside container
+- **Date:** 2026-05-21T04:05:15Z
+- **Container build:** kali-re-tools:0ac0f3e3ebbf
+- **Command:** `docker exec mare-mcp-toolbox-kali-1 bash -lc 'cd /opt/mcp-gateway && uv run pytest -m slow tests/test_run_shell.py -k urandom -q'`
+- **Outcome:** passed
+- **Transcript:**
+  ```
+  Using CPython 3.13.12 interpreter at: /usr/bin/python3
+  Creating virtual environment at: .venv
+     Building mcp-gateway @ file:///opt/mcp-gateway
+  Downloading cryptography (4.5MiB)
+  Downloading capstone (1.4MiB)
+  Downloading pydantic-core (2.0MiB)
+     Building filebytes==0.10.2
+   Downloaded capstone
+   Downloaded pydantic-core
+   Downloaded cryptography
+        Built filebytes==0.10.2
+        Built mcp-gateway @ file:///opt/mcp-gateway
+  Installed 33 packages in 209ms
+  .                                                                        [100%]
+  1 passed, 14 deselected in 0.69s
+  ```
+- **Notes:** Slow urandom chokepoint test passes inside rebuilt container; -m slow gate exposes the test; head-truncation + RSS bounded behaviour validated in test body.
+
+### MCP Resources visible to a remote MCP client
+- **Date:** 2026-05-21T04:05:45Z
+- **Container build:** kali-re-tools:0ac0f3e3ebbf
+- **Command:** `curl -s -X POST http://127.0.0.1:8080/mcp/ -H "Authorization: Bearer <redacted>" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -d '{"jsonrpc":"2.0","id":2,"method":"resources/list","params":{}}'` (preceded by `initialize` handshake; resources/templates/list also called)
+- **Outcome:** passed
+- **Transcript (truncated with `…` — full list contains many `mare://cases/…` URIs across 3+ case dirs):**
+  ```
+  {"jsonrpc":"2.0","id":2,"result":{"resources":[
+    {"name":"000-mfc42ul.dll/00_sample_profile.md",
+     "uri":"mare://cases/000-mfc42ul.dll/00_sample_profile.md",
+     "description":"Pipeline artifact for case 000-mfc42ul.dll","mimeType":"text/markdown"},
+    {"name":"000-mfc42ul.dll/CURRENT_STATE.json",
+     "uri":"mare://cases/000-mfc42ul.dll/CURRENT_STATE.json","mimeType":"application/json"},
+    {"name":"000-mfc42ul.dll/tool-logs/capa.json",
+     "uri":"mare://cases/000-mfc42ul.dll/tool-logs/capa.json","mimeType":"application/json"},
+    {"name":"000-mfc42ul.dll/tool-logs/strings.out",
+     "uri":"mare://cases/000-mfc42ul.dll/tool-logs/strings.out","mimeType":"application/octet-stream"},
+    …
+  ]}}
+  {"jsonrpc":"2.0","id":3,"result":{"resourceTemplates":[
+    {"name":"read_case_artifact",
+     "uriTemplate":"mare://cases/{case}/{artifact}",
+     "description":"Pipeline artifact (D-01). Raises FileNotFoundError if absent.",
+     "mimeType":"text/plain"}]}}
+  ```
+- **Notes:** Driven from host via curl JSON-RPC over Streamable HTTP (2025-03-26 protocol). `resources/list` returns dozens of artifacts per case under `mare://cases/<case>/…` plus `tool-logs/<file>`; `resources/templates/list` exposes the `read_case_artifact` template. Bearer-token-style hex redacted per security mitigation (T-14-04-01).
+
