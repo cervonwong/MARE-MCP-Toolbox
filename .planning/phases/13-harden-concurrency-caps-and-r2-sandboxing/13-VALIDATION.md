@@ -2,7 +2,7 @@
 phase: 13
 slug: harden-concurrency-caps-and-r2-sandboxing
 status: draft
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-05-20
 ---

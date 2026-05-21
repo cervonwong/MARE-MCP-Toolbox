@@ -21,11 +21,11 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 
 ### v1.1 Remote RE Tool Expansion
 
-- [ ] **Phase 5: F-1 Image-Hash Fix** — Extend `run_docker.sh` content-hash to include `mcp-gateway/` so gateway-package edits trigger image rebuild
-- [ ] **Phase 6: ReToolRunner + artifacts_io Foundation** — Single argv-only subprocess execution path with cwd-confinement, process-group cleanup, output capture, and the canonical `confine_to` helper
-- [ ] **Phase 7: run_shell + Typed Static Wrappers + re_artifacts** — Constrained bash one-liner, 12 typed static RE tool wrappers, expanded case-dir artifact tree, and artifact control helpers
-- [ ] **Phase 8: Session-Scoped r2** — Persistent r2 analysis sessions with idle reaper, session cap, and dangerous-command refusal
-- [ ] **Phase 9: Background Job System** — `start_tool_job`/`get_tool_job`/`cancel_tool_job` for long-running tools that exceed the 60 s MCP request cap
+- [x] **Phase 5: F-1 Image-Hash Fix** — Extend `run_docker.sh` content-hash to include `mcp-gateway/` so gateway-package edits trigger image rebuild
+- [x] **Phase 6: ReToolRunner + artifacts_io Foundation** — Single argv-only subprocess execution path with cwd-confinement, process-group cleanup, output capture, and the canonical `confine_to` helper
+- [x] **Phase 7: run_shell + Typed Static Wrappers + re_artifacts** — Constrained bash one-liner, 12 typed static RE tool wrappers, expanded case-dir artifact tree, and artifact control helpers
+- [x] **Phase 8: Session-Scoped r2** — Persistent r2 analysis sessions with idle reaper, session cap, and dangerous-command refusal
+- [x] **Phase 9: Background Job System** — `start_tool_job`/`get_tool_job`/`cancel_tool_job` for long-running tools that exceed the 60 s MCP request cap
 - [x] **Phase 10: Extraction Tier** — `run_unblob`, `run_binwalk`, UPX wrappers, child-file enumeration, and `promote_extracted_sample` (completed 2026-05-19)
 - [x] **Phase 11: Dynamic Lab Mode (env-gated)** — `run_strace`/`run_ltrace`/`run_qemu_user` + session-scoped gdb, default-off via `MCP_GATEWAY_DYNAMIC_TOOLS=1` (completed 2026-05-20)
 - [x] **Phase 12: Orchestrator Skill Update** — Update `malware-analysis-orchestrator` to encode v1.1 tool surface, fix backend priority drift, and preserve dual-mode operation (completed 2026-05-20; gap closure 12-05 in flight)
@@ -181,11 +181,11 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 2. MCP Gateway                 | v1.0      | 5/5   | Complete    | 2026-04-27 |
 | 3. Container Integration       | v1.0      | 1/1   | Complete    | 2026-04-27 |
 | 4. External Client Integration | v1.0      | 7/7   | Complete    | 2026-04-27 |
-| 5. F-1 Image-Hash Fix          | v1.1      | 0/3   | Not started | -          |
-| 6. ReToolRunner Foundation     | v1.1      | 0/3   | Not started | -          |
-| 7. run_shell + Static Wrappers | v1.1      | 0/?   | Not started | -          |
-| 8. Session-Scoped r2           | v1.1      | 0/5   | Not started | -          |
-| 9. Background Job System       | v1.1      | 0/?   | Not started | -          |
+| 5. F-1 Image-Hash Fix          | v1.1      | 3/3   | Complete    | 2026-05-12 |
+| 6. ReToolRunner Foundation     | v1.1      | 3/3   | Complete    | 2026-05-13 |
+| 7. run_shell + Static Wrappers | v1.1      | 8/8   | Complete    | 2026-05-13 |
+| 8. Session-Scoped r2           | v1.1      | 5/5   | Complete    | 2026-05-18 |
+| 9. Background Job System       | v1.1      | 5/5   | Complete    | 2026-05-19 |
 | 10. Extraction Tier            | v1.1      | 5/5 | Complete    | 2026-05-19 |
 | 11. Dynamic Lab Mode           | v1.1      | 6/6 | Complete    | 2026-05-20 |
 | 12. Orchestrator Skill Update  | v1.1      | 5/5 | Complete    | 2026-05-20 |
