@@ -30,7 +30,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 - [x] **Phase 11: Dynamic Lab Mode (env-gated)** — `run_strace`/`run_ltrace`/`run_qemu_user` + session-scoped gdb, default-off via `MCP_GATEWAY_DYNAMIC_TOOLS=1` (completed 2026-05-20)
 - [x] **Phase 12: Orchestrator Skill Update** — Update `malware-analysis-orchestrator` to encode v1.1 tool surface, fix backend priority drift, and preserve dual-mode operation (completed 2026-05-20; gap closure 12-05 in flight)
 - [x] **Phase 13: Harden concurrency caps and r2 sandboxing** — Atomic session/job cap enforcement via `asyncio.BoundedSemaphore` and r2 `cfg.sandbox=true` argv (completed 2026-05-20; 9/9 reqs verified at code/test level; live container UAT pending)
-- [ ] **Phase 14: Close v1.1 Milestone Gaps** — Single closure phase that fixes the full-suite test-order failures, syncs all planning-state drift (REQUIREMENTS.md traceability for HARDEN/SESS-CAP/JOBS-CAP, ROADMAP progress table, STATE.md, VALIDATION.md frontmatter), and executes the 15 outstanding container/live UAT items so v1.1 can archive
+- [x] **Phase 14: Close v1.1 Milestone Gaps** — Single closure phase that fixes the full-suite test-order failures, syncs all planning-state drift (REQUIREMENTS.md traceability for HARDEN/SESS-CAP/JOBS-CAP, ROADMAP progress table, STATE.md, VALIDATION.md frontmatter), and executes the 15 outstanding container/live UAT items so v1.1 can archive (completed 2026-05-21)
 
 ## Phase Details
 
@@ -190,7 +190,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 11. Dynamic Lab Mode           | v1.1      | 6/6 | Complete    | 2026-05-20 |
 | 12. Orchestrator Skill Update  | v1.1      | 5/5 | Complete    | 2026-05-20 |
 | 13. Hardening + r2 Sandboxing  | v1.1      | 4/4 | Complete    | 2026-05-20 |
-| 14. Close v1.1 Gaps            | v1.1      | 3/4 | In Progress|  |
+| 14. Close v1.1 Gaps            | v1.1      | 4/4 | Complete    | 2026-05-21 |
 
 ### Phase 13: Harden concurrency caps and r2 sandboxing
 
@@ -226,4 +226,4 @@ Plans:
   - [x] 14-01-PLAN.md — Test-suite fixes (D-01 r2_sessions module-attribute catch, D-02 sessions package-attribute re-bind, D-04 ACL test container-only skipif, D-03 full-suite acceptance gate)
   - [x] 14-02-PLAN.md — REQUIREMENTS.md sync (D-05 + D-06 + D-07 + D-08; 14 checkbox flips + 14 traceability row updates)
   - [x] 14-03-PLAN.md — ROADMAP / STATE / VALIDATION sync (D-09 progress table + dates, D-10 STATE body, D-11 nyquist flags for phases 5/6/12/13)
-  - [ ] 14-04-PLAN.md — Live container UAT + audit re-run gate (D-12/D-13 15 items across phases 7/8/10/11/13 + D-14 /gsd-audit-milestone success oracle)
+  - [x] 14-04-PLAN.md — Live container UAT + audit re-run gate (D-12/D-13 15 items across phases 7/8/10/11/13 + D-14 /gsd-audit-milestone success oracle)
