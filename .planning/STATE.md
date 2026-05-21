@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: executing
-stopped_at: Completed 14-01-PLAN.md (closed D-01/D-02/D-04 test-order regressions; pytest -m 'not slow' green at 595 passed, 0 failed)
-last_updated: "2026-05-21T03:15:35.832Z"
+stopped_at: "Completed 14-02-PLAN.md (REQUIREMENTS.md traceability sync: 14 checkbox flips, 14 row updates, coverage 61/61 preserved)"
+last_updated: "2026-05-21T03:21:09.907Z"
 last_activity: 2026-05-21
 progress:
   total_phases: 9
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 Remote RE Tool Expansion 
 
 Milestone: v1.1 Remote RE Tool Expansion
 Phase: 14 (close-v1.1-gaps) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-05-21
 
@@ -173,6 +173,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 13]: Plan 13-04: Q6 combined-cap sharing — unsafe path uses same SessionRegistry._sem as safe + gdb; tool-count surface 54/55/61/62 across (dynamic × unsafe) axis
 - [Phase 14]: Phase 14 Plan 01: D-01 fix required sys.modules refetch (Rule-1 deviation) inside open_r2_session and open_r2_session_unsafe — plain except sessions.SessionCapReached against the import-time package binding still resolved to a stale class after sys.modules.pop+reimport in test_gdb_env_validates_bad_values; rebinding sessions = sys.modules['mcp_gateway.sessions'] before each try makes the catch reload-safe.
 - [Phase 14]: Phase 14 Plan 01: D-04 acceptance-grep collision forced removing literal pytest.mark.skipif from the assert-message docstring (regex dot matched any char); rewrote as 'skips via the skipif decorator above.' to keep the decorator on line 23 as sole grep match.
+- [Phase 14]: Plan 14-02 deferred a 47-row traceability sweep (out of plan scope per ≤50-line diff bound); follow-up tracked in .planning/phases/14-close-v1.1-gaps/deferred-items.md
 
 ### Roadmap Evolution
 
@@ -253,9 +254,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | Phase 13 P03 | 421s | 3 tasks | 5 files |
 | Phase 13 P04 | 455s | 2 tasks | 5 files |
 | Phase 14 P01 | 8min 43s | 4 tasks | 3 files |
+| Phase 14 P02 | 2min | 3 tasks | 1 files |
 
 ## Session Continuity
 
-Last session: 2026-05-21T03:15:35.822Z
-Stopped at: Completed 14-01-PLAN.md (closed D-01/D-02/D-04 test-order regressions; pytest -m 'not slow' green at 595 passed, 0 failed)
+Last session: 2026-05-21T03:21:09.893Z
+Stopped at: Completed 14-02-PLAN.md (REQUIREMENTS.md traceability sync: 14 checkbox flips, 14 row updates, coverage 61/61 preserved)
 Resume file: None
