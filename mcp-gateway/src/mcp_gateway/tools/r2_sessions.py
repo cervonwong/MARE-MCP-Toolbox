@@ -19,6 +19,7 @@ import hashlib
 import json
 import logging
 import os
+import signal
 import sys
 import time
 from pathlib import Path
@@ -270,8 +271,33 @@ async def r2_cmd(
     # D-10: append 'j' if format='json' and cmd doesn't already end in 'j'.
     sent_cmd = cmd + "j" if (format == "json" and not _ends_in_j(cmd)) else cmd
 
-    async with sess.lock:
-        raw_bytes, timed_out = await sess.exec_one(sent_cmd, timeout=resolved_timeout)
+    # Phase 8 D-20 step d + Pitfall 18: on asyncio.CancelledError, killpg the
+    # r2 subprocess synchronously BEFORE re-raising. Mirrors runner.py:268-275's
+    # canonical pattern: the synchronous os.killpg is what guarantees the r2
+    # process is signalled before the cancel propagates back to the caller --
+    # an `await` inside the except handler is not reliable because the outer
+    # task is already cancelling. The shielded proc.wait() ensures the process
+    # is reaped (Pitfall 18). The full registry.close() (transcript footer +
+    # semaphore release) is fired-and-forgotten via a background task so it
+    # cannot be cancelled by the outer cancel cascade.
+    try:
+        async with sess.lock:
+            raw_bytes, timed_out = await sess.exec_one(sent_cmd, timeout=resolved_timeout)
+    except asyncio.CancelledError:
+        try:
+            os.killpg(sess.pgid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+        try:
+            await asyncio.shield(sess.proc.wait())
+        except Exception:
+            pass
+        # Schedule the full registry close (transcript footer + semaphore release)
+        # as a background task so it survives the cancel cascade. We cannot await
+        # it here because we are already inside a cancelled task -- any await
+        # would re-raise CancelledError immediately.
+        asyncio.ensure_future(registry.close(session_id, reason="cancelled"))
+        raise
 
     if timed_out:
         await registry.close(session_id, reason="timeout")

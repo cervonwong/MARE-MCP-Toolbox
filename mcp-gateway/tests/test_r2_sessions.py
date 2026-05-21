@@ -334,15 +334,29 @@ async def test_hung_cmd_kills_session(opened_sid, monkeypatch):
 # Pitfall 18 — cancellation propagates to killpg within 200 ms
 # ============================================================================
 @pytest.mark.asyncio
-async def test_cancel_propagates_to_killpg(opened_sid):
-    """Pitfall 18: wrap r2_cmd('aaaa') in a task, cancel after 0.5s, assert r2 PID dead within 200ms."""
+async def test_cancel_propagates_to_killpg(opened_sid, monkeypatch):
+    """Pitfall 18 + Phase 8 D-20 step d: on asyncio.CancelledError mid-r2_cmd,
+    the r2 subprocess must be killpg'd within 200ms of the cancel.
+
+    Uses injection (monkey-patches exec_one to hang) so the cancel reliably
+    arrives during the await. The previous trigger (`aaaa` against the small
+    ELF fixture) completed in ~6ms on r2 6.0.5 — well before the 500ms cancel
+    fired — so the production CancelledError handler was never exercised.
+    """
     sid, reg, _case = opened_sid
-    # Capture the r2 PID BEFORE issuing aaaa, so we can verify it dies post-cancel.
     sess_obj = reg.get(sid)
     pid = sess_obj.proc.pid
 
+    async def _hang_exec_one(cmd, *, timeout):
+        # Block long enough that the cancel below reliably interrupts us.
+        await asyncio.sleep(60)
+        return (b"", False)
+
+    monkeypatch.setattr(sess_obj, "exec_one", _hang_exec_one)
+
     task = asyncio.create_task(r2_sessions.r2_cmd(sid, "aaaa", timeout=60.0))
-    await asyncio.sleep(0.5)
+    # Give the task a moment to enter sess.exec_one's await before cancelling.
+    await asyncio.sleep(0.1)
     task.cancel()
     try:
         await task
