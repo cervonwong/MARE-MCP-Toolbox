@@ -4,7 +4,7 @@ milestone: v1.1
 milestone_name: Remote RE Tool Expansion
 status: verifying
 stopped_at: Completed 13-04-PLAN.md (env-gated open_r2_session_unsafe + WARN-log + Q6 shared cap)
-last_updated: "2026-05-21T00:41:27.743Z"
+last_updated: "2026-05-21T01:29:30.489Z"
 last_activity: 2026-05-21
 progress:
   total_phases: 9
@@ -12,6 +12,7 @@ progress:
   total_plans: 44
   completed_plans: 44
   percent: 100
+last_quick_task: 260521-d6l
 ---
 
 # Project State
@@ -29,7 +30,7 @@ Milestone: v1.1 Remote RE Tool Expansion
 Phase: 13 (harden-concurrency-caps-and-r2-sandboxing) — EXECUTING
 Plan: 4 of 4
 Status: Phase complete — ready for verification
-Last activity: 2026-05-21
+Last activity: 2026-05-21 - Completed quick task 260521-d6l: Phase 13 hot-fix r2 sandbox latching via stdin instead of argv
 
 Progress: [          ] 0% (0/8 phases complete)
 
@@ -205,6 +206,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | 260511-evu | Make the Mastra starter provide a browser GUI in addition to the existing CLI, and verify by opening the GUI | 2026-05-11 | uncommitted | [260511-evu-make-the-mastra-starter-provide-a-browse](./quick/260511-evu-make-the-mastra-starter-provide-a-browse/) |
 | 260511-fam | Switch the Mastra starter GUI to the default Mastra Studio dashboard with a registered MARE agent and tools | 2026-05-11 | uncommitted | [260511-fam-switch-the-mastra-starter-gui-to-the-def](./quick/260511-fam-switch-the-mastra-starter-gui-to-the-def/) |
 | 260520-sync-codex-malware-skill | Sync Codex malware-analysis-orchestrator skill with the v1.1 Claude source and add drift tests | 2026-05-20 | uncommitted | [260520-sync-codex-malware-skill](./quick/260520-sync-codex-malware-skill/) |
+| 260521-d6l | Phase 13 hot-fix: r2 sandbox latching via stdin instead of argv | 2026-05-21 | d696a72 | [260521-d6l-phase-13-hot-fix-r2-sandbox-latching-via](./quick/260521-d6l-phase-13-hot-fix-r2-sandbox-latching-via/) |
 | Phase 05-f-1-image-hash-fix P01 | 2min | 1 tasks | 1 files |
 | Phase 05-f-1-image-hash-fix P02 | 100s | 2 tasks | 2 files |
 | Phase 05-f-1-image-hash-fix P03 | 87s | 1 tasks | 1 files |

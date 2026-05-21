@@ -90,21 +90,11 @@ env-gated tool surface for callers that legitimately need writes or plugins.
 
 ### r2 sandboxing (Track B)
 
-- **D-07:** **Sandbox enforced via argv `-e` flags, not init-batch lines.**
-  Update r2 spawn in `sessions/r2.py::_open_r2` from
-  ```
-  r2 -2 -q0 <sample>
-  ```
-  to
-  ```
-  r2 -2 -q0 -e cfg.sandbox=true <sample>
-  ```
-  Rationale: r2 processes `-e` BEFORE opening the binary, so the sandbox is
-  active before any binary metadata (e.g., autoload hooks) can execute.
-  Init-batch lines (current location of `scr.interactive=false` etc.) run
-  AFTER `-q0` opens the binary — too late for sandbox to protect open-time
-  surface. Argv is also visible in `ps` and audit logs so operators can
-  verify sandbox is on without running r2 commands.
+- **D-07 (HOT-FIX 2026-05-21):** **Sandbox latched as the FIRST line of the post-spawn stdin init batch, NOT via argv `-e` flag.** Update r2 spawn in `sessions/r2.py::_open_r2` so that, when `sandbox=True`, the post-spawn stdin batch begins with `e cfg.sandbox=true` BEFORE the sentinel emit and BEFORE any user-controlled command (including init_commands). The r2 argv carries `-e` flags for non-security configuration only (`scr.interactive=false`, `scr.color=0`, `scr.html=0`, `cfg.user=mare`) — these are safe to apply pre-open and are convenient to set there.
+
+  **Rationale (revised 2026-05-21):** the original D-07 wording specified `-e cfg.sandbox=true` in argv on the theory that r2 processes `-e` BEFORE opening the binary, making the sandbox active before binary autoload hooks. Empirical in-container probe against the bundled Kali r2 6.0.5 (log.level=4) showed that `-e cfg.sandbox=true` in argv causes `r_core_file_open` to refuse to open the binary ITSELF: `ERROR: Cannot open '/bin/ls'`. The argv path is therefore unusable in r2 6.0.5 — every `open_r2_session` call against a real sample fails at spawn time. Post-spawn-stdin latching preserves the security boundary (sandbox engages BEFORE any user-controlled command) while letting the binary open. The change does NOT widen any window for binary autoload hooks because, by D-09, the gateway controls every byte that reaches r2's stdin (no `!`/`R!`/`#!` reaches the parser before the sandbox latches, and init_commands are validated AND executed AFTER the latch).
+
+  See **D-21** for the empirical evidence and the boundary-preservation analysis.
 
 - **D-08:** **No `cfg.sandbox.grain` override — rely on `cfg.sandbox=true`
   default behavior.** [Resolved 2026-05-20 after Phase 13 research]
@@ -185,6 +175,16 @@ env-gated tool surface for callers that legitimately need writes or plugins.
   the kind enum with a security-bit; keeps the kind axis (`r2`/`gdb`)
   orthogonal to the sandbox axis.
 
+- **D-21 (HOT-FIX 2026-05-21):** **r2 6.0.5 is incompatible with argv-time `cfg.sandbox=true` latching.** Documented for future agents reading the codebase or planning v1.2+ changes.
+
+  **Empirical evidence (in-container probe, log.level=4):** running `r2 -2 -q0 -e log.level=4 -e cfg.sandbox=true /bin/ls` against the bundled Kali r2 6.0.5 produced `ERROR: Cannot open '/bin/ls'` from `r_core_file_open`. The same command with `-e cfg.sandbox=true` omitted opens `/bin/ls` cleanly. The cause is that r2 6.0.5 latches `cfg.sandbox` at argv-evaluation time AND the sandbox guards `r_sandbox_grain[R_SANDBOX_GRAIN_FILES]` runs at the FIRST `r_core_file_open` call — which targets the binary being analyzed. There is no grain value (verified across `none`/`disk`/`files`/`exec`/`io`/`disk-read`) that admits opening the sample without also admitting other file-open paths the sandbox is meant to block.
+
+  **Mitigation (this hot-fix):** move `e cfg.sandbox=true` to the FIRST line of the post-spawn stdin init batch. The binary opens unsandboxed; the sandbox engages BEFORE any user-controlled command (sentinel emit happens AFTER the latch in the init batch; init_commands are validated by `_DANGEROUS_R2_CMD_RE` BEFORE write AND executed AFTER the latch). The Phase 13 security boundary is preserved: no analyst-driven r2 input ever runs unsandboxed.
+
+  **What this is NOT:** this is NOT a relaxation of the security boundary. The window between binary-open and sandbox-latch is gateway-controlled (no user bytes reach r2's stdin in that window). It is also NOT a regression from Phase 13's "argv-eval-time boundary" framing — that framing was based on r2 documentation; reality (r2 6.0.5 behaviour) requires post-spawn latching to function at all.
+
+  **Forward-compatibility:** if a future r2 release decouples `r_core_file_open` from the sandbox grain check (e.g., adds a `cfg.sandbox.target=true` or makes the sample-open a privileged operation), the argv path can be revisited. Until then, D-07's revised "post-spawn first-line latch" is the canonical contract.
+
 ### Claude's Discretion
 
 - Failure-cleanup test matrix (D-02): Claude picks the exact pytest
@@ -219,7 +219,8 @@ None — no pending todos matched this phase's scope.
   `files`, `exec`, `io`, `disk-read`. `disk,files,exec,io` is the canonical
   "no escape" recipe.
 - `r2 -h` output — confirms `-e key=val` is processed BEFORE binary open
-  (researcher must verify with the container's r2 version)
+  (researcher must verify with the container's r2 version).
+  **Note (D-21):** in r2 6.0.5 the `-e` processing happens at argv-eval time, but `cfg.sandbox=true` set there causes `r_core_file_open` to refuse the sample itself. Latch via post-spawn stdin instead.
 
 ### Prior-phase decisions to read (concurrency primitive context)
 

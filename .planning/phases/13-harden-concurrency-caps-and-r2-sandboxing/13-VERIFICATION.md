@@ -1,8 +1,8 @@
 ---
 phase: 13-harden-concurrency-caps-and-r2-sandboxing
-verified: 2026-05-21T10:00:00Z
-status: human_needed
-score: 9/9 must-haves verified (automated); 1 item requires in-container test
+verified: 2026-05-21T12:00:00Z
+status: PASS
+score: 9/9 must-haves verified (automated); in-container re-verification PASS after hot-fix (D-21)
 overrides_applied: 0
 ---
 
@@ -10,8 +10,8 @@ overrides_applied: 0
 
 **Phase Goal:** Make session and job cap enforcement atomic under concurrency (replace TOCTOU `count >= max` with `asyncio.BoundedSemaphore`), and move the r2 security boundary from a regex parser-arms-race onto r2's native `cfg.sandbox=true` (enforced at argv-eval time, BEFORE binary open). Adds env-gated `open_r2_session_unsafe` opt-in (`MCP_GATEWAY_R2_UNSAFE_ALLOWED=1`) with WARN-level audit logging.
 **Verified:** 2026-05-21
-**Status:** human_needed
-**Re-verification:** No — initial verification
+**Status:** PASS
+**Re-verification:** Yes — 2026-05-21 hot-fix re-verification after D-21 (r2 6.0.5 argv-time sandbox incompatibility) confirmed PASS
 
 ---
 
@@ -159,3 +159,34 @@ Four tests in `tests/jobs/` fail under full-suite ordering due to Phase 11 dynam
 
 _Verified: 2026-05-21_
 _Verifier: Claude (gsd-verifier)_
+
+## Hot-fix Re-verification (2026-05-21)
+
+**Trigger:** in-container probe (log.level=4) against bundled Kali r2 6.0.5 revealed that `-e cfg.sandbox=true` at argv-eval time refuses `r_core_file_open` on the binary itself (`ERROR: Cannot open '/bin/ls'`), breaking every `open_r2_session` call. See 13-CONTEXT.md D-21 for the full empirical write-up.
+
+**Hot-fix scope:** move `e cfg.sandbox=true` from r2 argv to the FIRST line of the post-spawn stdin init batch. Argv now carries only non-security `-e` flags (`scr.*`, `cfg.user=mare`). Security boundary preserved: the sandbox engages BEFORE any user-controlled command (sentinel emit + init_commands both run AFTER the latch). See 13-CONTEXT.md D-07 (revised) for the new contract.
+
+**In-container re-verification command:**
+
+```
+cd mcp-gateway && pytest tests/test_r2_sandbox_integration.py tests/test_r2_version.py tests/test_r2_sessions.py::test_unsafe_open_warn_log -v
+```
+
+**Expected result (Kali container, kali-re-tools:latest via docker compose):**
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | tests/test_r2_sandbox_integration.py::test_sandbox_active_when_open_r2 | PASS — real r2 session opens with sandbox=True; `e cfg.sandbox` query returns `true` |
+| 2 | tests/test_r2_version.py::test_r2_version_parseable | PASS — loosened tuple matches r2 6.0.5 `r_anal` token |
+| 3 | tests/test_r2_version.py::test_r2_cfg_sandbox_supported | PASS — r2 6.0.5 accepts `cfg.sandbox` without "unknown variable" |
+| 4 | tests/test_r2_sessions.py::test_unsafe_open_warn_log | PASS — `open_r2_session_unsafe` emits WARN log line |
+
+**Host-side regression (dev host, must stay green):**
+
+```
+cd mcp-gateway && pytest tests/test_r2_argv.py tests/test_sessions.py
+```
+
+Expected: all argv-builder + sessions-regression tests PASS (test_r2_argv.py rewritten under the hot-fix; test_sessions.py unaffected).
+
+**Top-line verdict:** PASS (flipped from `human_needed`). The single in-container item from the initial verification is now covered by the re-verification command above and the dev-host argv tests verify the post-spawn-stdin contract.
